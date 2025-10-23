@@ -22,22 +22,22 @@ use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::preheat_cache::PreheatCache;
 use crate::library::results::{HttmError, HttmResult};
 use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
+use hashbrown::HashMap;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
-    inner: BTreeMap<PathData, Vec<PathData>>,
+    inner: HashMap<PathData, Vec<PathData>>,
 }
 
-impl From<BTreeMap<PathData, Vec<PathData>>> for VersionsMap {
-    fn from(map: BTreeMap<PathData, Vec<PathData>>) -> Self {
+impl From<HashMap<PathData, Vec<PathData>>> for VersionsMap {
+    fn from(map: HashMap<PathData, Vec<PathData>>) -> Self {
         Self { inner: map }
     }
 }
@@ -51,7 +51,7 @@ impl From<[(PathData, Vec<PathData>); 1]> for VersionsMap {
 }
 
 impl Deref for VersionsMap {
-    type Target = BTreeMap<PathData, Vec<PathData>>;
+    type Target = HashMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -59,7 +59,7 @@ impl Deref for VersionsMap {
 }
 
 impl DerefMut for VersionsMap {
-    fn deref_mut(&mut self) -> &mut BTreeMap<PathData, Vec<PathData>> {
+    fn deref_mut(&mut self) -> &mut HashMap<PathData, Vec<PathData>> {
         &mut self.inner
     }
 }
@@ -70,7 +70,7 @@ impl VersionsMap {
             Self::from_one_path(config, &path_set[0])
                 .into_iter()
                 .map(|v| v.into_inner())
-                .collect::<BTreeMap<PathData, Vec<PathData>>>()
+                .collect::<HashMap<PathData, Vec<PathData>>>()
                 .into()
         } else {
             Self::from_many_paths(config, path_set).into()
@@ -97,10 +97,7 @@ impl VersionsMap {
     }
 
     #[inline(always)]
-    fn from_many_paths(
-        config: &Config,
-        path_set: &[PathData],
-    ) -> BTreeMap<PathData, Vec<PathData>> {
+    fn from_many_paths(config: &Config, path_set: &[PathData]) -> HashMap<PathData, Vec<PathData>> {
         path_set
             .par_iter()
             .flat_map(|path_data| Self::from_one_path(config, path_data))

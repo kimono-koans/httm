@@ -25,6 +25,7 @@ use crate::filesystem::mounts::{
 use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::find_common_path;
 use std::borrow::Cow;
+use std::ops::Deref;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -58,7 +59,7 @@ impl FilesystemInfo {
             None
         } else {
             MapOfAliases::new(
-                &base_fs_info.map_of_datasets,
+                base_fs_info.map_of_datasets.deref(),
                 opt_raw_aliases,
                 opt_remote_dir,
                 opt_local_dir,

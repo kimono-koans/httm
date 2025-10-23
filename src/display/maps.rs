@@ -20,26 +20,26 @@ use crate::data::paths::{PathData, ZfsSnapPathGuard};
 use crate::display::versions::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
 use crate::library::utility::delimiter;
 use crate::{GLOBAL_CONFIG, MountsForFiles, SnapNameMap, VersionsMap};
+use hashbrown::HashMap;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use std::collections::BTreeMap;
 use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct PrintAsMap {
-    inner: BTreeMap<String, Vec<String>>,
+    inner: HashMap<String, Vec<String>>,
 }
 
 impl Deref for PrintAsMap {
-    type Target = BTreeMap<String, Vec<String>>;
+    type Target = HashMap<String, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl From<BTreeMap<String, Vec<String>>> for PrintAsMap {
-    fn from(map: BTreeMap<String, Vec<String>>) -> Self {
+impl From<HashMap<String, Vec<String>>> for PrintAsMap {
+    fn from(map: HashMap<String, Vec<String>>) -> Self {
         Self { inner: map }
     }
 }

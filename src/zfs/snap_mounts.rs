@@ -22,7 +22,7 @@ use crate::library::results::{HttmError, HttmResult};
 use crate::library::utility::{DateFormat, date_string, delimiter, print_output_buf};
 use crate::lookup::file_mounts::{MountDisplay, MountsForFiles};
 use crate::zfs::run_command::{RunZFSCommand, ZfsAllowPriv};
-use std::collections::BTreeMap;
+use hashbrown::HashMap;
 use std::time::SystemTime;
 
 pub struct SnapshotMounts;
@@ -80,7 +80,7 @@ impl SnapshotMounts {
     fn snapshot_names(
         mounts_for_files: &MountsForFiles,
         requested_snapshot_suffix: &str,
-    ) -> HttmResult<BTreeMap<String, Vec<String>>> {
+    ) -> HttmResult<HashMap<String, Vec<String>>> {
         // all snapshots should have the same timestamp
         let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
@@ -115,10 +115,10 @@ impl SnapshotMounts {
             .into();
         }
 
-        // why all this garbage with BTreeMaps, etc.? ZFS will not allow one to take snapshots
+        // why all this garbage with HashMaps, etc.? ZFS will not allow one to take snapshots
         // with the same name, at the same time, across pools.  Since we don't really care, we break
         // the snapshots into groups by pool name and then just take snapshots for each pool
-        let map_snapshot_names: BTreeMap<String, Vec<String>> = vec_snapshot_names
+        let map_snapshot_names: HashMap<String, Vec<String>> = vec_snapshot_names
             .into_iter()
             .into_group_map_by(|snapshot_name| {
                 Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|err| {

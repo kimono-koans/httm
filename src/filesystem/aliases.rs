@@ -17,8 +17,8 @@
 
 use crate::filesystem::mounts::{DatasetMetadata, FilesystemType};
 use crate::library::results::{HttmError, HttmResult};
+use hashbrown::HashMap;
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
@@ -38,17 +38,17 @@ impl RemotePathAndFsType {
 
 #[derive(Debug, Clone)]
 pub struct MapOfAliases {
-    inner: BTreeMap<Box<Path>, RemotePathAndFsType>,
+    inner: HashMap<Box<Path>, RemotePathAndFsType>,
 }
 
-impl From<BTreeMap<Box<Path>, RemotePathAndFsType>> for MapOfAliases {
-    fn from(map: BTreeMap<Box<Path>, RemotePathAndFsType>) -> Self {
+impl From<HashMap<Box<Path>, RemotePathAndFsType>> for MapOfAliases {
+    fn from(map: HashMap<Box<Path>, RemotePathAndFsType>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfAliases {
-    type Target = BTreeMap<Box<Path>, RemotePathAndFsType>;
+    type Target = HashMap<Box<Path>, RemotePathAndFsType>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -57,7 +57,7 @@ impl Deref for MapOfAliases {
 
 impl MapOfAliases {
     pub fn new(
-        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        map_of_datasets: &HashMap<Arc<Path>, DatasetMetadata>,
         opt_raw_aliases: Option<Vec<Cow<str>>>,
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
@@ -126,7 +126,7 @@ impl MapOfAliases {
             aliases_iter.push(value)
         }
 
-        let map_of_aliases: BTreeMap<Box<Path>, RemotePathAndFsType> = aliases_iter
+        let map_of_aliases: HashMap<Box<Path>, RemotePathAndFsType> = aliases_iter
             .into_iter()
             .filter_map(|(local_dir, snap_dir)| {
                 // why get snap dir?  because local dir is alias, snap dir must be a dataset

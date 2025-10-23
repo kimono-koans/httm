@@ -24,8 +24,8 @@ use crate::{
     BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, RESTIC_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL,
     TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
 };
+use hashbrown::HashMap;
 use proc_mounts::MountIter;
-use std::collections::BTreeMap;
 use std::fs::read_dir;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -34,17 +34,17 @@ use std::sync::{Arc, Once};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
-    inner: BTreeMap<Arc<Path>, Vec<Box<Path>>>,
+    inner: HashMap<Arc<Path>, Vec<Box<Path>>>,
 }
 
-impl From<BTreeMap<Arc<Path>, Vec<Box<Path>>>> for MapOfSnaps {
-    fn from(map: BTreeMap<Arc<Path>, Vec<Box<Path>>>) -> Self {
+impl From<HashMap<Arc<Path>, Vec<Box<Path>>>> for MapOfSnaps {
+    fn from(map: HashMap<Arc<Path>, Vec<Box<Path>>>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for MapOfSnaps {
-    type Target = BTreeMap<Arc<Path>, Vec<Box<Path>>>;
+    type Target = HashMap<Arc<Path>, Vec<Box<Path>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -54,10 +54,10 @@ impl Deref for MapOfSnaps {
 impl MapOfSnaps {
     // fans out precompute of snap mounts to the appropriate function based on fstype
     pub fn new(
-        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        map_of_datasets: &HashMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> HttmResult<Self> {
-        let map_of_snaps: BTreeMap<Arc<Path>, Vec<Box<Path>>> = map_of_datasets
+        let map_of_snaps: HashMap<Arc<Path>, Vec<Box<Path>>> = map_of_datasets
             .iter()
             .map(|(mount, dataset_info)| {
                 let snaps = Self::snaps_from_mount(mount, dataset_info, map_of_datasets, opt_debug);
@@ -102,7 +102,7 @@ impl MapOfSnaps {
     pub fn snaps_from_mount(
         mount: &Path,
         dataset_info: &DatasetMetadata,
-        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        map_of_datasets: &HashMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> Vec<Box<Path>> {
         match &dataset_info.fs_type {
@@ -147,9 +147,9 @@ impl MapOfSnaps {
         base_mount: &Path,
         base_mount_metadata: &DatasetMetadata,
         base_subvol: &Path,
-        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        map_of_datasets: &HashMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
-    ) -> BTreeMap<Box<Path>, Box<Path>> {
+    ) -> HashMap<Box<Path>, Box<Path>> {
         const BTRFS_COMMAND_REQUIRES_ROOT: &str = "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
 
         if let Err(_err) = user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT) {
@@ -158,7 +158,7 @@ impl MapOfSnaps {
             USER_HAS_ROOT_WARNING.call_once(|| {
                 eprintln!("WARN: {}", BTRFS_COMMAND_REQUIRES_ROOT);
             });
-            return BTreeMap::new();
+            return HashMap::new();
         }
 
         let Ok(btrfs_command) = get_btrfs_command() else {
@@ -170,7 +170,7 @@ impl MapOfSnaps {
                 );
             });
 
-            return BTreeMap::new();
+            return HashMap::new();
         };
 
         let exec_command = btrfs_command;
@@ -193,7 +193,7 @@ impl MapOfSnaps {
             COULD_NOT_OBTAIN_BTRFS_COMMAND_OUTPUT.call_once(|| {
                 eprintln!("WARN: Could not obtain btrfs command output.",);
             });
-            return BTreeMap::new();
+            return HashMap::new();
         };
 
         match command_output
@@ -227,7 +227,7 @@ impl MapOfSnaps {
             Some(map) => map,
             None => {
                 //eprintln!("WARN: No snaps found for mount: {:?}", base_mount);
-                BTreeMap::new()
+                HashMap::new()
             }
         }
     }
@@ -237,7 +237,7 @@ impl MapOfSnaps {
         base_mount_source: &Path,
         base_subvol: &Path,
         snap_relative: &Path,
-        map_of_datasets: &BTreeMap<Arc<Path>, DatasetMetadata>,
+        map_of_datasets: &HashMap<Arc<Path>, DatasetMetadata>,
         opt_debug: bool,
     ) -> Option<PathBuf> {
         let mut path_iter = snap_relative.components();

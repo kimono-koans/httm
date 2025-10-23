@@ -20,23 +20,23 @@ use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
 use crate::filesystem::mounts::FilesystemType;
 use crate::library::results::{HttmError, HttmResult};
 use crate::lookup::versions::VersionsMap;
-use std::collections::BTreeMap;
+use hashbrown::HashMap;
 use std::ops::Deref;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapNameMap {
-    inner: BTreeMap<PathData, Vec<String>>,
+    inner: HashMap<PathData, Vec<String>>,
 }
 
-impl From<BTreeMap<PathData, Vec<String>>> for SnapNameMap {
-    fn from(map: BTreeMap<PathData, Vec<String>>) -> Self {
+impl From<HashMap<PathData, Vec<String>>> for SnapNameMap {
+    fn from(map: HashMap<PathData, Vec<String>>) -> Self {
         Self { inner: map }
     }
 }
 
 impl Deref for SnapNameMap {
-    type Target = BTreeMap<PathData, Vec<String>>;
+    type Target = HashMap<PathData, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -48,7 +48,7 @@ impl SnapNameMap {
         versions_map: VersionsMap,
         opt_filters: &Option<ListSnapsFilters>,
     ) -> HttmResult<Self> {
-        let inner: BTreeMap<PathData, Vec<String>> = versions_map
+        let inner: HashMap<PathData, Vec<String>> = versions_map
             .iter()
             .filter(|(path_data, snaps)| {
                 if snaps.is_empty() {

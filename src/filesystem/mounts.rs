@@ -22,11 +22,11 @@ use crate::{
     RESTIC_LATEST_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
+use hashbrown::{HashMap, HashSet};
 use itertools::Either;
 use itertools::Itertools;
 use proc_mounts::MountIter;
 use realpath_ext::{RealpathFlags, realpath};
-use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
@@ -50,7 +50,7 @@ pub enum LinkType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BtrfsAdditionalData {
     pub base_subvol: Box<Path>,
-    pub snap_names: OnceLock<BTreeMap<Box<Path>, Box<Path>>>,
+    pub snap_names: OnceLock<HashMap<Box<Path>, Box<Path>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,11 +97,11 @@ pub struct DatasetMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
-    inner: BTreeSet<Arc<Path>>,
+    inner: HashSet<Arc<Path>>,
 }
 
 impl Deref for FilterDirs {
-    type Target = BTreeSet<Arc<Path>>;
+    type Target = HashSet<Arc<Path>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -109,7 +109,7 @@ impl Deref for FilterDirs {
 }
 
 impl DerefMut for FilterDirs {
-    fn deref_mut(&mut self) -> &mut BTreeSet<Arc<Path>> {
+    fn deref_mut(&mut self) -> &mut HashSet<Arc<Path>> {
         &mut self.inner
     }
 }
@@ -154,11 +154,11 @@ impl MaxLen for FilterDirs {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfDatasets {
-    inner: BTreeMap<Arc<Path>, DatasetMetadata>,
+    inner: HashMap<Arc<Path>, DatasetMetadata>,
 }
 
 impl Deref for MapOfDatasets {
-    type Target = BTreeMap<Arc<Path>, DatasetMetadata>;
+    type Target = HashMap<Arc<Path>, DatasetMetadata>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -166,13 +166,13 @@ impl Deref for MapOfDatasets {
 }
 
 impl DerefMut for MapOfDatasets {
-    fn deref_mut(&mut self) -> &mut BTreeMap<Arc<Path>, DatasetMetadata> {
+    fn deref_mut(&mut self) -> &mut HashMap<Arc<Path>, DatasetMetadata> {
         &mut self.inner
     }
 }
 
-impl From<BTreeMap<Arc<Path>, DatasetMetadata>> for MapOfDatasets {
-    fn from(value: BTreeMap<Arc<Path>, DatasetMetadata>) -> Self {
+impl From<HashMap<Arc<Path>, DatasetMetadata>> for MapOfDatasets {
+    fn from(value: HashMap<Arc<Path>, DatasetMetadata>) -> Self {
         Self { inner: value }
     }
 }
@@ -236,12 +236,12 @@ impl BaseFilesystemInfo {
     fn from_file(
         path: &Path,
         opt_alt_store: &Option<FilesystemType>,
-    ) -> HttmResult<(BTreeMap<Arc<Path>, DatasetMetadata>, BTreeSet<Arc<Path>>)> {
+    ) -> HttmResult<(HashMap<Arc<Path>, DatasetMetadata>, HashSet<Arc<Path>>)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
         let (map_of_datasets, filter_dirs): (
-            BTreeMap<Arc<Path>, DatasetMetadata>,
-            BTreeSet<Arc<Path>>,
+            HashMap<Arc<Path>, DatasetMetadata>,
+            HashSet<Arc<Path>>,
         ) = mount_iter
             .flatten()
             .filter(|mount_info| {
@@ -289,7 +289,7 @@ impl BaseFilesystemInfo {
                     _ => Either::Right(dest_path),
                 },
                 BTRFS_FSTYPE => {
-                    let keyed_options: BTreeMap<&str, &str> = mount_info
+                    let keyed_options: HashMap<&str, &str> = mount_info
                         .options
                         .iter()
                         .filter(|line| line.contains('='))
@@ -356,7 +356,7 @@ impl BaseFilesystemInfo {
     // both methods are much faster than using zfs command
     fn from_mount_cmd(
         opt_alt_store: &Option<FilesystemType>,
-    ) -> HttmResult<(BTreeMap<Arc<Path>, DatasetMetadata>, BTreeSet<Arc<Path>>)> {
+    ) -> HttmResult<(HashMap<Arc<Path>, DatasetMetadata>, HashSet<Arc<Path>>)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         let mount_command = get_mount_command()?;
@@ -373,8 +373,8 @@ impl BaseFilesystemInfo {
 
         // parse "mount" for filesystems and mountpoints
         let (map_of_datasets, filter_dirs): (
-            BTreeMap<Arc<Path>, DatasetMetadata>,
-            BTreeSet<Arc<Path>>,
+            HashMap<Arc<Path>, DatasetMetadata>,
+            HashSet<Arc<Path>>,
         ) = stdout_string
             .lines()
             // but exclude snapshot mounts.  we want the raw filesystem names.
@@ -523,7 +523,7 @@ impl BaseFilesystemInfo {
             }
         };
 
-        let datasets = BTreeMap::from([(Arc::from(ROOT_PATH.as_ref()), metadata)]);
+        let datasets = HashMap::from([(Arc::from(ROOT_PATH.as_ref()), metadata)]);
 
         *self = Self {
             map_of_datasets: datasets.into(),

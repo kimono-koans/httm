@@ -25,9 +25,9 @@ use crate::display::versions::DisplaySetType;
 use crate::display::versions::PaddingCollection;
 use crate::library::utility::delimiter;
 use crate::lookup::versions::{Versions, VersionsMap};
+use hashbrown::HashMap;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use std::collections::BTreeMap;
 use std::ops::Deref;
 
 pub struct DisplayWrapper<'a> {
@@ -258,7 +258,7 @@ impl<'a> std::string::ToString for DisplayWrapper<'a> {
 }
 
 impl<'a> Deref for DisplayWrapper<'a> {
-    type Target = BTreeMap<PathData, Vec<PathData>>;
+    type Target = HashMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
         &self.map
@@ -295,7 +295,7 @@ impl<'a> Serialize for DisplayWrapper<'a> {
         S: Serializer,
     {
         // add live file key to values if needed before serializing
-        let new_map: BTreeMap<String, Vec<PathData>> = self
+        let new_map: HashMap<String, Vec<PathData>> = self
             .deref()
             .clone()
             .into_iter()
