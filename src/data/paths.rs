@@ -18,32 +18,71 @@
 #[cfg(target_os = "macos")]
 use crate::MAC_OS_HIDDEN_DIRS;
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::{DedupBy, PrintMode};
+use crate::config::generate::{
+    DedupBy,
+    PrintMode,
+};
 use crate::data::selection::SelectionCandidate;
-use crate::filesystem::mounts::{FilesystemType, IsFilterDir, MaxLen};
+use crate::filesystem::mounts::{
+    FilesystemType,
+    IsFilterDir,
+    MaxLen,
+};
 use crate::library::file_ops::ChecksumFileContents;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::UniqueInode;
-use crate::library::utility::dir_was_previously_listed;
-use crate::library::utility::{DateFormat, HttmIsDir, date_string, display_human_size};
-use crate::library::utility::{ENV_LS_COLORS, PaintString};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    DateFormat,
+    ENV_LS_COLORS,
+    HttmIsDir,
+    PaintString,
+    UniqueInode,
+    date_string,
+    dir_was_previously_listed,
+    display_human_size,
+};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, OPT_COMMON_SNAP_DIR, ZFS_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    GLOBAL_CONFIG,
+    OPT_COMMON_SNAP_DIR,
+    ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashSet;
 use lscolors::Colorable;
-use realpath_ext::{RealpathFlags, realpath};
+use realpath_ext::{
+    RealpathFlags,
+    realpath,
+};
 use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+use serde::{
+    Serialize,
+    Serializer,
+};
 use std::cell::RefCell;
-use std::cmp::{Ord, Ordering, PartialOrd};
+use std::cmp::{
+    Ord,
+    Ordering,
+    PartialOrd,
+};
 use std::ffi::OsStr;
-use std::fs::{DirEntry, FileType, Metadata};
+use std::fs::{
+    DirEntry,
+    FileType,
+    Metadata,
+};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, OnceLock};
+use std::path::{
+    Path,
+    PathBuf,
+};
+use std::sync::{
+    LazyLock,
+    OnceLock,
+};
 use std::time::SystemTime;
 
 static OPT_REQUESTED_DIR_DEV: LazyLock<u64> = LazyLock::new(|| {
@@ -121,6 +160,18 @@ impl Colorable for BasicDirEntryInfo {
     }
     fn metadata(&self) -> Option<std::fs::Metadata> {
         self.opt_metadata().cloned()
+    }
+}
+
+impl Ord for BasicDirEntryInfo {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.path.cmp(&other.path)
+    }
+}
+
+impl PartialOrd for BasicDirEntryInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.path.cmp(&other.path))
     }
 }
 
