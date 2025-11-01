@@ -114,21 +114,21 @@ pub trait HttmIter: Iterator {
     }
 
     #[allow(dead_code)]
-    unsafe fn collect_map_unique<K, V>(self) -> HashMap<K, V>
+    unsafe fn collect_map_known_unique<K, V>(self) -> HashMap<K, V>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Hash + Eq + Ord,
     {
-        unsafe { collect_no_update::collect_map_unique(self) }
+        unsafe { collect_no_update::collect_map_known_unique(self) }
     }
 
     #[allow(dead_code)]
-    unsafe fn collect_set_unique<K>(self) -> HashSet<K>
+    unsafe fn collect_set_known_unique<K>(self) -> HashSet<K>
     where
         Self: Iterator<Item = K> + Sized,
         K: Hash + Eq + Ord,
     {
-        unsafe { collect_no_update::collect_set_unique(self) }
+        unsafe { collect_no_update::collect_set_known_unique(self) }
     }
 }
 
@@ -260,7 +260,7 @@ pub mod collect_no_update {
     }
 
     #[allow(dead_code)]
-    pub unsafe fn collect_map_unique<I, K, V>(iter: I) -> HashMap<K, V>
+    pub unsafe fn collect_map_known_unique<I, K, V>(iter: I) -> HashMap<K, V>
     where
         I: Iterator<Item = (K, V)>,
         K: Hash + Eq,
@@ -277,7 +277,7 @@ pub mod collect_no_update {
     }
 
     #[allow(dead_code)]
-    pub unsafe fn collect_set_unique<I, K>(iter: I) -> HashSet<K>
+    pub unsafe fn collect_set_known_unique<I, K>(iter: I) -> HashSet<K>
     where
         I: Iterator<Item = K>,
         K: Hash + Eq,

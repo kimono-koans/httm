@@ -62,11 +62,12 @@ impl DeletedFiles {
         // create a collection of local file names
         // dir may or may not still exist
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
+            // SAFETY: Files in a single directory have unique file names
             let live_paths: HashSet<OsString> = unsafe {
                 read_dir
                     .flatten()
                     .map(|entry| entry.file_name())
-                    .collect_set_unique()
+                    .collect_set_known_unique()
             };
 
             if !live_paths.is_empty() {
