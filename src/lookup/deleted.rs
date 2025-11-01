@@ -62,8 +62,12 @@ impl DeletedFiles {
         // create a collection of local file names
         // dir may or may not still exist
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
-            let live_paths: HashSet<OsString> =
-                read_dir.flatten().map(|entry| entry.file_name()).collect();
+            let live_paths: HashSet<OsString> = unsafe {
+                read_dir
+                    .flatten()
+                    .map(|entry| entry.file_name())
+                    .collect_set_unique()
+            };
 
             if !live_paths.is_empty() {
                 deleted_files.retain(|k, _v| !live_paths.contains(k));

@@ -112,6 +112,24 @@ pub trait HttmIter: Iterator {
     {
         collect_no_update::collect_set_bulk_build(self)
     }
+
+    #[allow(dead_code)]
+    unsafe fn collect_map_unique<K, V>(self) -> HashMap<K, V>
+    where
+        Self: Iterator<Item = (K, V)> + Sized,
+        K: Hash + Eq + Ord,
+    {
+        unsafe { collect_no_update::collect_map_unique(self) }
+    }
+
+    #[allow(dead_code)]
+    unsafe fn collect_set_unique<K>(self) -> HashSet<K>
+    where
+        Self: Iterator<Item = K> + Sized,
+        K: Hash + Eq + Ord,
+    {
+        unsafe { collect_no_update::collect_set_unique(self) }
+    }
 }
 
 impl<T: ?Sized> HttmIter for T where T: Iterator {}
@@ -233,6 +251,40 @@ pub mod collect_no_update {
         let mut lookup: HashSet<K> = HashSet::with_capacity(vec.len());
 
         vec.into_iter().for_each(|key| {
+            unsafe {
+                lookup.insert_unique_unchecked(key);
+            };
+        });
+
+        lookup
+    }
+
+    #[allow(dead_code)]
+    pub unsafe fn collect_map_unique<I, K, V>(iter: I) -> HashMap<K, V>
+    where
+        I: Iterator<Item = (K, V)>,
+        K: Hash + Eq,
+    {
+        let mut lookup: HashMap<K, V> = HashMap::with_capacity(iter.size_hint().0);
+
+        iter.for_each(|(key, value)| {
+            unsafe {
+                lookup.insert_unique_unchecked(key, value);
+            };
+        });
+
+        lookup
+    }
+
+    #[allow(dead_code)]
+    pub unsafe fn collect_set_unique<I, K>(iter: I) -> HashSet<K>
+    where
+        I: Iterator<Item = K>,
+        K: Hash + Eq,
+    {
+        let mut lookup: HashSet<K> = HashSet::with_capacity(iter.size_hint().0);
+
+        iter.for_each(|key| {
             unsafe {
                 lookup.insert_unique_unchecked(key);
             };
