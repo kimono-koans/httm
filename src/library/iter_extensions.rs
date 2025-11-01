@@ -96,7 +96,7 @@ pub trait HttmIter: Iterator {
     }
 
     #[allow(dead_code)]
-    unsafe fn collect_map_unique<K, V>(self) -> HashMap<K, V>
+    fn collect_map_unique<K, V>(self) -> HashMap<K, V>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Hash + Eq + Ord,
@@ -105,7 +105,7 @@ pub trait HttmIter: Iterator {
     }
 
     #[allow(dead_code)]
-    unsafe fn collect_set_unique<K>(self) -> HashSet<K>
+    fn collect_set_unique<K>(self) -> HashSet<K>
     where
         Self: Iterator<Item = K> + Sized,
         K: Hash + Eq + Ord,
