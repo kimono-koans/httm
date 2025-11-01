@@ -16,11 +16,23 @@
 // that was distributed with this source code.
 
 use crate::GLOBAL_CONFIG;
-use crate::config::generate::{PrintMode, RawMode};
-use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::config::generate::{
+    PrintMode,
+    RawMode,
+};
+use crate::data::paths::{
+    BasicDirEntryInfo,
+    PathData,
+};
 use crate::data::selection::SelectionCandidate;
-use crate::library::results::{HttmError, HttmResult};
-use lscolors::{LsColors, Style};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use lscolors::{
+    LsColors,
+    Style,
+};
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
 use std::cell::RefMut;
@@ -29,10 +41,17 @@ use std::hash::Hash;
 use std::io::Write;
 use std::iter::Iterator;
 use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::sync::LazyLock;
 use std::time::SystemTime;
-use time::{OffsetDateTime, UtcOffset, format_description};
+use time::{
+    OffsetDateTime,
+    UtcOffset,
+    format_description,
+};
 use unit_prefix::NumberPrefix;
 use which::which;
 

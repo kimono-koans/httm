@@ -51,8 +51,10 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use hashbrown::HashMap;
-use hashbrown::HashSet;
+use hashbrown::{
+    HashMap,
+    HashSet,
+};
 use std::hash::Hash;
 use std::iter::Iterator;
 
@@ -97,18 +99,18 @@ pub trait HttmIter: Iterator {
     unsafe fn collect_map_unique<K, V>(self) -> HashMap<K, V>
     where
         Self: Iterator<Item = (K, V)> + Sized,
-        K: Hash + Eq,
+        K: Hash + Eq + Ord,
     {
-        unsafe { collect_no_update::collect_map_unique(self) }
+        collect_no_update::collect_map_unique(self)
     }
 
     #[allow(dead_code)]
     unsafe fn collect_set_unique<K>(self) -> HashSet<K>
     where
         Self: Iterator<Item = K> + Sized,
-        K: Hash + Eq,
+        K: Hash + Eq + Ord,
     {
-        unsafe { collect_no_update::collect_set_unique(self) }
+        collect_no_update::collect_set_unique(self)
     }
 }
 
@@ -150,8 +152,10 @@ pub mod group_map {
 }
 
 pub mod collect_no_update {
-    use hashbrown::HashMap;
-    use hashbrown::HashSet;
+    use hashbrown::{
+        HashMap,
+        HashSet,
+    };
     use std::hash::Hash;
     use std::iter::Iterator;
 
@@ -194,14 +198,19 @@ pub mod collect_no_update {
     }
 
     #[allow(dead_code)]
-    pub unsafe fn collect_map_unique<I, K, V>(iter: I) -> HashMap<K, V>
+    pub fn collect_map_unique<I, K, V>(iter: I) -> HashMap<K, V>
     where
         I: Iterator<Item = (K, V)>,
-        K: Hash + Eq,
+        K: Hash + Eq + Ord,
     {
-        let mut lookup: HashMap<K, V> = HashMap::with_capacity(iter.size_hint().0);
+        let mut vec: Vec<(K, V)> = iter.collect();
 
-        iter.for_each(|(key, value)| {
+        vec.sort_by(|a, b| a.0.cmp(&b.0));
+        vec.dedup_by(|a, b| a.0.eq(&b.0));
+
+        let mut lookup: HashMap<K, V> = HashMap::with_capacity(vec.len());
+
+        vec.into_iter().for_each(|(key, value)| {
             unsafe {
                 lookup.insert_unique_unchecked(key, value);
             };
@@ -211,14 +220,19 @@ pub mod collect_no_update {
     }
 
     #[allow(dead_code)]
-    pub unsafe fn collect_set_unique<I, K>(iter: I) -> HashSet<K>
+    pub fn collect_set_unique<I, K>(iter: I) -> HashSet<K>
     where
         I: Iterator<Item = K>,
-        K: Hash + Eq,
+        K: Hash + Eq + Ord,
     {
-        let mut lookup: HashSet<K> = HashSet::with_capacity(iter.size_hint().0);
+        let mut vec: Vec<K> = iter.collect();
 
-        iter.for_each(|key| {
+        vec.sort_by(|a, b| a.cmp(&b));
+        vec.dedup_by(|a, b| a.eq(&b));
+
+        let mut lookup: HashSet<K> = HashSet::with_capacity(vec.len());
+
+        vec.into_iter().for_each(|key| {
             unsafe {
                 lookup.insert_unique_unchecked(key);
             };
