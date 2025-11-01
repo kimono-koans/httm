@@ -103,10 +103,10 @@ impl DeletedFiles {
 
                 if acc.is_empty() {
                     acc = iter.collect_map_bulk_build();
-                    return acc;
+                } else {
+                    acc.extend(iter);
                 }
 
-                acc.extend(iter);
                 acc
             });
 
