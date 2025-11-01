@@ -96,21 +96,21 @@ pub trait HttmIter: Iterator {
     }
 
     #[allow(dead_code)]
-    fn collect_map_unique<K, V>(self) -> HashMap<K, V>
+    fn collect_map_bulk_build<K, V>(self) -> HashMap<K, V>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Hash + Eq + Ord,
     {
-        collect_no_update::collect_map_unique(self)
+        collect_no_update::collect_map_bulk_build(self)
     }
 
     #[allow(dead_code)]
-    fn collect_set_unique<K>(self) -> HashSet<K>
+    fn collect_set_bulk_build<K>(self) -> HashSet<K>
     where
         Self: Iterator<Item = K> + Sized,
         K: Hash + Eq + Ord,
     {
-        collect_no_update::collect_set_unique(self)
+        collect_no_update::collect_set_bulk_build(self)
     }
 }
 
@@ -198,7 +198,7 @@ pub mod collect_no_update {
     }
 
     #[allow(dead_code)]
-    pub fn collect_map_unique<I, K, V>(iter: I) -> HashMap<K, V>
+    pub fn collect_map_bulk_build<I, K, V>(iter: I) -> HashMap<K, V>
     where
         I: Iterator<Item = (K, V)>,
         K: Hash + Eq + Ord,
@@ -220,7 +220,7 @@ pub mod collect_no_update {
     }
 
     #[allow(dead_code)]
-    pub fn collect_set_unique<I, K>(iter: I) -> HashSet<K>
+    pub fn collect_set_bulk_build<I, K>(iter: I) -> HashSet<K>
     where
         I: Iterator<Item = K>,
         K: Hash + Eq + Ord,

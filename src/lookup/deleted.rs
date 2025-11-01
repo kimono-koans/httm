@@ -16,11 +16,23 @@
 // that was distributed with this source code.
 
 use crate::GLOBAL_CONFIG;
-use crate::data::paths::{BasicDirEntryInfo, PathData};
-use crate::lookup::versions::{ProximateDatasetAndOptAlts, RelativePathAndSnapMounts};
-use hashbrown::{HashMap, HashSet};
-use std::ffi::OsStr;
-use std::ffi::OsString;
+use crate::data::paths::{
+    BasicDirEntryInfo,
+    PathData,
+};
+use crate::library::iter_extensions::HttmIter;
+use crate::lookup::versions::{
+    ProximateDatasetAndOptAlts,
+    RelativePathAndSnapMounts,
+};
+use hashbrown::{
+    HashMap,
+    HashSet,
+};
+use std::ffi::{
+    OsStr,
+    OsString,
+};
 use std::fs::FileType;
 use std::path::Path;
 
@@ -84,14 +96,19 @@ impl DeletedFiles {
 
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data).ok()?;
 
-        let pseudo_live_versions =
-            prox_opt_alts
-                .into_search_bundles()
-                .fold(HashMap::new(), |mut acc, search_bundle| {
-                    let iter = Self::deleted_paths_for_directory(&requested_dir, &search_bundle);
-                    acc.extend(iter);
-                    acc
-                });
+        let pseudo_live_versions: HashMap<OsString, BasicDirEntryInfo> = prox_opt_alts
+            .into_search_bundles()
+            .fold(HashMap::new(), |mut acc, search_bundle| {
+                let iter = Self::deleted_paths_for_directory(&requested_dir, &search_bundle);
+
+                if acc.is_empty() {
+                    acc = iter.collect_map_bulk_build();
+                    return acc;
+                }
+
+                acc.extend(iter);
+                acc
+            });
 
         if pseudo_live_versions.is_empty() {
             return None;
@@ -104,7 +121,7 @@ impl DeletedFiles {
     fn deleted_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: &'a RelativePathAndSnapMounts<'a>,
-    ) -> impl Iterator<Item = (OsString, BasicDirEntryInfo)> + 'a {
+    ) -> impl Iterator<Item = (OsString, BasicDirEntryInfo)> {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts()
