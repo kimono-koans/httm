@@ -130,6 +130,24 @@ pub trait HttmIter: Iterator {
     {
         unsafe { collect_no_update::collect_set_known_unique(self) }
     }
+
+    #[allow(dead_code)]
+    fn collect_dedup_vec<K>(self) -> Vec<K>
+    where
+        Self: Iterator<Item = K> + Sized,
+        K: Ord,
+    {
+        collect_no_update::collect_dedup_vec(self)
+    }
+
+    #[allow(dead_code)]
+    fn collect_sorted_vec<K>(self) -> Vec<K>
+    where
+        Self: Iterator<Item = K> + Sized,
+        K: Ord,
+    {
+        collect_no_update::collect_sorted_vec(self)
+    }
 }
 
 impl<T: ?Sized> HttmIter for T where T: Iterator {}
@@ -291,5 +309,32 @@ pub mod collect_no_update {
         });
 
         lookup
+    }
+
+    #[allow(dead_code)]
+    pub fn collect_dedup_vec<I, K>(iter: I) -> Vec<K>
+    where
+        I: Iterator<Item = K>,
+        K: Ord,
+    {
+        let mut vec: Vec<K> = iter.collect();
+
+        vec.sort();
+
+        vec
+    }
+
+    #[allow(dead_code)]
+    pub fn collect_sorted_vec<I, K>(iter: I) -> Vec<K>
+    where
+        I: Iterator<Item = K>,
+        K: Ord,
+    {
+        let mut vec: Vec<K> = iter.collect();
+
+        vec.sort();
+        vec.dedup();
+
+        vec
     }
 }
