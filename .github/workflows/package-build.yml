@@ -3,8 +3,8 @@ name: Build Debian/Redhat packages
 on:
   push:
     # Pattern matched against refs/tags
-    tags:        
-      - '*'           # Push events to every tag not containing /
+    tags:
+      - "*" # Push events to every tag not containing /
       # Allow manual triggering
   workflow_dispatch:
 
@@ -16,31 +16,31 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@v4
-    - name: Use latest Rust stable toolchain
-      uses: dtolnay/rust-toolchain@stable
-    - name: Install build deps
-      run: sudo apt-get install -y libacl1-dev
-    - name: Install cargo-deb
-      run: cargo install cargo-deb
-    - name: Build package with cargo-deb
-      run: cargo deb --install --separate-debug-symbols --profile deb -- --locked --features "std" --features "acls"
-    - name: Install alien
-      run: sudo apt-get install -y alien
-    - name: Convert deb to rpm with alien
-      working-directory: target/debian
-      run: sudo alien --to-rpm httm_*.deb
-    - name: Upload binaries to release
-      uses: softprops/action-gh-release@v2
-      if: ${{startsWith(github.ref, 'refs/tags/') }}
-      with:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Use latest Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install build deps
+        run: sudo apt-get install -y libacl1-dev
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+      - name: Build package with cargo-deb
+        run: cargo deb --install --separate-debug-symbols --compress-debug-symbols --profile deb -- --locked --features "std" --features "acls"
+      - name: Install alien
+        run: sudo apt-get install -y alien
+      - name: Convert deb to rpm with alien
+        working-directory: target/debian
+        run: sudo alien --to-rpm httm_*.deb
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        if: ${{startsWith(github.ref, 'refs/tags/') }}
+        with:
           files: target/debian/httm*.*
-    - name: Upload both build artifacts to GH action
-      uses: actions/upload-artifact@v4
-      with:
-        name: cargo-deb-upload
-        path: target/debian/httm*.*
+      - name: Upload both build artifacts to GH action
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-deb-upload
+          path: target/debian/httm*.*
 
   # publish:
   #   runs-on: ubuntu-20.04
