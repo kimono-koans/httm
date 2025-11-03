@@ -71,15 +71,14 @@ impl DeletedFiles {
                 return Self {
                     inner: deleted_files
                         .into_iter()
-                        .filter(|(k, _v)| !live_paths.contains(k))
-                        .map(|(_k, v)| v)
+                        .filter(|v| !live_paths.contains(v.filename()))
                         .collect(),
                 };
             }
         };
 
         Self {
-            inner: deleted_files.into_iter().map(|(_k, v)| v).collect(),
+            inner: deleted_files,
         }
     }
 
@@ -89,9 +88,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn unique_pseudo_live_versions<'a>(
-        requested_dir: &'a Path,
-    ) -> Option<Vec<(OsString, BasicDirEntryInfo)>> {
+    fn unique_pseudo_live_versions<'a>(requested_dir: &'a Path) -> Option<Vec<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::without_styling(requested_dir, None);
@@ -102,7 +99,7 @@ impl DeletedFiles {
 
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data).ok()?;
 
-        let pseudo_live_versions: Vec<(OsString, BasicDirEntryInfo)> = prox_opt_alts
+        let pseudo_live_versions: Vec<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
             .fold(Vec::new(), |mut acc, search_bundle| {
                 let iter = Self::deleted_paths_for_directory(&requested_dir, &search_bundle);
@@ -127,7 +124,7 @@ impl DeletedFiles {
     fn deleted_paths_for_directory<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: &'a RelativePathAndSnapMounts<'a>,
-    ) -> impl Iterator<Item = (OsString, BasicDirEntryInfo)> {
+    ) -> impl Iterator<Item = BasicDirEntryInfo> {
         // compare local filenames to all unique snap filenames - none values are unique, here
         search_bundle
             .snap_mounts()
@@ -149,7 +146,7 @@ impl DeletedFiles {
                 let basic_info =
                     Self::into_pseudo_live_version(&file_name, pseudo_live_dir, Some(file_type));
 
-                (file_name, basic_info)
+                basic_info
             })
     }
 
