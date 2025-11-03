@@ -35,12 +35,14 @@ use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeletedFiles {
-    inner: Vec<BasicDirEntryInfo>,
+    inner: HashSet<BasicDirEntryInfo>,
 }
 
 impl Default for DeletedFiles {
     fn default() -> Self {
-        Self { inner: Vec::new() }
+        Self {
+            inner: HashSet::new(),
+        }
     }
 }
 
@@ -49,7 +51,7 @@ impl DeletedFiles {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let Some(deleted_files) = Self::unique_pseudo_live_versions(requested_dir) else {
+        let Some(mut deleted_files) = Self::unique_pseudo_live_versions(requested_dir) else {
             return Self::default();
         };
 
@@ -68,12 +70,7 @@ impl DeletedFiles {
             };
 
             if !live_paths.is_empty() {
-                return Self {
-                    inner: deleted_files
-                        .into_iter()
-                        .filter(|v| !live_paths.contains(v.filename()))
-                        .collect(),
-                };
+                deleted_files.retain(|v| !live_paths.contains(v.filename()))
             }
         };
 
@@ -83,12 +80,14 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    pub fn into_inner(self) -> Vec<BasicDirEntryInfo> {
+    pub fn into_inner(self) -> HashSet<BasicDirEntryInfo> {
         self.inner
     }
 
     #[inline(always)]
-    fn unique_pseudo_live_versions<'a>(requested_dir: &'a Path) -> Option<Vec<BasicDirEntryInfo>> {
+    fn unique_pseudo_live_versions<'a>(
+        requested_dir: &'a Path,
+    ) -> Option<HashSet<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::without_styling(requested_dir, None);
@@ -99,15 +98,15 @@ impl DeletedFiles {
 
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data).ok()?;
 
-        let pseudo_live_versions: Vec<BasicDirEntryInfo> = prox_opt_alts
+        let pseudo_live_versions: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
-            .fold(Vec::new(), |mut acc, search_bundle| {
+            .fold(HashSet::new(), |mut acc, search_bundle| {
                 let iter = Self::deleted_paths_for_directory(&requested_dir, &search_bundle);
 
                 if acc.is_empty() {
-                    acc = iter.collect_dedup_vec();
+                    acc = iter.collect_set_no_update();
                 } else {
-                    acc = acc.into_iter().chain(iter).collect_dedup_vec();
+                    acc.extend(iter);
                 }
 
                 acc
