@@ -16,16 +16,34 @@
 // that was distributed with this source code.
 
 use crate::background::deleted::DeletedSearch;
-use crate::config::generate::{DeletedMode, ExecMode};
-use crate::data::paths::{BasicDirEntryInfo, PathData};
+use crate::config::generate::{
+    DeletedMode,
+    ExecMode,
+};
+use crate::data::paths::{
+    BasicDirEntryInfo,
+    PathData,
+};
 use crate::display::wrapper::DisplayWrapper;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::UniqueInode;
-use crate::library::utility::print_output_buf;
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    HttmIsDir,
+    UniqueInode,
+    print_output_buf,
+};
 use crate::lookup::deleted::DeletedFiles;
-use crate::{GLOBAL_CONFIG, VersionsMap};
+use crate::{
+    GLOBAL_CONFIG,
+    VersionsMap,
+};
 use hashbrown::HashSet;
-use rayon::{Scope, ThreadPool};
+use rayon::{
+    Scope,
+    ThreadPool,
+};
 use skim::SkimItem;
 use skim::prelude::*;
 use std::cell::RefCell;
@@ -183,13 +201,15 @@ impl<'a> RecursiveSearch<'a> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
-    fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>>;
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a>;
     fn enter_directory(
         &self,
         requested_dir: &Path,
         queue: &mut Vec<BasicDirEntryInfo>,
     ) -> HttmResult<()>;
+    fn is_entry_dir(&self, _basic_dir_entry: &BasicDirEntryInfo) -> bool {
+        false
+    }
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
@@ -205,16 +225,25 @@ impl CommonSearch for &RecursiveSearch<'_> {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>> {
-        Some(&self.path_map)
-    }
-
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
         Entries {
             requested_dir,
             path_provenance: &PathProvenance::FromLiveDataset,
             opt_skim_tx: self.opt_skim_tx,
         }
+    }
+
+    fn is_entry_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool {
+        // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
+        if GLOBAL_CONFIG.opt_no_traverse {
+            if let Some(file_type) = basic_dir_entry.opt_filetype() {
+                return file_type.is_dir();
+            }
+        }
+
+        let mut locked = self.path_map.borrow_mut();
+
+        basic_dir_entry.httm_is_dir(Some(&mut locked))
     }
 }
 
@@ -238,7 +267,7 @@ where
     // create entries struct here
     let entries = search.into_entries(requested_dir);
 
-    let paths_partitioned = PathsPartitioned::new(&entries, search.opt_path_map())?;
+    let paths_partitioned = PathsPartitioned::new(search, &entries)?;
 
     // combined entries will be sent or printed, but we need the vec_dirs to recurse
     let mut vec_dirs = entries.combine_and_deliver(paths_partitioned)?;
@@ -254,10 +283,10 @@ struct PathsPartitioned {
 }
 
 impl PathsPartitioned {
-    fn new(
-        entries: &Entries,
-        opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>,
-    ) -> HttmResult<PathsPartitioned> {
+    fn new<T>(search: &T, entries: &Entries) -> HttmResult<PathsPartitioned>
+    where
+        T: CommonSearch,
+    {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match entries.path_provenance {
             PathProvenance::FromLiveDataset => {
@@ -267,7 +296,7 @@ impl PathsPartitioned {
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
                     .filter(|entry| entry.recursive_search_filter())
-                    .partition(|entry| entry.is_entry_dir(opt_path_map))
+                    .partition(|entry| search.is_entry_dir(entry))
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix

@@ -36,11 +36,8 @@ use crate::library::results::{
 use crate::library::utility::{
     DateFormat,
     ENV_LS_COLORS,
-    HttmIsDir,
     PaintString,
-    UniqueInode,
     date_string,
-    dir_was_previously_listed,
     display_human_size,
 };
 use crate::{
@@ -50,7 +47,6 @@ use crate::{
     ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
-use hashbrown::HashSet;
 use lscolors::Colorable;
 use realpath_ext::{
     RealpathFlags,
@@ -61,7 +57,6 @@ use serde::{
     Serialize,
     Serializer,
 };
-use std::cell::RefCell;
 use std::cmp::{
     Ord,
     Ordering,
@@ -212,28 +207,6 @@ impl BasicDirEntryInfo {
                     .and_then(|de| de.metadata().ok())
             })
             .as_ref()
-    }
-
-    pub fn is_entry_dir(&self, opt_path_map: Option<&RefCell<HashSet<UniqueInode>>>) -> bool {
-        // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
-        if GLOBAL_CONFIG.opt_no_traverse {
-            if let Some(file_type) = self.opt_filetype() {
-                return file_type.is_dir();
-            }
-        }
-
-        match opt_path_map.and_then(|path_map| path_map.try_borrow_mut().ok()) {
-            Some(mut locked) => {
-                if dir_was_previously_listed(&self, Some(&mut locked)) {
-                    return false;
-                }
-
-                return self.httm_is_dir(Some(&mut locked));
-            }
-            None => {
-                return self.httm_is_dir(None);
-            }
-        }
     }
 
     pub fn recursive_search_filter(&self) -> bool {

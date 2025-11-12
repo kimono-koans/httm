@@ -15,26 +15,29 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::GLOBAL_CONFIG;
-use crate::background::recursive::CommonSearch;
-use crate::background::recursive::Entries;
-use crate::background::recursive::PathProvenance;
-use crate::background::recursive::enter_directory;
+//use std::thread::sleep;
+use crate::background::recursive::{
+    CommonSearch,
+    Entries,
+    PathProvenance,
+    enter_directory,
+};
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
+use crate::{
+    ExecMode,
+    GLOBAL_CONFIG,
+};
 use rayon::Scope;
 use skim::prelude::*;
 use std::num::NonZero;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
-//use std::thread::sleep;
-use crate::ExecMode;
-use crate::library::utility::UniqueInode;
-use hashbrown::HashSet;
-use std::cell::RefCell;
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 pub struct DeletedSearch {
     deleted_dir: PathBuf,
@@ -53,10 +56,6 @@ impl CommonSearch for &DeletedSearch {
 
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
-    }
-
-    fn opt_path_map(&self) -> Option<&RefCell<HashSet<UniqueInode>>> {
-        None
     }
 
     fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
