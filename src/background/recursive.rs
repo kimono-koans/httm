@@ -219,7 +219,7 @@ pub trait CommonSearch {
         requested_dir: &Path,
         queue: &mut Vec<BasicDirEntryInfo>,
     ) -> HttmResult<()>;
-    fn entry_is_dir(&self, _basic_dir_entry: &BasicDirEntryInfo) -> bool;
+    fn entry_is_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
