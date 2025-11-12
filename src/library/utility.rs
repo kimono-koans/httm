@@ -35,7 +35,10 @@ use lscolors::{
 };
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
-use std::cell::RefMut;
+use std::cell::{
+    Ref,
+    RefMut,
+};
 use std::fs::FileType;
 use std::hash::Hash;
 use std::io::Write;
@@ -165,7 +168,7 @@ pub fn insert_new_dir(
 
 pub fn dir_was_previously_listed(
     entry: &BasicDirEntryInfo,
-    path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>,
+    path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>,
 ) -> bool {
     let Some(file_id) = UniqueInode::new(entry) else {
         return true;
@@ -211,10 +214,7 @@ impl Hash for UniqueInode {
 }
 
 // is this path/dir_entry something we should count as a directory for our purposes?
-pub fn httm_is_dir<'a, T>(
-    entry: &'a T,
-    path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>,
-) -> bool
+pub fn httm_is_dir<'a, T>(entry: &'a T, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
 {
@@ -243,14 +243,14 @@ where
 }
 
 pub trait HttmIsDir<'a> {
-    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool;
+    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
     fn basic_dir_entry(&self) -> BasicDirEntryInfo;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
+    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -265,7 +265,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
+    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
         httm_is_dir(self, path_map)
     }
 
@@ -286,7 +286,7 @@ impl<'a> HttmIsDir<'a> for PathData {
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
+    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {

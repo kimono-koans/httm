@@ -240,11 +240,15 @@ impl CommonSearch for &RecursiveSearch<'_> {
             }
         }
 
-        let mut locked = self.path_map.borrow_mut();
+        let res = {
+            let read_locked = self.path_map.borrow();
+            basic_dir_entry.httm_is_dir(&read_locked)
+        };
 
-        let res = basic_dir_entry.httm_is_dir(&mut locked);
-
-        insert_new_dir(basic_dir_entry, &mut locked);
+        {
+            let mut write_locked = self.path_map.borrow_mut();
+            insert_new_dir(basic_dir_entry, &mut write_locked);
+        }
 
         res
     }
