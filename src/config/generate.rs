@@ -46,7 +46,6 @@ use clap::{
 };
 use indicatif::ProgressBar;
 use std::borrow::Cow;
-use std::fs::read_link;
 use std::io::Read;
 use std::ops::Index;
 use std::path::{
