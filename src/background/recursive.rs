@@ -204,9 +204,10 @@ impl<'a> RecursiveSearch<'a> {
             return false;
         };
 
-        let mut write_locked = self.path_map.borrow_mut();
-
-        write_locked.insert(file_id)
+        match self.path_map.try_borrow_mut().ok() {
+            Some(mut write_locked) => write_locked.insert(file_id),
+            None => false,
+        }
     }
 }
 
