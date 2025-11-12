@@ -207,7 +207,7 @@ pub trait CommonSearch {
         requested_dir: &Path,
         queue: &mut Vec<BasicDirEntryInfo>,
     ) -> HttmResult<()>;
-    fn is_entry_dir(&self, _basic_dir_entry: &BasicDirEntryInfo) -> bool {
+    fn entry_is_dir(&self, _basic_dir_entry: &BasicDirEntryInfo) -> bool {
         false
     }
 }
@@ -233,7 +233,7 @@ impl CommonSearch for &RecursiveSearch<'_> {
         }
     }
 
-    fn is_entry_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool {
+    fn entry_is_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Some(file_type) = basic_dir_entry.opt_filetype() {
@@ -296,7 +296,7 @@ impl PathsPartitioned {
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
                     .filter(|entry| entry.recursive_search_filter())
-                    .partition(|entry| search.is_entry_dir(entry))
+                    .partition(|entry| search.entry_is_dir(entry))
             }
             PathProvenance::IsPhantom => {
                 // obtain all unique deleted, unordered, unsorted, will need to fix
