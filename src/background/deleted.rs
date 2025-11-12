@@ -29,6 +29,7 @@ use crate::{
     ExecMode,
     GLOBAL_CONFIG,
 };
+use lscolors::Colorable;
 use rayon::Scope;
 use skim::prelude::*;
 use std::num::NonZero;
@@ -64,6 +65,10 @@ impl CommonSearch for &DeletedSearch {
             &PathProvenance::IsPhantom,
             self.opt_skim_tx.as_ref(),
         )
+    }
+
+    fn entry_is_dir(&self, pseudo_entry: &BasicDirEntryInfo) -> bool {
+        pseudo_entry.file_type().is_some_and(|ft| ft.is_dir())
     }
 }
 

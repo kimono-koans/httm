@@ -207,9 +207,7 @@ pub trait CommonSearch {
         requested_dir: &Path,
         queue: &mut Vec<BasicDirEntryInfo>,
     ) -> HttmResult<()>;
-    fn entry_is_dir(&self, _basic_dir_entry: &BasicDirEntryInfo) -> bool {
-        false
-    }
+    fn entry_is_dir(&self, _basic_dir_entry: &BasicDirEntryInfo) -> bool;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
@@ -303,11 +301,7 @@ impl PathsPartitioned {
                 DeletedFiles::new(entries.requested_dir)
                     .into_inner()
                     .into_iter()
-                    .partition(|pseudo_entry| {
-                        pseudo_entry
-                            .opt_filetype()
-                            .is_some_and(|file_type| file_type.is_dir())
-                    })
+                    .partition(|pseudo_entry| search.entry_is_dir(pseudo_entry))
             }
         };
 
