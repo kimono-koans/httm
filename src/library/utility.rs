@@ -152,19 +152,26 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
+pub fn insert_new_dir(
+    entry: &BasicDirEntryInfo,
+    path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>,
+) {
+    let Some(file_id) = UniqueInode::new(entry) else {
+        return;
+    };
+
+    let _ = path_map.insert(file_id);
+}
+
 pub fn dir_was_previously_listed(
     entry: &BasicDirEntryInfo,
-    opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+    path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>,
 ) -> bool {
     let Some(file_id) = UniqueInode::new(entry) else {
         return true;
     };
 
-    let Some(path_map) = opt_path_map else {
-        return true;
-    };
-
-    !path_map.insert(file_id)
+    path_map.contains(&file_id)
 }
 
 pub struct UniqueInode {
@@ -206,7 +213,7 @@ impl Hash for UniqueInode {
 // is this path/dir_entry something we should count as a directory for our purposes?
 pub fn httm_is_dir<'a, T>(
     entry: &'a T,
-    opt_path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
+    path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>,
 ) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
@@ -220,9 +227,9 @@ where
                 match entry.path().read_link() {
                     Ok(link_target) if !link_target.is_dir() => false,
                     Ok(link_target) => {
-                        let entry = BasicDirEntryInfo::new(&link_target, None);
+                        let entry = link_target.basic_dir_entry();
 
-                        !dir_was_previously_listed(&entry, opt_path_map)
+                        !dir_was_previously_listed(&entry, path_map)
                     }
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
@@ -236,19 +243,14 @@ where
 }
 
 pub trait HttmIsDir<'a> {
-    fn httm_is_dir(
-        &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
-    ) -> bool;
+    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
+    fn basic_dir_entry(&self) -> BasicDirEntryInfo;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(
-        &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
-    ) -> bool {
+    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -257,13 +259,13 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     fn path(&self) -> &Path {
         self.as_ref()
     }
+    fn basic_dir_entry(&self) -> BasicDirEntryInfo {
+        BasicDirEntryInfo::new(self.path(), None)
+    }
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(
-        &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
-    ) -> bool {
+    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
         httm_is_dir(self, path_map)
     }
 
@@ -278,13 +280,13 @@ impl<'a> HttmIsDir<'a> for PathData {
     fn path(&'a self) -> &'a Path {
         &self.path()
     }
+    fn basic_dir_entry(&self) -> BasicDirEntryInfo {
+        BasicDirEntryInfo::new(self.path(), None)
+    }
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(
-        &self,
-        path_map: Option<&mut RefMut<'_, hashbrown::HashSet<UniqueInode>>>,
-    ) -> bool {
+    fn httm_is_dir(&self, path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
         httm_is_dir(self, path_map)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -297,6 +299,9 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
     fn path(&'a self) -> &'a Path {
         &self.path()
+    }
+    fn basic_dir_entry(&self) -> BasicDirEntryInfo {
+        self.clone()
     }
 }
 

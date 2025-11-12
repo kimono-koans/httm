@@ -32,6 +32,7 @@ use crate::library::results::{
 use crate::library::utility::{
     HttmIsDir,
     UniqueInode,
+    insert_new_dir,
     print_output_buf,
 };
 use crate::lookup::deleted::DeletedFiles;
@@ -241,7 +242,11 @@ impl CommonSearch for &RecursiveSearch<'_> {
 
         let mut locked = self.path_map.borrow_mut();
 
-        basic_dir_entry.httm_is_dir(Some(&mut locked))
+        let res = basic_dir_entry.httm_is_dir(&mut locked);
+
+        insert_new_dir(basic_dir_entry, &mut locked);
+
+        res
     }
 }
 
