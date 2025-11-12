@@ -251,11 +251,7 @@ impl CommonSearch for &RecursiveSearch<'_> {
             }
         }
 
-        if entry.httm_is_dir() && self.insert_new_dir(entry) {
-            return true;
-        }
-
-        false
+        entry.httm_is_dir() && self.insert_new_dir(entry)
     }
 }
 
@@ -307,7 +303,7 @@ impl PathsPartitioned {
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
                     .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
-                    .filter(|entry| entry.recursive_search_filter())
+                    .filter(|entry: &BasicDirEntryInfo| entry.recursive_search_filter())
                     .partition(|entry| search.entry_is_dir(entry))
             }
             PathProvenance::IsPhantom => {
