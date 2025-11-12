@@ -161,8 +161,8 @@ where
             file_type if file_type.is_symlink() => {
                 // canonicalize will read_link/resolve the link for us
                 match entry.path().read_link() {
-                    Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(_link_target) => true,
+                    Ok(link_target) if link_target.is_dir() => true,
+                    Ok(_link_target) => false,
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
                 }

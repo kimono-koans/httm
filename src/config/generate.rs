@@ -16,22 +16,47 @@
 // that was distributed with this source code.
 
 use crate::config::install_hot_keys::install_hot_keys;
-use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
+use crate::data::paths::{
+    PathData,
+    PathDeconstruction,
+    ZfsSnapPathGuard,
+};
 use crate::filesystem::collection::FilesystemInfo;
-use crate::filesystem::mounts::{FilesystemType, ROOT_PATH};
+use crate::filesystem::mounts::{
+    FilesystemType,
+    ROOT_PATH,
+};
 use crate::interactive::preheat_cache::PreheatCache;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::pwd;
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    HttmIsDir,
+    pwd,
+};
 use crate::lookup::file_mounts::MountDisplay;
 use clap::parser::ValuesRef;
-use clap::{Arg, ArgAction, ArgMatches, crate_name, crate_version};
+use clap::{
+    Arg,
+    ArgAction,
+    ArgMatches,
+    crate_name,
+    crate_version,
+};
 use indicatif::ProgressBar;
 use std::borrow::Cow;
 use std::fs::read_link;
 use std::io::Read;
 use std::ops::Index;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::path::{
+    Path,
+    PathBuf,
+};
+use std::sync::{
+    Arc,
+    OnceLock,
+};
 use time::UtcOffset;
 
 #[derive(Debug, Clone)]
@@ -1138,16 +1163,7 @@ impl Config {
                 match paths.len() {
                     0 => Some(pwd.to_path_buf()),
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].opt_file_type().is_some_and(|ft| {
-                        ft.is_dir()
-                            || (ft.is_symlink()
-                                && read_link(paths[0].path())
-                                    .ok()
-                                    .is_some_and(|link_target| link_target.is_dir()))
-                    }) =>
-                    {
-                        Some(paths[0].path().to_path_buf())
-                    }
+                    1 if paths[0].httm_is_dir() => Some(paths[0].path().to_path_buf()),
                     // handle non-directories
                     1 => {
                         match exec_mode {
