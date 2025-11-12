@@ -31,8 +31,6 @@ use crate::library::results::{
 };
 use crate::library::utility::{
     HttmIsDir,
-    UniqueInode,
-    insert_new_dir,
     print_output_buf,
 };
 use crate::lookup::deleted::DeletedFiles;
@@ -49,6 +47,8 @@ use skim::SkimItem;
 use skim::prelude::*;
 use std::cell::RefCell;
 use std::fs::read_dir;
+use std::hash::Hash;
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -198,6 +198,16 @@ impl<'a> RecursiveSearch<'a> {
 
         Ok(())
     }
+
+    fn insert_new_dir(&self, entry: &BasicDirEntryInfo) -> bool {
+        let Some(file_id) = UniqueInode::new(entry) else {
+            return false;
+        };
+
+        let mut write_locked = self.path_map.borrow_mut();
+
+        write_locked.insert(file_id)
+    }
 }
 
 pub trait CommonSearch {
@@ -232,25 +242,19 @@ impl CommonSearch for &RecursiveSearch<'_> {
         }
     }
 
-    fn entry_is_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool {
+    fn entry_is_dir(&self, entry: &BasicDirEntryInfo) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
-            if let Some(file_type) = basic_dir_entry.opt_filetype() {
+            if let Some(file_type) = entry.opt_filetype() {
                 return file_type.is_dir();
             }
         }
 
-        let res = {
-            let read_locked = self.path_map.borrow();
-            basic_dir_entry.httm_is_dir(&read_locked)
-        };
-
-        {
-            let mut write_locked = self.path_map.borrow_mut();
-            insert_new_dir(basic_dir_entry, &mut write_locked);
+        if entry.httm_is_dir() && self.insert_new_dir(entry) {
+            return true;
         }
 
-        res
+        false
     }
 }
 
@@ -455,5 +459,41 @@ impl NonInteractiveRecursiveWrapper {
         }
 
         Ok(())
+    }
+}
+
+pub struct UniqueInode {
+    ino: u64,
+    dev: u64,
+}
+
+impl UniqueInode {
+    fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
+        // deref if needed!
+        let entry_metadata = match entry.opt_filetype() {
+            Some(ft) if ft.is_symlink() => entry.path().metadata().ok(),
+            Some(_) => entry.opt_metadata().cloned(),
+            None => entry.path().metadata().ok(),
+        };
+
+        Some(Self {
+            ino: entry_metadata.as_ref()?.ino(),
+            dev: entry_metadata.as_ref()?.dev(),
+        })
+    }
+}
+
+impl PartialEq for UniqueInode {
+    fn eq(&self, other: &Self) -> bool {
+        self.ino == other.ino && self.dev == other.dev
+    }
+}
+
+impl Eq for UniqueInode {}
+
+impl Hash for UniqueInode {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ino.hash(state);
+        self.dev.hash(state);
     }
 }

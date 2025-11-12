@@ -35,15 +35,9 @@ use lscolors::{
 };
 use nu_ansi_term::AnsiString;
 use std::borrow::Cow;
-use std::cell::{
-    Ref,
-    RefMut,
-};
 use std::fs::FileType;
-use std::hash::Hash;
 use std::io::Write;
 use std::iter::Iterator;
-use std::os::unix::fs::MetadataExt;
 use std::path::{
     Path,
     PathBuf,
@@ -155,66 +149,8 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
-pub fn insert_new_dir(
-    entry: &BasicDirEntryInfo,
-    path_map: &mut RefMut<'_, hashbrown::HashSet<UniqueInode>>,
-) {
-    let Some(file_id) = UniqueInode::new(entry) else {
-        return;
-    };
-
-    let _ = path_map.insert(file_id);
-}
-
-pub fn dir_was_previously_listed(
-    entry: &BasicDirEntryInfo,
-    path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>,
-) -> bool {
-    let Some(file_id) = UniqueInode::new(entry) else {
-        return true;
-    };
-
-    path_map.contains(&file_id)
-}
-
-pub struct UniqueInode {
-    ino: u64,
-    dev: u64,
-}
-
-impl UniqueInode {
-    fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
-        // deref if needed!
-        let entry_metadata = match entry.opt_filetype() {
-            Some(ft) if ft.is_symlink() => entry.path().metadata().ok(),
-            Some(_) => entry.opt_metadata().cloned(),
-            None => entry.path().metadata().ok(),
-        };
-
-        Some(Self {
-            ino: entry_metadata.as_ref()?.ino(),
-            dev: entry_metadata.as_ref()?.dev(),
-        })
-    }
-}
-
-impl PartialEq for UniqueInode {
-    fn eq(&self, other: &Self) -> bool {
-        self.ino == other.ino && self.dev == other.dev
-    }
-}
-
-impl Eq for UniqueInode {}
-
-impl Hash for UniqueInode {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.ino.hash(state);
-        self.dev.hash(state);
-    }
-}
-
 // is this path/dir_entry something we should count as a directory for our purposes?
-pub fn httm_is_dir<'a, T>(entry: &'a T, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool
+pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
 where
     T: HttmIsDir<'a> + ?Sized,
 {
@@ -226,11 +162,7 @@ where
                 // canonicalize will read_link/resolve the link for us
                 match entry.path().read_link() {
                     Ok(link_target) if !link_target.is_dir() => false,
-                    Ok(link_target) => {
-                        let entry = link_target.basic_dir_entry();
-
-                        !dir_was_previously_listed(&entry, path_map)
-                    }
+                    Ok(_link_target) => true,
                     // we get an error? still pass the path on, as we get a good path from the dir entry
                     _ => false,
                 }
@@ -243,15 +175,14 @@ where
 }
 
 pub trait HttmIsDir<'a> {
-    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool;
+    fn httm_is_dir(&self) -> bool;
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&'a self) -> &'a Path;
-    fn basic_dir_entry(&self) -> BasicDirEntryInfo;
 }
 
 impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
-        httm_is_dir(self, path_map)
+    fn httm_is_dir(&self) -> bool {
+        httm_is_dir(self)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
         Ok(self.as_ref().symlink_metadata()?.file_type())
@@ -259,14 +190,11 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     fn path(&self) -> &Path {
         self.as_ref()
     }
-    fn basic_dir_entry(&self) -> BasicDirEntryInfo {
-        BasicDirEntryInfo::new(self.path(), None)
-    }
 }
 
 impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
-        httm_is_dir(self, path_map)
+    fn httm_is_dir(&self) -> bool {
+        httm_is_dir(self)
     }
 
     fn file_type(&self) -> Result<FileType, std::io::Error> {
@@ -280,14 +208,11 @@ impl<'a> HttmIsDir<'a> for PathData {
     fn path(&'a self) -> &'a Path {
         &self.path()
     }
-    fn basic_dir_entry(&self) -> BasicDirEntryInfo {
-        BasicDirEntryInfo::new(self.path(), None)
-    }
 }
 
 impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(&self, path_map: &Ref<'_, hashbrown::HashSet<UniqueInode>>) -> bool {
-        httm_is_dir(self, path_map)
+    fn httm_is_dir(&self) -> bool {
+        httm_is_dir(self)
     }
     fn file_type(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
@@ -299,9 +224,6 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
     }
     fn path(&'a self) -> &'a Path {
         &self.path()
-    }
-    fn basic_dir_entry(&self) -> BasicDirEntryInfo {
-        self.clone()
     }
 }
 
