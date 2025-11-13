@@ -187,7 +187,6 @@ impl PrintAsMap {
             }
             Err(error) => {
                 exit_error(error.into());
-                unreachable!();
             }
         }
     }

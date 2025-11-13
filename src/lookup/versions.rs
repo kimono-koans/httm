@@ -429,7 +429,6 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         \nDetails: {err}"
                         ));
                         exit_error(error.into());
-                        unreachable!();
                     }
                     // if file metadata is not found, or is otherwise not available,
                     // continue, it simply means we do not have a snapshot of this file

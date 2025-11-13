@@ -125,7 +125,7 @@ fn main() {
     }
 }
 
-pub fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) {
+pub fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) -> ! {
     eprintln!("ERROR: {error}");
     std::process::exit(1)
 }

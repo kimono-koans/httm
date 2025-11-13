@@ -140,7 +140,6 @@ impl SnapshotMounts {
             .into_group_map_by(|snapshot_name| {
                 Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|error| {
                     exit_error(error);
-                    unreachable!();
                 })
             })
             .iter_mut()

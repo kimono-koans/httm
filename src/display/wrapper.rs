@@ -301,7 +301,6 @@ impl<'a> DisplayWrapper<'a> {
             }
             Err(error) => {
                 exit_error(error.into());
-                unreachable!();
             }
         }
     }
