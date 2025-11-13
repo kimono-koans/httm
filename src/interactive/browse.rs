@@ -15,16 +15,24 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::Config;
-use crate::DisplayWrapper;
-use crate::GLOBAL_CONFIG;
-use crate::InteractiveSelect;
-use crate::VersionsMap;
 use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
-use crate::interactive::view_mode::MultiSelect;
-use crate::interactive::view_mode::ViewMode;
-use crate::library::results::{HttmError, HttmResult};
+use crate::interactive::view_mode::{
+    MultiSelect,
+    ViewMode,
+};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::{
+    Config,
+    DisplayWrapper,
+    GLOBAL_CONFIG,
+    InteractiveSelect,
+    VersionsMap,
+    exit_success,
+};
 use crossbeam_channel::unbounded;
 use skim::prelude::*;
 use std::ops::Deref;
@@ -116,7 +124,7 @@ impl InteractiveBrowse {
         match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
             Some(output) if output.is_abort => {
                 eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                std::process::exit(0)
+                exit_success()
             }
             Some(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit

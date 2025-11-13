@@ -118,7 +118,7 @@ pub const MAC_OS_HIDDEN_DIRS: [&str; 6] = [
 
 fn main() {
     match exec() {
-        Ok(_) => std::process::exit(0),
+        Ok(_) => exit_success(),
         Err(error) => {
             exit_error(error);
         }
@@ -128,6 +128,10 @@ fn main() {
 pub fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) -> ! {
     eprintln!("ERROR: {error}");
     std::process::exit(1)
+}
+
+pub fn exit_success() -> ! {
+    std::process::exit(0)
 }
 
 // get our program args and generate a config for use

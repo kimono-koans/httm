@@ -15,11 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::exit_success;
 use crate::library::file_ops::Rename;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::library::utility::make_tmp_path;
 use std::fs::OpenOptions;
-use std::io::{Read, Write};
+use std::io::{
+    Read,
+    Write,
+};
 use std::path::PathBuf;
 
 const HTTM_SCRIPT_PATH: &str = ".httm-key-bindings.zsh";
@@ -118,5 +125,5 @@ pub fn install_hot_keys() -> HttmResult<()> {
         }
     }
 
-    std::process::exit(0)
+    exit_success()
 }
