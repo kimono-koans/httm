@@ -15,21 +15,45 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{Config, DedupBy, ExecMode, LastSnapMode};
-use crate::data::paths::{CompareContentsContainer, PathData, PathDeconstruction};
+use crate::config::generate::{
+    Config,
+    DedupBy,
+    ExecMode,
+    LastSnapMode,
+};
+use crate::data::paths::{
+    CompareContentsContainer,
+    PathData,
+    PathDeconstruction,
+};
 use crate::filesystem::mounts::LinkType;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::preheat_cache::PreheatCache;
-use crate::library::results::{HttmError, HttmResult};
-use crate::{GLOBAL_CONFIG, MAP_OF_SNAPS};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::{
+    GLOBAL_CONFIG,
+    MAP_OF_SNAPS,
+    exit_error,
+};
 use hashbrown::HashMap;
-use rayon::iter::IntoParallelRefIterator;
-use rayon::iter::ParallelIterator;
+use rayon::iter::{
+    IntoParallelRefIterator,
+    ParallelIterator,
+};
 use rayon::slice::ParallelSlice;
 use std::borrow::Cow;
 use std::io::ErrorKind;
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+use std::ops::{
+    Deref,
+    DerefMut,
+};
+use std::path::{
+    Path,
+    PathBuf,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionsMap {
@@ -399,12 +423,13 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                     // if we do not have permissions to read the snapshot directories
                     // fail/panic printing a descriptive error instead of flattening
                     ErrorKind::PermissionDenied => {
-                        eprintln!(
+                        let error = HttmError::new(format!(
                             "Error: When httm tried to find a file contained within a snapshot directory, permission was denied.  \
                         Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
                         \nDetails: {err}"
-                        );
-                        std::process::exit(1)
+                        ));
+                        exit_error(error.into());
+                        unreachable!();
                     }
                     // if file metadata is not found, or is otherwise not available,
                     // continue, it simply means we do not have a snapshot of this file

@@ -77,7 +77,10 @@ use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
 use background::recursive::NonInteractiveRecursiveWrapper;
-use config::generate::{Config, ExecMode};
+use config::generate::{
+    Config,
+    ExecMode,
+};
 use display::maps::PrintAsMap;
 use display::wrapper::DisplayWrapper;
 use interactive::prune::PruneSnaps;
@@ -122,7 +125,7 @@ fn main() {
     }
 }
 
-fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) {
+pub fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) {
     eprintln!("ERROR: {error}");
     std::process::exit(1)
 }

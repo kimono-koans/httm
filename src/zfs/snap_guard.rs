@@ -16,10 +16,19 @@
 // that was distributed with this source code.
 
 use crate::library::results::HttmResult;
-use crate::library::utility::{date_string, DateFormat};
-use crate::zfs::run_command::RunZFSCommand;
-use crate::zfs::run_command::ZfsAllowPriv;
-use crate::{print_output_buf, GLOBAL_CONFIG};
+use crate::library::utility::{
+    DateFormat,
+    date_string,
+};
+use crate::zfs::run_command::{
+    RunZFSCommand,
+    ZfsAllowPriv,
+};
+use crate::{
+    GLOBAL_CONFIG,
+    exit_error,
+    print_output_buf,
+};
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -110,12 +119,25 @@ impl SnapGuard {
         })
     }
 
-    pub fn rollback(&self) -> HttmResult<()> {
+    fn rollback(&self) -> HttmResult<()> {
         ZfsAllowPriv::Rollback.from_fs_name(&self.dataset_name)?;
 
         let run_zfs = RunZFSCommand::new()?;
         run_zfs.rollback(&[self.new_snap_name.to_owned()])?;
 
         Ok(())
+    }
+
+    pub fn exit_and_rollback_with_error(&self, err: Box<dyn std::error::Error + Sync + Send>) {
+        eprintln!("ERROR: {}", err);
+
+        eprintln!("NOTICE: Attempting rollback to snapshot guard.");
+
+        match self.rollback() {
+            Ok(_) => eprintln!("NOTICE: Rollback succeeded."),
+            Err(error) => exit_error(error),
+        }
+
+        std::process::exit(1);
     }
 }

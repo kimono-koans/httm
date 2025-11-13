@@ -15,14 +15,33 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::config::generate::{FormattedMode, PrintMode, RawMode};
-use crate::data::paths::{PathData, ZfsSnapPathGuard};
-use crate::display::versions::{NOT_SO_PRETTY_FIXED_WIDTH_PADDING, QUOTATION_MARKS_LEN};
+use crate::config::generate::{
+    FormattedMode,
+    PrintMode,
+    RawMode,
+};
+use crate::data::paths::{
+    PathData,
+    ZfsSnapPathGuard,
+};
+use crate::display::versions::{
+    NOT_SO_PRETTY_FIXED_WIDTH_PADDING,
+    QUOTATION_MARKS_LEN,
+};
 use crate::library::utility::delimiter;
-use crate::{GLOBAL_CONFIG, MountsForFiles, SnapNameMap, VersionsMap};
+use crate::{
+    GLOBAL_CONFIG,
+    MountsForFiles,
+    SnapNameMap,
+    VersionsMap,
+    exit_error,
+};
 use hashbrown::HashMap;
 use serde::ser::SerializeMap;
-use serde::{Serialize, Serializer};
+use serde::{
+    Serialize,
+    Serializer,
+};
 use std::ops::Deref;
 
 #[derive(Debug)]
@@ -167,8 +186,8 @@ impl PrintAsMap {
                 format!("{s}{delimiter}")
             }
             Err(error) => {
-                eprintln!("Error: {error}");
-                std::process::exit(1)
+                exit_error(error.into());
+                unreachable!();
             }
         }
     }

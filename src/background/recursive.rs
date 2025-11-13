@@ -37,6 +37,7 @@ use crate::lookup::deleted::DeletedFiles;
 use crate::{
     GLOBAL_CONFIG,
     VersionsMap,
+    exit_error,
 };
 use hashbrown::HashSet;
 use rayon::{
@@ -95,25 +96,17 @@ impl<'a> RecursiveSearch<'a> {
                     .expect("Could not initialize rayon thread pool for recursive deleted search");
 
                 pool.in_place_scope(|deleted_scope| {
-                    self.run_loop(Some(deleted_scope));
+                    self.run_loop(Some(deleted_scope))
+                        .unwrap_or_else(|err| exit_error(err));
                 })
             }
             None => {
-                self.run_loop(None);
+                self.run_loop(None).unwrap_or_else(|err| exit_error(err));
             }
         }
     }
 
-    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) {
-        // this runs the main loop for live file searches, see the referenced struct below
-        // we are in our own detached system thread, so print error and exit if error trickles up
-        self.loop_body(opt_deleted_scope).unwrap_or_else(|error| {
-            eprintln!("ERROR: {error}");
-            std::process::exit(1)
-        });
-    }
-
-    fn loop_body(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
+    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item

@@ -15,19 +15,37 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::GLOBAL_CONFIG;
-use crate::config::generate::{BulkExclusion, Config, ExecMode, FormattedMode, PrintMode};
-use crate::config::generate::{NumVersionsMode, RawMode};
+use crate::config::generate::{
+    BulkExclusion,
+    Config,
+    ExecMode,
+    FormattedMode,
+    NumVersionsMode,
+    PrintMode,
+    RawMode,
+};
 use crate::data::paths::PathData;
 use crate::display::maps::PrintAsMap;
-use crate::display::versions::DisplaySet;
-use crate::display::versions::DisplaySetType;
-use crate::display::versions::PaddingCollection;
+use crate::display::versions::{
+    DisplaySet,
+    DisplaySetType,
+    PaddingCollection,
+};
 use crate::library::utility::delimiter;
-use crate::lookup::versions::{Versions, VersionsMap};
+use crate::lookup::versions::{
+    Versions,
+    VersionsMap,
+};
+use crate::{
+    GLOBAL_CONFIG,
+    exit_error,
+};
 use hashbrown::HashMap;
 use serde::ser::SerializeMap;
-use serde::{Serialize, Serializer};
+use serde::{
+    Serialize,
+    Serializer,
+};
 use std::ops::Deref;
 
 pub struct DisplayWrapper<'a> {
@@ -282,8 +300,8 @@ impl<'a> DisplayWrapper<'a> {
                 format!("{s}{delimiter}")
             }
             Err(error) => {
-                eprintln!("Error: {error}");
-                std::process::exit(1)
+                exit_error(error.into());
+                unreachable!();
             }
         }
     }

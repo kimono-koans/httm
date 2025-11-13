@@ -16,18 +16,46 @@
 // that was distributed with this source code.
 
 use crate::GLOBAL_CONFIG;
-use crate::config::generate::{ExecMode, InteractiveMode, RestoreMode, RestoreSnapGuard};
-use crate::data::paths::{PathData, PathDeconstruction, ZfsSnapPathGuard};
+use crate::config::generate::{
+    ExecMode,
+    InteractiveMode,
+    RestoreMode,
+    RestoreSnapGuard,
+};
+use crate::data::paths::{
+    PathData,
+    PathDeconstruction,
+    ZfsSnapPathGuard,
+};
 use crate::interactive::select::InteractiveSelect;
-use crate::interactive::view_mode::{MultiSelect, ViewMode};
+use crate::interactive::view_mode::{
+    MultiSelect,
+    ViewMode,
+};
 use crate::library::file_ops::Copy;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{DateFormat, date_string, make_tmp_path};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    DateFormat,
+    date_string,
+    make_tmp_path,
+};
 use crate::zfs::snap_guard::SnapGuard;
-use nu_ansi_term::Color::{Blue, LightYellow};
+use nu_ansi_term::Color::{
+    Blue,
+    LightYellow,
+};
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
-use terminal_size::{Height, Width};
+use std::path::{
+    Path,
+    PathBuf,
+};
+use terminal_size::{
+    Height,
+    Width,
+};
 
 pub struct InteractiveRestore {
     view_mode: ViewMode,
@@ -99,15 +127,7 @@ impl InteractiveRestore {
                                 Some(&snap_guard),
                                 should_preserve,
                             ) {
-                                eprintln!("{}", err);
-
-                                eprintln!("Attempting rollback to snapshot guard.");
-
-                                snap_guard
-                                    .rollback()
-                                    .map(|_| println!("Rollback succeeded."))?;
-
-                                std::process::exit(1);
+                                snap_guard.exit_and_rollback_with_error(err);
                             }
                         }
                         _ => Self::restore_action(

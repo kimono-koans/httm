@@ -15,26 +15,64 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::{PathData, PathDeconstruction};
+use crate::data::paths::{
+    PathData,
+    PathDeconstruction,
+};
 use crate::library::diff_copy::HttmCopy;
-use crate::library::file_ops::{Copy, Preserve};
+use crate::library::file_ops::{
+    Copy,
+    Preserve,
+};
 use crate::library::iter_extensions::HttmIter;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{is_metadata_same, user_has_effective_root};
-use crate::roll_forward::diff_events::{DiffEvent, DiffType};
-use crate::roll_forward::preserve_hard_links::{PreserveHardLinks, SpawnPreserveLinks};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    is_metadata_same,
+    user_has_effective_root,
+};
+use crate::roll_forward::diff_events::{
+    DiffEvent,
+    DiffType,
+};
+use crate::roll_forward::preserve_hard_links::{
+    PreserveHardLinks,
+    SpawnPreserveLinks,
+};
 use crate::zfs::run_command::RunZFSCommand;
-use crate::zfs::snap_guard::{PrecautionarySnapType, SnapGuard};
-use crate::{GLOBAL_CONFIG, ZFS_SNAPSHOT_DIRECTORY};
+use crate::zfs::snap_guard::{
+    PrecautionarySnapType,
+    SnapGuard,
+};
+use crate::{
+    GLOBAL_CONFIG,
+    ZFS_SNAPSHOT_DIRECTORY,
+};
 use indicatif::ProgressBar;
-use std::fs::Permissions;
-use std::fs::read_dir;
-use std::fs::set_permissions;
-use std::io::{BufRead, Read};
-use std::os::unix::fs::chown;
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::{Path, PathBuf};
-use std::process::{ChildStderr, ChildStdout};
+use std::fs::{
+    Permissions,
+    read_dir,
+    set_permissions,
+};
+use std::io::{
+    BufRead,
+    Read,
+};
+use std::os::unix::fs::{
+    MetadataExt,
+    PermissionsExt,
+    chown,
+};
+use std::path::{
+    Path,
+    PathBuf,
+};
+use std::process::{
+    ChildStderr,
+    ChildStdout,
+};
 use std::sync::Arc;
 
 struct DirectoryLock {
@@ -159,18 +197,7 @@ impl RollForward {
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
-                let description = format!(
-                    "httm roll forward failed for the following reason: {}.\n\
-                Attempting roll back to precautionary pre-execution snapshot.",
-                    err
-                );
-                eprintln!("{}", description);
-
-                snap_guard
-                    .rollback()
-                    .map(|_| println!("Rollback succeeded."))?;
-
-                std::process::exit(1)
+                snap_guard.exit_and_rollback_with_error(err);
             }
         };
 

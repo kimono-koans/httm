@@ -15,13 +15,30 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::GLOBAL_CONFIG;
 use crate::config::generate::PrintMode;
 use crate::library::iter_extensions::HttmIter;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{DateFormat, date_string, delimiter, print_output_buf};
-use crate::lookup::file_mounts::{MountDisplay, MountsForFiles};
-use crate::zfs::run_command::{RunZFSCommand, ZfsAllowPriv};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    DateFormat,
+    date_string,
+    delimiter,
+    print_output_buf,
+};
+use crate::lookup::file_mounts::{
+    MountDisplay,
+    MountsForFiles,
+};
+use crate::zfs::run_command::{
+    RunZFSCommand,
+    ZfsAllowPriv,
+};
+use crate::{
+    GLOBAL_CONFIG,
+    exit_error,
+};
 use hashbrown::HashMap;
 use std::time::SystemTime;
 
@@ -121,9 +138,9 @@ impl SnapshotMounts {
         let map_snapshot_names: HashMap<String, Vec<String>> = vec_snapshot_names
             .into_iter()
             .into_group_map_by(|snapshot_name| {
-                Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|err| {
-                    eprintln!("ERROR: {:?}", err);
-                    std::process::exit(1)
+                Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|error| {
+                    exit_error(error);
+                    unreachable!();
                 })
             })
             .iter_mut()
