@@ -16,6 +16,7 @@
 // that was distributed with this source code.
 
 //use std::thread::sleep;
+use crate::GLOBAL_CONFIG;
 use crate::background::recursive::{
     CommonSearch,
     Entries,
@@ -25,14 +26,9 @@ use crate::background::recursive::{
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
 use crate::library::results::HttmResult;
-use crate::{
-    ExecMode,
-    GLOBAL_CONFIG,
-};
 use lscolors::Colorable;
 use rayon::Scope;
 use skim::prelude::*;
-use std::num::NonZero;
 use std::path::{
     Path,
     PathBuf,
@@ -105,9 +101,6 @@ impl DeletedSearch {
             return Ok(());
         };
 
-        // yield to other rayon work on this worker thread
-        //self.timeout_loop()?;
-
         let mut queue = Vec::new();
 
         self.enter_directory(&self.deleted_dir, &mut queue)?;
@@ -120,27 +113,12 @@ impl DeletedSearch {
         }
 
         if GLOBAL_CONFIG.opt_recursive {
-            let mut total_items = 0;
-            let num_cores: usize = std::thread::available_parallelism()
-                .unwrap_or_else(|_| NonZero::new(4usize).unwrap())
-                .into();
-            let interactive = !matches!(
-                GLOBAL_CONFIG.exec_mode,
-                ExecMode::NonInteractiveRecursive(_)
-            );
-
             while let Some(item) = queue.pop() {
                 // check to see whether we need to continue
                 if self.hangup() {
                     return Ok(());
                 }
                 let _ = self.enter_directory(&item.path(), &mut queue);
-
-                total_items += 1;
-
-                if interactive && total_items % (100 / num_cores) == 0 {
-                    std::thread::yield_now();
-                }
             }
         }
 
