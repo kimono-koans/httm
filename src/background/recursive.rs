@@ -63,7 +63,7 @@ pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
-    path_map: RefCell<HashSet<UniqueInode>>,
+    not_previously_displayed_cache: RefCell<HashSet<UniqueInode>>,
 }
 
 impl<'a> RecursiveSearch<'a> {
@@ -72,31 +72,35 @@ impl<'a> RecursiveSearch<'a> {
         opt_skim_tx: Option<&'a SkimItemSender>,
         hangup: Arc<AtomicBool>,
     ) -> Self {
-        let path_map: RefCell<HashSet<UniqueInode>> = RefCell::new(HashSet::new());
+        let not_previously_displayed_cache: RefCell<HashSet<UniqueInode>> =
+            RefCell::new(HashSet::new());
 
         Self {
             requested_dir,
             opt_skim_tx,
             hangup,
-            path_map,
+            not_previously_displayed_cache,
         }
     }
 
     pub fn exec(&self) {
-        if GLOBAL_CONFIG.opt_deleted_mode.is_some() {
-            // thread pool allows deleted to have its own scope, which means
-            // all threads must complete before the scope exits.  this is important
-            // for display recursive searches as the live enumeration will end before
-            // all deleted threads have completed
-            let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
-                .build()
-                .expect("Could not initialize rayon thread pool for recursive deleted search");
+        match GLOBAL_CONFIG.opt_deleted_mode {
+            Some(_) => {
+                // thread pool allows deleted to have its own scope, which means
+                // all threads must complete before the scope exits.  this is important
+                // for display recursive searches as the live enumeration will end before
+                // all deleted threads have completed
+                let pool: ThreadPool = rayon::ThreadPoolBuilder::new()
+                    .build()
+                    .expect("Could not initialize rayon thread pool for recursive deleted search");
 
-            pool.in_place_scope(|deleted_scope| {
-                self.run_loop(Some(deleted_scope));
-            })
-        } else {
-            self.run_loop(None);
+                pool.in_place_scope(|deleted_scope| {
+                    self.run_loop(Some(deleted_scope));
+                })
+            }
+            None => {
+                self.run_loop(None);
+            }
         }
     }
 
@@ -186,15 +190,14 @@ impl<'a> RecursiveSearch<'a> {
         Ok(())
     }
 
-    fn insert_new_dir(&self, entry: &BasicDirEntryInfo) -> bool {
+    fn entry_not_previously_displayed(&self, entry: &BasicDirEntryInfo) -> bool {
         let Some(file_id) = UniqueInode::new(entry) else {
             return false;
         };
 
-        match self.path_map.try_borrow_mut().ok() {
-            Some(mut write_locked) => write_locked.insert(file_id),
-            None => false,
-        }
+        let mut write_locked = self.not_previously_displayed_cache.borrow_mut();
+
+        write_locked.insert(file_id)
     }
 }
 
@@ -238,7 +241,7 @@ impl CommonSearch for &RecursiveSearch<'_> {
             }
         }
 
-        entry.httm_is_dir() && self.insert_new_dir(entry)
+        entry.httm_is_dir() && self.entry_not_previously_displayed(entry)
     }
 }
 
