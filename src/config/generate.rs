@@ -1162,7 +1162,7 @@ impl Config {
                 match paths.len() {
                     0 => Some(pwd.to_path_buf()),
                     // safe to index as we know the paths len is 1
-                    1 if paths[0].httm_is_dir() => Some(paths[0].path().to_path_buf()),
+                    1 if paths[0].httm_is_dir::<PathData>() => Some(paths[0].path().to_path_buf()),
                     // handle non-directories
                     1 => {
                         match exec_mode {

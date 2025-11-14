@@ -149,41 +149,34 @@ pub fn print_output_buf(output_buf: &str) -> HttmResult<()> {
     out_locked.flush().map_err(std::convert::Into::into)
 }
 
-// is this path/dir_entry something we should count as a directory for our purposes?
-pub fn httm_is_dir<'a, T>(entry: &'a T) -> bool
-where
-    T: HttmIsDir<'a> + ?Sized,
-{
-    match entry.file_type() {
-        Ok(file_type) => match file_type {
-            file_type if file_type.is_dir() => true,
-            file_type if file_type.is_file() => false,
-            file_type if file_type.is_symlink() => {
-                // canonicalize will read_link/resolve the link for us
-                match entry.path().read_link() {
-                    Ok(link_target) if link_target.is_dir() => true,
-                    Ok(_link_target) => false,
-                    // we get an error? still pass the path on, as we get a good path from the dir entry
-                    _ => false,
-                }
-            }
-            // char, block, etc devices(?), None/Errs are not dirs, and we have a good path to pass on, so false
-            _ => false,
-        },
-        _ => false,
-    }
-}
-
-pub trait HttmIsDir<'a> {
-    fn httm_is_dir(&self) -> bool;
+pub trait HttmIsDir {
     fn file_type(&self) -> Result<FileType, std::io::Error>;
-    fn path(&'a self) -> &'a Path;
+    fn path(&self) -> &Path;
+
+    // is this path/dir_entry something we should count as a directory for our purposes?
+    fn httm_is_dir<T>(&self) -> bool {
+        match self.file_type() {
+            Ok(file_type) => match file_type {
+                file_type if file_type.is_dir() => true,
+                file_type if file_type.is_file() => false,
+                file_type if file_type.is_symlink() => {
+                    // canonicalize will read_link/resolve the link for us
+                    match self.path().read_link() {
+                        Ok(link_target) if link_target.is_dir() => true,
+                        Ok(_link_target) => false,
+                        // we get an error? still pass the path on, as we get a good path from the dir entry
+                        _ => false,
+                    }
+                }
+                // char, block, etc devices(?), None/Errs are not dirs, and we have a good path to pass on, so false
+                _ => false,
+            },
+            _ => false,
+        }
+    }
 }
 
-impl<T: AsRef<Path>> HttmIsDir<'_> for T {
-    fn httm_is_dir(&self) -> bool {
-        httm_is_dir(self)
-    }
+impl<T: AsRef<Path>> HttmIsDir for T {
     fn file_type(&self) -> Result<FileType, std::io::Error> {
         Ok(self.as_ref().symlink_metadata()?.file_type())
     }
@@ -192,11 +185,7 @@ impl<T: AsRef<Path>> HttmIsDir<'_> for T {
     }
 }
 
-impl<'a> HttmIsDir<'a> for PathData {
-    fn httm_is_dir(&self) -> bool {
-        httm_is_dir(self)
-    }
-
+impl HttmIsDir for PathData {
     fn file_type(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
@@ -205,15 +194,12 @@ impl<'a> HttmIsDir<'a> for PathData {
             .opt_file_type()
             .ok_or_else(|| std::io::ErrorKind::NotFound)?)
     }
-    fn path(&'a self) -> &'a Path {
+    fn path(&self) -> &Path {
         &self.path()
     }
 }
 
-impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
-    fn httm_is_dir(&self) -> bool {
-        httm_is_dir(self)
-    }
+impl HttmIsDir for BasicDirEntryInfo {
     fn file_type(&self) -> Result<FileType, std::io::Error> {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
@@ -222,8 +208,8 @@ impl<'a> HttmIsDir<'a> for BasicDirEntryInfo {
             .copied()
             .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
     }
-    fn path(&'a self) -> &'a Path {
-        &self.path()
+    fn path(&self) -> &Path {
+        self.path()
     }
 }
 
@@ -232,36 +218,29 @@ pub static ENV_LS_COLORS: LazyLock<LsColors> =
 static BASE_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| nu_ansi_term::Style::default());
 static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
-pub fn paint_string<'a, T>(item: &'a T) -> AnsiString<'a>
-where
-    T: PaintString,
-{
-    let display_name = item.name();
-
-    if item.is_phantom() {
-        return PHANTOM_STYLE.paint(display_name);
-    }
-
-    match item
-        .ls_style()
-        .map(|style| Style::to_nu_ansi_term_style(&style))
-    {
-        Some(ansi_style) => ansi_style.paint(display_name),
-        None => BASE_STYLE.paint(display_name),
-    }
-}
-
-pub trait PaintString {
-    fn paint_string<'a>(&'a self) -> AnsiString<'a>;
+pub trait PaintString<'a> {
     fn ls_style(&self) -> Option<lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
     fn name(&self) -> Cow<'_, str>;
+
+    fn paint_string(&'a self) -> AnsiString<'a> {
+        let display_name = self.name();
+
+        if self.is_phantom() {
+            return PHANTOM_STYLE.paint(display_name);
+        }
+
+        match self
+            .ls_style()
+            .map(|style| Style::to_nu_ansi_term_style(&style))
+        {
+            Some(ansi_style) => ansi_style.paint(display_name),
+            None => BASE_STYLE.paint(display_name),
+        }
+    }
 }
 
-impl PaintString for PathData {
-    fn paint_string<'a>(&'a self) -> AnsiString<'a> {
-        paint_string(self)
-    }
+impl<'a> PaintString<'a> for PathData {
     fn ls_style(&self) -> Option<lscolors::style::Style> {
         self.opt_style()
     }
@@ -273,10 +252,7 @@ impl PaintString for PathData {
     }
 }
 
-impl PaintString for SelectionCandidate {
-    fn paint_string<'a>(&'a self) -> AnsiString<'a> {
-        paint_string(self)
-    }
+impl<'a> PaintString<'a> for SelectionCandidate {
     fn ls_style(&self) -> Option<lscolors::style::Style> {
         self.opt_style().copied()
     }

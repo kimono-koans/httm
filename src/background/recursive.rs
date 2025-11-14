@@ -165,7 +165,7 @@ impl CommonSearch for RecursiveSearch<'_> {
             }
         }
 
-        entry.httm_is_dir() && self.entry_not_previously_displayed(entry)
+        entry.httm_is_dir::<BasicDirEntryInfo>() && self.entry_not_previously_displayed(entry)
     }
 
     fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
