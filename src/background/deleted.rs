@@ -19,7 +19,6 @@
 use crate::GLOBAL_CONFIG;
 use crate::background::recursive::{
     CommonSearch,
-    Entries,
     PathProvenance,
     enter_directory,
 };
@@ -83,14 +82,6 @@ impl CommonSearch for DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn into_entries<'a>(&'a self, requested_dir: &'a Path) -> Entries<'a> {
-        Entries::new(
-            requested_dir,
-            &PathProvenance::IsPhantom,
-            self.opt_skim_tx.as_ref(),
-        )
-    }
-
     fn entry_is_dir(&self, pseudo_entry: &BasicDirEntryInfo) -> bool {
         pseudo_entry.file_type().is_some_and(|ft| ft.is_dir())
     }
@@ -124,5 +115,13 @@ impl CommonSearch for DeletedSearch {
         }
 
         Ok(())
+    }
+
+    fn opt_sender(&self) -> Option<&SkimItemSender> {
+        self.opt_skim_tx.as_ref()
+    }
+
+    fn path_provenance(&self) -> PathProvenance {
+        PathProvenance::IsPhantom
     }
 }
