@@ -60,6 +60,11 @@ pub enum PathProvenance {
     IsPhantom,
 }
 
+pub struct Entries {
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    vec_files: Vec<BasicDirEntryInfo>,
+}
+
 pub struct RecursiveSearch<'a> {
     requested_dir: &'a Path,
     opt_skim_tx: Option<&'a SkimItemSender>,
@@ -127,12 +132,11 @@ impl<'a> RecursiveSearch<'a> {
         }
 
         let entries = Entries {
-            search: self,
             vec_dirs: initial_vec_dirs,
             vec_files: Vec::new(),
         };
 
-        entries.combine_and_deliver()?;
+        self.combine_and_deliver(entries)?;
 
         Ok(())
     }
@@ -173,20 +177,17 @@ pub trait CommonSearch {
         }
 
         // create entries struct here
-        let entries = Entries::new(requested_dir, self)?;
+        let entries = self.entries_partition(requested_dir)?;
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let mut vec_dirs = entries.combine_and_deliver()?;
+        let mut vec_dirs = self.combine_and_deliver(entries)?;
 
         queue.append(&mut vec_dirs);
 
         Ok(())
     }
 
-    fn display_or_transmit<'a, T>(
-        &self,
-        combined_entries: Vec<BasicDirEntryInfo>,
-    ) -> HttmResult<()> {
+    fn display_or_transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
             ExecMode::Interactive(_) => self.transmit(combined_entries)?,
@@ -243,6 +244,66 @@ pub trait CommonSearch {
         let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
         print_output_buf(&output_buf)
+    }
+
+    fn entries_partition(&self, requested_dir: &Path) -> HttmResult<Entries> {
+        // separates entries into dirs and files
+        let (vec_dirs, vec_files) = match self.path_provenance() {
+            PathProvenance::FromLiveDataset => {
+                read_dir(requested_dir)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
+                    .filter(|entry: &BasicDirEntryInfo| entry.recursive_search_filter())
+                    .partition(|entry| self.entry_is_dir(entry))
+            }
+            PathProvenance::IsPhantom => {
+                // obtain all unique deleted, unordered, unsorted, will need to fix
+                DeletedFiles::new(requested_dir)
+                    .into_inner()
+                    .into_iter()
+                    .partition(|pseudo_entry| self.entry_is_dir(pseudo_entry))
+            }
+        };
+
+        Ok(Entries {
+            vec_dirs,
+            vec_files,
+        })
+    }
+
+    #[inline(always)]
+    fn combine_and_deliver(&self, entries: Entries) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        let Entries {
+            vec_dirs,
+            vec_files,
+        } = entries;
+
+        let entries_ready_to_send = match self.path_provenance() {
+            PathProvenance::FromLiveDataset
+                if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
+                    || matches!(
+                        GLOBAL_CONFIG.exec_mode,
+                        ExecMode::NonInteractiveRecursive(_)
+                    ) =>
+            {
+                Vec::new()
+            }
+            PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
+                let mut combined = vec_files;
+
+                combined.extend_from_slice(&vec_dirs);
+                combined
+            }
+        };
+
+        self.display_or_transmit(entries_ready_to_send)?;
+
+        // here we consume the struct after sending the entries,
+        // however we still need the dirs to populate the loop's queue
+        // so we return the vec of dirs here
+        Ok(vec_dirs)
     }
 }
 
@@ -309,80 +370,6 @@ impl CommonSearch for RecursiveSearch<'_> {
 
     fn path_provenance(&self) -> PathProvenance {
         PathProvenance::FromLiveDataset
-    }
-}
-
-pub struct Entries<'a, T> {
-    search: &'a T,
-    vec_dirs: Vec<BasicDirEntryInfo>,
-    vec_files: Vec<BasicDirEntryInfo>,
-}
-
-impl<'a, T> Entries<'a, T>
-where
-    T: CommonSearch,
-{
-    #[inline(always)]
-    pub fn new(requested_dir: &'a Path, search: &'a T) -> HttmResult<Self> {
-        // separates entries into dirs and files
-        let (vec_dirs, vec_files) = match search.path_provenance() {
-            PathProvenance::FromLiveDataset => {
-                read_dir(requested_dir)?
-                    .flatten()
-                    // checking file_type on dir entries is always preferable
-                    // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
-                    .filter(|entry: &BasicDirEntryInfo| entry.recursive_search_filter())
-                    .partition(|entry| search.entry_is_dir(entry))
-            }
-            PathProvenance::IsPhantom => {
-                // obtain all unique deleted, unordered, unsorted, will need to fix
-                DeletedFiles::new(requested_dir)
-                    .into_inner()
-                    .into_iter()
-                    .partition(|pseudo_entry| search.entry_is_dir(pseudo_entry))
-            }
-        };
-
-        Ok(Self {
-            search,
-            vec_dirs,
-            vec_files,
-        })
-    }
-
-    #[inline(always)]
-    fn combine_and_deliver(self) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        let Entries {
-            search,
-            vec_dirs,
-            vec_files,
-        } = self;
-
-        let entries_ready_to_send = match search.path_provenance() {
-            PathProvenance::FromLiveDataset
-                if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
-                    || matches!(
-                        GLOBAL_CONFIG.exec_mode,
-                        ExecMode::NonInteractiveRecursive(_)
-                    ) =>
-            {
-                Vec::new()
-            }
-            PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
-                let mut combined = vec_files;
-
-                combined.extend_from_slice(&vec_dirs);
-                combined
-            }
-        };
-
-        search.display_or_transmit::<T>(entries_ready_to_send)?;
-
-        // here we consume the struct after sending the entries,
-        // however we still need the dirs to populate the loop's queue
-        // so we return the vec of dirs here
-        Ok(vec_dirs)
     }
 }
 
