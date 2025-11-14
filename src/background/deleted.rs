@@ -20,7 +20,6 @@ use crate::GLOBAL_CONFIG;
 use crate::background::recursive::{
     CommonSearch,
     PathProvenance,
-    enter_directory,
 };
 use crate::config::generate::DeletedMode;
 use crate::data::paths::BasicDirEntryInfo;
@@ -70,14 +69,6 @@ impl DeletedSearch {
 }
 
 impl CommonSearch for DeletedSearch {
-    fn enter_directory(
-        &self,
-        requested_dir: &Path,
-        queue: &mut Vec<BasicDirEntryInfo>,
-    ) -> HttmResult<()> {
-        enter_directory(self, requested_dir, queue)
-    }
-
     fn hangup(&self) -> bool {
         self.hangup.load(Ordering::Relaxed)
     }
