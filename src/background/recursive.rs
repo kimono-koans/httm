@@ -449,16 +449,17 @@ pub struct UniqueInode {
 
 impl UniqueInode {
     fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
-        match entry.opt_filetype() {
-            Some(ft) if !ft.is_symlink() => entry.opt_metadata().map(|md| Self {
+        if entry.opt_filetype().is_some_and(|ft| ft.is_symlink()) {
+            return entry.path().metadata().ok().map(|md| Self {
                 ino: md.ino(),
                 dev: md.dev(),
-            }),
-            _ => entry.path().metadata().ok().map(|md| Self {
-                ino: md.ino(),
-                dev: md.dev(),
-            }),
+            });
         }
+
+        entry.opt_metadata().map(|md| Self {
+            ino: md.ino(),
+            dev: md.dev(),
+        })
     }
 }
 
