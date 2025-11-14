@@ -106,47 +106,6 @@ impl<'a> RecursiveSearch<'a> {
         }
     }
 
-    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
-        // the user may specify a dir for browsing,
-        // but wants to restore that directory,
-        // so here we add the directory and its parent as a selection item
-        self.add_dot_entries()?;
-
-        // runs once for non-recursive but also "primes the pump"
-        // for recursive to have items available, also only place an
-        // error can stop execution
-        let mut queue: Vec<BasicDirEntryInfo> = Vec::new();
-
-        self.enter_directory(self.requested_dir, &mut queue)?;
-
-        if let Some(deleted_scope) = opt_deleted_scope {
-            self.spawn_deleted_search(&self.requested_dir, deleted_scope);
-        }
-
-        if GLOBAL_CONFIG.opt_recursive {
-            // condition kills iter when user has made a selection
-            // pop_back makes this a LIFO queue which is supposedly better for caches
-            while let Some(item) = queue.pop() {
-                // check -- should deleted threads keep working?
-                // exit/error on disconnected channel, which closes
-                // at end of browse scope
-                if self.hangup() {
-                    break;
-                }
-
-                if let Some(deleted_scope) = opt_deleted_scope {
-                    self.spawn_deleted_search(&item.path(), deleted_scope);
-                }
-
-                // no errors will be propagated in recursive mode
-                // far too likely to run into a dir we don't have permissions to view
-                let _ = self.enter_directory(item.path(), &mut queue);
-            }
-        }
-
-        Ok(())
-    }
-
     fn spawn_deleted_search(&self, requested_dir: &'a Path, deleted_scope: &Scope<'_>) {
         DeletedSearch::spawn(
             requested_dir,
@@ -203,6 +162,7 @@ pub trait CommonSearch {
         queue: &mut Vec<BasicDirEntryInfo>,
     ) -> HttmResult<()>;
     fn entry_is_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool;
+    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()>;
 }
 
 impl CommonSearch for &RecursiveSearch<'_> {
@@ -235,6 +195,47 @@ impl CommonSearch for &RecursiveSearch<'_> {
         }
 
         entry.httm_is_dir() && self.entry_not_previously_displayed(entry)
+    }
+
+    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
+        // the user may specify a dir for browsing,
+        // but wants to restore that directory,
+        // so here we add the directory and its parent as a selection item
+        self.add_dot_entries()?;
+
+        // runs once for non-recursive but also "primes the pump"
+        // for recursive to have items available, also only place an
+        // error can stop execution
+        let mut queue: Vec<BasicDirEntryInfo> = Vec::new();
+
+        self.enter_directory(self.requested_dir, &mut queue)?;
+
+        if let Some(deleted_scope) = opt_deleted_scope {
+            self.spawn_deleted_search(&self.requested_dir, deleted_scope);
+        }
+
+        if GLOBAL_CONFIG.opt_recursive {
+            // condition kills iter when user has made a selection
+            // pop_back makes this a LIFO queue which is supposedly better for caches
+            while let Some(item) = queue.pop() {
+                // check -- should deleted threads keep working?
+                // exit/error on disconnected channel, which closes
+                // at end of browse scope
+                if self.hangup() {
+                    break;
+                }
+
+                if let Some(deleted_scope) = opt_deleted_scope {
+                    self.spawn_deleted_search(&item.path(), deleted_scope);
+                }
+
+                // no errors will be propagated in recursive mode
+                // far too likely to run into a dir we don't have permissions to view
+                let _ = self.enter_directory(item.path(), &mut queue);
+            }
+        }
+
+        Ok(())
     }
 }
 
