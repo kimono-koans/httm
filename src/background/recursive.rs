@@ -60,7 +60,7 @@ pub enum PathProvenance {
     IsPhantom,
 }
 
-pub struct Entries {
+pub struct EntriesPartitioned {
     vec_dirs: Vec<BasicDirEntryInfo>,
     vec_files: Vec<BasicDirEntryInfo>,
 }
@@ -131,12 +131,12 @@ impl<'a> RecursiveSearch<'a> {
             initial_vec_dirs.push(double_dot_as_entry)
         }
 
-        let entries = Entries {
+        let entries = EntriesPartitioned {
             vec_dirs: initial_vec_dirs,
             vec_files: Vec::new(),
         };
 
-        self.combine_and_deliver(entries)?;
+        self.combine_and_deliver_entries(entries)?;
 
         Ok(())
     }
@@ -243,17 +243,17 @@ pub trait CommonSearch {
         }
 
         // create entries struct here
-        let entries = self.entries_partition(requested_dir)?;
+        let entries = self.entries_partitioned(requested_dir)?;
 
         // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let mut vec_dirs = self.combine_and_deliver(entries)?;
+        let mut vec_dirs = self.combine_and_deliver_entries(entries)?;
 
         queue.append(&mut vec_dirs);
 
         Ok(())
     }
 
-    fn entries_partition(&self, requested_dir: &Path) -> HttmResult<Entries> {
+    fn entries_partitioned(&self, requested_dir: &Path) -> HttmResult<EntriesPartitioned> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match self.path_provenance() {
             PathProvenance::FromLiveDataset => {
@@ -274,15 +274,18 @@ pub trait CommonSearch {
             }
         };
 
-        Ok(Entries {
+        Ok(EntriesPartitioned {
             vec_dirs,
             vec_files,
         })
     }
 
     #[inline(always)]
-    fn combine_and_deliver(&self, entries: Entries) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        let Entries {
+    fn combine_and_deliver_entries(
+        &self,
+        entries: EntriesPartitioned,
+    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
+        let EntriesPartitioned {
             vec_dirs,
             vec_files,
         } = entries;
