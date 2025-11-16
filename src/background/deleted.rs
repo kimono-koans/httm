@@ -54,7 +54,7 @@ impl DeletedSearch {
         let deleted_dir = requested_dir.to_path_buf();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::new(opt_skim_tx.clone(), hangup.clone()).run_loop(&deleted_dir, None);
+            let _ = Self::new(opt_skim_tx, hangup).run_loop(&deleted_dir, None);
         })
     }
 }
