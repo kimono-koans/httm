@@ -105,12 +105,9 @@ impl<'a> RecursiveSearch<'a> {
     }
 
     fn spawn_deleted_search(&self, requested_dir: &'a Path, deleted_scope: &Scope<'_>) {
-        DeletedSearch::spawn(
-            requested_dir,
-            deleted_scope,
-            self.opt_skim_tx.cloned(),
-            self.hangup.clone(),
-        )
+        let search = DeletedSearch::new(self.opt_skim_tx.cloned(), self.hangup.clone());
+
+        search.spawn(requested_dir, deleted_scope);
     }
 
     fn add_dot_entries(&'a self, requested_dir: &'a Path) -> HttmResult<()> {

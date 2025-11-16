@@ -37,7 +37,7 @@ pub struct DeletedSearch {
 }
 
 impl DeletedSearch {
-    fn new(opt_skim_tx: Option<SkimItemSender>, hangup: Arc<AtomicBool>) -> Self {
+    pub fn new(opt_skim_tx: Option<SkimItemSender>, hangup: Arc<AtomicBool>) -> Self {
         Self {
             opt_skim_tx,
             hangup,
@@ -45,16 +45,11 @@ impl DeletedSearch {
     }
 
     // "spawn" a lighter weight rayon/greenish thread for enumerate_deleted, if needed
-    pub fn spawn(
-        requested_dir: &Path,
-        deleted_scope: &Scope,
-        opt_skim_tx: Option<SkimItemSender>,
-        hangup: Arc<AtomicBool>,
-    ) {
+    pub fn spawn(mut self, requested_dir: &Path, deleted_scope: &Scope) {
         let deleted_dir = requested_dir.to_path_buf();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::new(opt_skim_tx, hangup).run_loop(&deleted_dir, None);
+            let _ = self.run_loop(&deleted_dir, None);
         })
     }
 }
