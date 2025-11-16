@@ -46,7 +46,6 @@ use rayon::{
 };
 use skim::SkimItem;
 use skim::prelude::*;
-use std::cell::RefCell;
 use std::fs::read_dir;
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
@@ -66,30 +65,23 @@ pub struct EntriesPartitioned {
 }
 
 pub struct RecursiveSearch<'a> {
-    requested_dir: &'a Path,
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
-    not_previously_displayed_cache: RefCell<HashSet<UniqueInode>>,
+    not_previously_displayed_cache: HashSet<UniqueInode>,
 }
 
 impl<'a> RecursiveSearch<'a> {
-    pub fn new(
-        requested_dir: &'a Path,
-        opt_skim_tx: Option<&'a SkimItemSender>,
-        hangup: Arc<AtomicBool>,
-    ) -> Self {
-        let not_previously_displayed_cache: RefCell<HashSet<UniqueInode>> =
-            RefCell::new(HashSet::new());
+    pub fn new(opt_skim_tx: Option<&'a SkimItemSender>, hangup: Arc<AtomicBool>) -> Self {
+        let not_previously_displayed_cache: HashSet<UniqueInode> = HashSet::new();
 
         Self {
-            requested_dir,
             opt_skim_tx,
             hangup,
             not_previously_displayed_cache,
         }
     }
 
-    pub fn exec(&self) {
+    pub fn exec(&mut self, requested_dir: &'a Path) {
         match GLOBAL_CONFIG.opt_deleted_mode {
             Some(_) => {
                 // thread pool allows deleted to have its own scope, which means
@@ -101,12 +93,13 @@ impl<'a> RecursiveSearch<'a> {
                     .expect("Could not initialize rayon thread pool for recursive deleted search");
 
                 pool.in_place_scope(|deleted_scope| {
-                    self.run_loop(Some(deleted_scope))
+                    self.run_loop(requested_dir, Some(deleted_scope))
                         .unwrap_or_else(|err| exit_error(err));
                 })
             }
             None => {
-                self.run_loop(None).unwrap_or_else(|err| exit_error(err));
+                self.run_loop(requested_dir, None)
+                    .unwrap_or_else(|err| exit_error(err));
             }
         }
     }
@@ -120,12 +113,12 @@ impl<'a> RecursiveSearch<'a> {
         )
     }
 
-    fn add_dot_entries(&'a self) -> HttmResult<()> {
-        let dot_as_entry = BasicDirEntryInfo::new(self.requested_dir, None);
+    fn add_dot_entries(&'a self, requested_dir: &'a Path) -> HttmResult<()> {
+        let dot_as_entry = BasicDirEntryInfo::new(requested_dir, None);
 
         let mut initial_vec_dirs = vec![dot_as_entry];
 
-        if let Some(parent) = self.requested_dir.parent() {
+        if let Some(parent) = requested_dir.parent() {
             let double_dot_as_entry = BasicDirEntryInfo::new(parent, None);
 
             initial_vec_dirs.push(double_dot_as_entry)
@@ -141,14 +134,12 @@ impl<'a> RecursiveSearch<'a> {
         Ok(())
     }
 
-    fn entry_not_previously_displayed(&self, entry: &BasicDirEntryInfo) -> bool {
+    fn entry_not_previously_displayed(&mut self, entry: &BasicDirEntryInfo) -> bool {
         let Some(file_id) = UniqueInode::new(entry) else {
             return false;
         };
 
-        let mut write_locked = self.not_previously_displayed_cache.borrow_mut();
-
-        write_locked.insert(file_id)
+        self.not_previously_displayed_cache.insert(file_id)
     }
 }
 
@@ -157,7 +148,7 @@ impl CommonSearch for RecursiveSearch<'_> {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn entry_is_dir(&self, entry: &BasicDirEntryInfo) -> bool {
+    fn entry_is_dir(&mut self, entry: &BasicDirEntryInfo) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse {
             if let Some(file_type) = entry.opt_filetype() {
@@ -168,21 +159,25 @@ impl CommonSearch for RecursiveSearch<'_> {
         entry.httm_is_dir::<BasicDirEntryInfo>() && self.entry_not_previously_displayed(entry)
     }
 
-    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()> {
+    fn run_loop(
+        &mut self,
+        requested_dir: &Path,
+        opt_deleted_scope: Option<&Scope>,
+    ) -> HttmResult<()> {
         // the user may specify a dir for browsing,
         // but wants to restore that directory,
         // so here we add the directory and its parent as a selection item
-        self.add_dot_entries()?;
+        self.add_dot_entries(requested_dir)?;
 
         // runs once for non-recursive but also "primes the pump"
         // for recursive to have items available, also only place an
         // error can stop execution
         let mut queue: Vec<BasicDirEntryInfo> = Vec::new();
 
-        self.enter_directory(self.requested_dir, &mut queue)?;
+        self.enter_directory(requested_dir, &mut queue)?;
 
         if let Some(deleted_scope) = opt_deleted_scope {
-            self.spawn_deleted_search(&self.requested_dir, deleted_scope);
+            self.spawn_deleted_search(requested_dir, deleted_scope);
         }
 
         if GLOBAL_CONFIG.opt_recursive {
@@ -220,16 +215,20 @@ impl CommonSearch for RecursiveSearch<'_> {
 
 pub trait CommonSearch {
     fn hangup(&self) -> bool;
-    fn entry_is_dir(&self, basic_dir_entry: &BasicDirEntryInfo) -> bool;
-    fn run_loop(&self, opt_deleted_scope: Option<&Scope>) -> HttmResult<()>;
+    fn entry_is_dir(&mut self, basic_dir_entry: &BasicDirEntryInfo) -> bool;
+    fn run_loop(
+        &mut self,
+        requested_dir: &Path,
+        opt_deleted_scope: Option<&Scope>,
+    ) -> HttmResult<()>;
     fn opt_sender(&self) -> Option<&SkimItemSender>;
     fn path_provenance(&self) -> PathProvenance;
 
     // deleted file search for all modes
     #[inline(always)]
-    fn enter_directory<'a>(
-        &self,
-        requested_dir: &'a Path,
+    fn enter_directory(
+        &mut self,
+        requested_dir: &Path,
         queue: &mut Vec<BasicDirEntryInfo>,
     ) -> HttmResult<()>
     where
@@ -253,7 +252,7 @@ pub trait CommonSearch {
         Ok(())
     }
 
-    fn entries_partitioned(&self, requested_dir: &Path) -> HttmResult<EntriesPartitioned> {
+    fn entries_partitioned(&mut self, requested_dir: &Path) -> HttmResult<EntriesPartitioned> {
         // separates entries into dirs and files
         let (vec_dirs, vec_files) = match self.path_provenance() {
             PathProvenance::FromLiveDataset => {
@@ -425,7 +424,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::new(requested_dir, opt_skim_tx, hangup).exec();
+                RecursiveSearch::new(opt_skim_tx, hangup).exec(&requested_dir);
             }
             None => {
                 return HttmError::new(

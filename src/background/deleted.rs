@@ -27,27 +27,18 @@ use crate::library::results::HttmResult;
 use lscolors::Colorable;
 use rayon::Scope;
 use skim::prelude::*;
-use std::path::{
-    Path,
-    PathBuf,
-};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 pub struct DeletedSearch {
-    deleted_dir: PathBuf,
     opt_skim_tx: Option<SkimItemSender>,
     hangup: Arc<AtomicBool>,
 }
 
 impl DeletedSearch {
-    fn new(
-        deleted_dir: PathBuf,
-        opt_skim_tx: Option<SkimItemSender>,
-        hangup: Arc<AtomicBool>,
-    ) -> Self {
+    fn new(opt_skim_tx: Option<SkimItemSender>, hangup: Arc<AtomicBool>) -> Self {
         Self {
-            deleted_dir,
             opt_skim_tx,
             hangup,
         }
@@ -63,7 +54,7 @@ impl DeletedSearch {
         let deleted_dir = requested_dir.to_path_buf();
 
         deleted_scope.spawn(move |_| {
-            let _ = Self::new(deleted_dir, opt_skim_tx.clone(), hangup.clone()).run_loop(None);
+            let _ = Self::new(opt_skim_tx.clone(), hangup.clone()).run_loop(&deleted_dir, None);
         })
     }
 }
@@ -73,11 +64,15 @@ impl CommonSearch for DeletedSearch {
         self.hangup.load(Ordering::Relaxed)
     }
 
-    fn entry_is_dir(&self, pseudo_entry: &BasicDirEntryInfo) -> bool {
+    fn entry_is_dir(&mut self, pseudo_entry: &BasicDirEntryInfo) -> bool {
         pseudo_entry.file_type().is_some_and(|ft| ft.is_dir())
     }
 
-    fn run_loop(&self, _opt_deleted_scope: Option<&Scope<'_>>) -> HttmResult<()> {
+    fn run_loop(
+        &mut self,
+        deleted_dir: &Path,
+        _opt_deleted_scope: Option<&Scope<'_>>,
+    ) -> HttmResult<()> {
         // check to see whether we need to continue
         if self.hangup() {
             return Ok(());
@@ -85,7 +80,7 @@ impl CommonSearch for DeletedSearch {
 
         let mut queue = Vec::new();
 
-        self.enter_directory(&self.deleted_dir, &mut queue)?;
+        self.enter_directory(deleted_dir, &mut queue)?;
 
         if matches!(
             GLOBAL_CONFIG.opt_deleted_mode,
