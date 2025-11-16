@@ -37,7 +37,7 @@ xattr = { version = "1.6.1", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.2.0", default-features = false }
-clap = { version = "4.5.49", default-features = true, features = ["cargo"] }
+clap = { version = "4.5.51", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", default-features = false }
 time = { version = "0.3.44", default-features = false, features = [
     "formatting",
@@ -46,13 +46,13 @@ time = { version = "0.3.44", default-features = false, features = [
 unit-prefix = { version = "0.5.1", default-features = false }
 skim = { version = "0.12.18", default-features = false, package = "two_percent" }
 nu-ansi-term = { version = "0.50.3", default-features = false }
-lscolors = { version = "0.20.0", default-features = false, features = [
+lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
 terminal_size = { version = "0.4.3", default-features = false }
 which = { version = "8.0.0", default-features = false, features = ["real-sys"] }
 rayon = { version = "1.11.0", default-features = false }
-indicatif = { version = "0.18.0", default-features = false }
+indicatif = { version = "0.18.3", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 hashbrown = { version = "0.16.0", default-features = false, features = [
     "rayon",
