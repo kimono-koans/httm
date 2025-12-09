@@ -15,20 +15,42 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::GLOBAL_CONFIG;
-use crate::config::generate::DedupBy;
-use crate::config::generate::{BulkExclusion, Config, FormattedMode, PrintMode, RawMode};
-use crate::data::paths::{PHANTOM_DATE, PHANTOM_SIZE, PathData};
+use crate::config::generate::{
+    BulkExclusion,
+    Config,
+    DedupBy,
+    FormattedMode,
+    PrintMode,
+    RawMode,
+};
+use crate::data::paths::{
+    PHANTOM_DATE,
+    PHANTOM_SIZE,
+    PathData,
+    PathDeconstruction,
+};
 use crate::filesystem::mounts::IsFilterDir;
-use crate::library::utility::PaintString;
-use crate::library::utility::{DateFormat, date_string, display_human_size};
+use crate::library::utility::{
+    DateFormat,
+    PaintString,
+    date_string,
+    display_human_size,
+};
 use crate::lookup::versions::ProximateDatasetAndOptAlts;
+use crate::{
+    GLOBAL_CONFIG,
+    MAP_OF_SNAPS,
+};
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::LazyLock;
-use terminal_size::{Height, Width, terminal_size};
+use terminal_size::{
+    Height,
+    Width,
+    terminal_size,
+};
 use time::UtcOffset;
 
 // 2 space wide padding - used between date and size, and size and path
@@ -275,6 +297,14 @@ impl PathData {
                         != 0 =>
             {
                 "WARN: Omit ditto enabled.  Omitting the only snapshot version available.\n"
+            }
+            _ if self
+                .proximate_dataset()
+                .ok()
+                .and_then(|dataset| MAP_OF_SNAPS.get(dataset))
+                .is_some_and(|vec| vec.is_empty()) =>
+            {
+                "WARN: No snapshots exist for the specified file's most proximate mount.\n"
             }
             _ => "WARN: No snapshot version exists for the specified file.\n",
         }
