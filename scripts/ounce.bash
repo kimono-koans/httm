@@ -185,7 +185,7 @@ function needs_snap {
 
 	filenames="$1"
 
-	uncut_res="$( httm --last-snap=no-ditto-inclusive --not-so-pretty "$filenames" 2>/dev/null)"
+	uncut_res="$( httm --last-snap=no-ditto-exclusive --not-so-pretty "$filenames" 2>/dev/null)"
 	[[ $? -eq 0 ]] || uncut_res=""
 
 	cut -f1 -d: <<<"$uncut_res"
