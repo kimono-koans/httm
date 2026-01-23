@@ -119,8 +119,6 @@ impl InteractiveBrowse {
             RankCriteria::NegLength,
         ];
 
-        let header_lines = header.clone().lines().count();
-
         // create the skim component for previews
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_layout)
@@ -128,7 +126,7 @@ impl InteractiveBrowse {
             .no_sort(true)
             .exact(GLOBAL_CONFIG.opt_exact)
             .header(Some(header))
-            .header_lines(header_lines)
+            .header_lines(3)
             .multi(opt_multi)
             .regex(false)
             .tiebreak(tiebreak)
