@@ -37,6 +37,12 @@ pub enum MultiSelect {
     Off,
 }
 
+pub const TIEBREAK: &[RankCriteria] = &[
+    RankCriteria::Score,
+    RankCriteria::Index,
+    RankCriteria::NegLength,
+];
+
 impl ViewMode {
     pub fn print_header(&self) -> String {
         format!(
@@ -67,12 +73,6 @@ impl ViewMode {
             MultiSelect::Off => false,
         };
 
-        let tiebreak = vec![
-            RankCriteria::Score,
-            RankCriteria::Index,
-            RankCriteria::NegLength,
-        ];
-
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_selection.opt_preview_window())
@@ -84,9 +84,9 @@ impl ViewMode {
             .exact(true)
             .multi(opt_multi)
             .regex(false)
-            .tiebreak(tiebreak)
-            .header(Some(header))
+            .tiebreak(TIEBREAK.to_vec())
             .header_lines(3)
+            .header(Some(header))
             .build()
             .expect("Could not initialized skim options for select_restore_view");
 

@@ -19,6 +19,7 @@ use crate::background::recursive::RecursiveSearch;
 use crate::data::paths::PathData;
 use crate::interactive::view_mode::{
     MultiSelect,
+    TIEBREAK,
     ViewMode,
 };
 use crate::library::results::{
@@ -33,7 +34,6 @@ use crate::{
     VersionsMap,
     exit_success,
 };
-use skim::item::RankCriteria;
 use skim::prelude::*;
 use skim::tui::options::PreviewLayout;
 use std::ops::Deref;
@@ -113,23 +113,17 @@ impl InteractiveBrowse {
             ..Default::default()
         };
 
-        let tiebreak = vec![
-            RankCriteria::Score,
-            RankCriteria::Index,
-            RankCriteria::NegLength,
-        ];
-
         // create the skim component for previews
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_layout)
             .preview(Some("".to_string()))
             .no_sort(true)
             .exact(GLOBAL_CONFIG.opt_exact)
-            .header(Some(header))
             .header_lines(3)
+            .header(Some(header))
             .multi(opt_multi)
             .regex(false)
-            .tiebreak(tiebreak)
+            .tiebreak(TIEBREAK.to_vec())
             .build()
             .expect("Could not initialized skim options for browse_view");
 
