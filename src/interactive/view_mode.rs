@@ -67,49 +67,47 @@ impl ViewMode {
             MultiSelect::Off => false,
         };
 
+        let tiebreak = vec![
+            RankCriteria::Score,
+            RankCriteria::Index,
+            RankCriteria::NegLength,
+        ];
+
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_selection.opt_preview_window())
             .preview(preview_selection.opt_preview_command())
             .disabled(true)
             .tac(true)
-            .nosort(true)
-            .tabstop(Some("4"))
+            .no_sort(true)
+            .tabstop(4)
             .exact(true)
             .multi(opt_multi)
             .regex(false)
-            .tiebreak(Some("score,index,-length".to_string()))
-            .algorithm(FuzzyAlgorithm::Simple)
-            .header(Some(&header))
+            .tiebreak(tiebreak)
+            .header(Some(header))
             .build()
             .expect("Could not initialized skim options for select_restore_view");
 
         let item_reader_opts = SkimItemReaderOption::default().ansi(true);
         let item_reader = SkimItemReader::new(item_reader_opts);
 
-        let (items, opt_ingest_handle) =
-            item_reader.of_bufread(Box::new(Cursor::new(buffer.to_owned())));
+        let items = item_reader.of_bufread(Box::new(Cursor::new(buffer.to_owned())));
 
         // run_with() reads and shows items from the thread stream created above
-        let res = match skim::Skim::run_with(&skim_opts, Some(items)) {
-            Some(output) if output.is_abort => {
+        let res = match skim::Skim::run_with(skim_opts, Some(items)) {
+            Ok(output) if output.is_abort => {
                 eprintln!("httm select/restore/prune session was aborted.  Quitting.");
                 exit_success();
             }
-            Some(output) => output
+            Ok(output) => output
                 .selected_items
                 .iter()
                 .map(|i| i.output().into_owned())
                 .collect(),
-            None => {
+            Err(_) => {
                 return HttmError::new("httm select/restore/prune session failed.").into();
             }
-        };
-
-        if let Some(handle) = opt_ingest_handle {
-            rayon::spawn(|| {
-                let _ = handle.join();
-            });
         };
 
         if GLOBAL_CONFIG.opt_debug {

@@ -33,8 +33,9 @@ use crate::{
     VersionsMap,
     exit_success,
 };
-use crossbeam_channel::unbounded;
+use skim::item::RankCriteria;
 use skim::prelude::*;
+use skim::tui::options::PreviewLayout;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
@@ -94,7 +95,7 @@ impl InteractiveBrowse {
         let hangup = Arc::new(AtomicBool::new(false));
         let hangup_clone = hangup.clone();
         let requested_dir_clone = requested_dir.to_path_buf();
-        let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) = unbounded();
+        let (tx_item, rx_item) = skim::prelude::unbounded();
 
         // thread spawn fn enumerate_directory - permits recursion into dirs without blocking
         let background_handle = std::thread::spawn(move || {
@@ -106,27 +107,38 @@ impl InteractiveBrowse {
 
         let opt_multi = GLOBAL_CONFIG.opt_preview.is_none();
 
+        let preview_layout = PreviewLayout {
+            direction: tui::Direction::Up,
+            size: tui::Size::Percent(50),
+            ..Default::default()
+        };
+
+        let tiebreak = vec![
+            RankCriteria::Score,
+            RankCriteria::Index,
+            RankCriteria::NegLength,
+        ];
+
         // create the skim component for previews
         let skim_opts = SkimOptionsBuilder::default()
-            .preview_window(Some("up:50%"))
-            .preview(Some(""))
-            .nosort(true)
+            .preview_window(preview_layout)
+            .preview(Some("".to_string()))
+            .no_sort(true)
             .exact(GLOBAL_CONFIG.opt_exact)
-            .header(Some(&header))
+            .header(Some(header))
             .multi(opt_multi)
             .regex(false)
-            .tiebreak(Some("score,index,-length".to_string()))
-            .algorithm(FuzzyAlgorithm::Simple)
+            .tiebreak(tiebreak)
             .build()
             .expect("Could not initialized skim options for browse_view");
 
         // run_with() reads and shows items from the thread stream created above
-        match skim::Skim::run_with(&skim_opts, Some(rx_item)) {
-            Some(output) if output.is_abort => {
+        match skim::Skim::run_with(skim_opts, Some(rx_item)) {
+            Ok(output) if output.is_abort => {
                 eprintln!("httm interactive file browse session was aborted.  Quitting.");
                 exit_success()
             }
-            Some(output) => {
+            Ok(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit
                 hangup_clone.store(true, Ordering::SeqCst);
 
@@ -154,7 +166,7 @@ impl InteractiveBrowse {
 
                 Ok(Self { selected_path_data })
             }
-            None => HttmError::new("httm interactive file browse session failed.").into(),
+            Err(_) => HttmError::new("httm interactive file browse session failed.").into(),
         }
     }
 

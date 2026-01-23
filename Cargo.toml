@@ -27,7 +27,7 @@ std = ["xattrs", "malloc_trim"]
 # acls feature - requires libacl1-dev to build
 acls = ["exacl"]
 xattrs = ["xattr"]
-malloc_trim = ["skim/malloc_trim", "libc"]
+malloc_trim = ["libc"]
 licensing = ["lms"]
 
 [target.'cfg(unix)'.dependencies]
@@ -44,7 +44,7 @@ time = { version = "0.3.44", default-features = false, features = [
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.2", default-features = false }
-skim = { version = "0.12.18", default-features = false, package = "two_percent" }
+skim = { version = "1.5.3", default-features = false }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
@@ -75,6 +75,7 @@ itertools = { version = "0.14.0", default-features = false }
 
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
 lms = { version = "0.4.0", default-features = false, optional = true }
+ratatui-core = "0.1.0"
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"

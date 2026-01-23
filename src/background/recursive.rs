@@ -344,7 +344,7 @@ pub trait CommonSearch {
     fn transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        let vec: Vec<Arc<dyn SkimItem>> = combined_entries
+        combined_entries
             .into_iter()
             .map(|basic_dir_entry_info| {
                 let item: Arc<dyn SkimItem> = Arc::new(
@@ -353,12 +353,12 @@ pub trait CommonSearch {
 
                 item
             })
-            .collect();
-
-        self.opt_sender()
-            .expect("Sender must be Some in any interactive mode")
-            .send(vec)
-            .map_err(std::convert::Into::into)
+            .try_for_each(|item| {
+                self.opt_sender()
+                    .expect("Sender must be Some in any interactive mode")
+                    .send(item)
+                    .map_err(std::convert::Into::into)
+            })
     }
 
     fn display(combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {

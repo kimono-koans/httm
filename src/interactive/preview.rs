@@ -17,25 +17,35 @@
 
 use crate::GLOBAL_CONFIG;
 use crate::interactive::view_mode::ViewMode;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use skim::tui::options::PreviewLayout;
 use std::path::PathBuf;
 use which::which;
 
 pub struct PreviewSelection {
-    opt_preview_window: Option<String>,
+    preview_window: PreviewLayout,
     opt_preview_command: Option<String>,
 }
 
 impl PreviewSelection {
-    pub fn opt_preview_window(&self) -> Option<&str> {
-        self.opt_preview_window.as_deref()
+    pub fn opt_preview_window(&self) -> PreviewLayout {
+        self.preview_window.clone()
     }
 
-    pub fn opt_preview_command(&self) -> Option<&str> {
-        self.opt_preview_command.as_deref()
+    pub fn opt_preview_command(&self) -> Option<String> {
+        self.opt_preview_command.clone()
     }
 
     pub fn new(view_mode: &ViewMode) -> HttmResult<Self> {
+        let preview_layout = PreviewLayout {
+            direction: skim::tui::Direction::Up,
+            size: skim::tui::Size::Percent(50),
+            ..Default::default()
+        };
+
         //let (opt_preview_window, opt_preview_command) =
         let res = match &GLOBAL_CONFIG.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
@@ -51,12 +61,12 @@ impl PreviewSelection {
                 )?);
 
                 PreviewSelection {
-                    opt_preview_window: Some("up:50%".to_owned()),
+                    preview_window: preview_layout,
                     opt_preview_command,
                 }
             }
             _ => PreviewSelection {
-                opt_preview_window: Some(String::new()),
+                preview_window: preview_layout,
                 opt_preview_command: None,
             },
         };
