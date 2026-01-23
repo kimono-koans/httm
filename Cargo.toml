@@ -37,9 +37,9 @@ xattr = { version = "1.6.1", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.2.0", default-features = false }
-clap = { version = "4.5.53", default-features = true, features = ["cargo"] }
+clap = { version = "4.5.54", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", default-features = false }
-time = { version = "0.3.44", default-features = false, features = [
+time = { version = "0.3.45", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
@@ -59,12 +59,12 @@ hashbrown = { version = "0.16.1", default-features = false, features = [
     "inline-more",
     "default-hasher",
 ] }
-nix = { version = "0.30.1", default-features = false, features = [
+nix = { version = "0.31.1", default-features = false, features = [
     "user",
     "zerocopy",
 ] }
 serde = { version = "1.0.228", default-features = false, features = ["alloc"] }
-serde_json = { version = "1.0.145", default-features = false, features = [
+serde_json = { version = "1.0.149", default-features = false, features = [
     "alloc",
     "preserve_order",
 ] }
@@ -72,10 +72,11 @@ realpath-ext = { version = "0.1.3", default-features = false, features = [
     "std",
 ] }
 itertools = { version = "0.14.0", default-features = false }
+ratatui-core = { version = "0.1.0", default-features = false }
 
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
 lms = { version = "0.4.0", default-features = false, optional = true }
-ratatui-core = "0.1.0"
+
 
 [package.metadata.deb]
 maintainer = "kimono koans <https://github.com/kimono-koans/>"
