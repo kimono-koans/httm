@@ -194,13 +194,12 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        let text = self
-            .paint_string()
+        self.paint_string()
             .to_string()
             .into_text()
-            .unwrap_or_default();
-
-        text.lines.into_iter().next().unwrap_or_default()
+            .ok()
+            .and_then(|text| text.into_iter().next())
+            .unwrap_or_default()
     }
     fn output(&self) -> Cow<'_, str> {
         self.path.to_string_lossy()

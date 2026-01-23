@@ -73,6 +73,8 @@ impl ViewMode {
             RankCriteria::NegLength,
         ];
 
+        let header_lines = header.clone().lines().count();
+
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_selection.opt_preview_window())
@@ -85,8 +87,8 @@ impl ViewMode {
             .multi(opt_multi)
             .regex(false)
             .tiebreak(tiebreak)
-            .header_lines(header.len())
             .header(Some(header))
+            .header_lines(header_lines)
             .build()
             .expect("Could not initialized skim options for select_restore_view");
 
