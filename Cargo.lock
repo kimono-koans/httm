@@ -996,6 +996,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "httm"
 version = "0.49.9"
 dependencies = [
+ "ansi-to-tui",
  "clap 4.5.54",
  "crossbeam-channel",
  "exacl",

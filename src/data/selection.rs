@@ -34,6 +34,7 @@ use crate::{
     GLOBAL_CONFIG,
     VersionsMap,
 };
+use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
 use lscolors::{
     Colorable,
@@ -193,7 +194,13 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        Line::from(self.paint_string().to_string())
+        let text = self
+            .paint_string()
+            .to_string()
+            .into_text()
+            .unwrap_or_default();
+
+        text.lines.into_iter().next().unwrap_or_default()
     }
     fn output(&self) -> Cow<'_, str> {
         self.path.to_string_lossy()

@@ -125,6 +125,7 @@ impl InteractiveBrowse {
             .preview(Some("".to_string()))
             .no_sort(true)
             .exact(GLOBAL_CONFIG.opt_exact)
+            .header_lines(header.len())
             .header(Some(header))
             .multi(opt_multi)
             .regex(false)

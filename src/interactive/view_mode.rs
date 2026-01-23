@@ -85,6 +85,7 @@ impl ViewMode {
             .multi(opt_multi)
             .regex(false)
             .tiebreak(tiebreak)
+            .header_lines(header.len())
             .header(Some(header))
             .build()
             .expect("Could not initialized skim options for select_restore_view");

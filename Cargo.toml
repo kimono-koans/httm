@@ -76,6 +76,7 @@ ratatui-core = { version = "0.1.0", default-features = false }
 
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
 lms = { version = "0.4.0", default-features = false, optional = true }
+ansi-to-tui = "8.0.1"
 
 
 [package.metadata.deb]
