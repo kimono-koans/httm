@@ -46,10 +46,10 @@ pub const TIEBREAK: &[RankCriteria] = &[
 impl ViewMode {
     pub fn print_header(&self) -> String {
         format!(
-            "PREVIEW UP: shift+up | PREVIEW DOWN: shift+down | {}\n\
-        PAGE UP:    page up  | PAGE DOWN:    page down \n\
-        EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
-        ──────────────────────────────────────────────────────────────────────────────",
+            "──────────────────────────────────────────────────────────────────────────────\n\
+            EXIT:       esc      | SELECT:       enter      | SELECT, MULTIPLE: shift+tab\n\
+            PREVIEW UP: shift+up | PREVIEW DOWN: shift+down | {}\n\
+            PAGE UP:    page up  | PAGE DOWN:    page down \n",
             self.print_mode()
         )
     }
