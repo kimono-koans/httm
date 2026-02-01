@@ -92,8 +92,7 @@ impl ViewMode {
         let item_reader_opts = SkimItemReaderOption::default().ansi(true);
         let item_reader = SkimItemReader::new(item_reader_opts);
 
-        let items: Receiver<Arc<dyn SkimItem + 'static>> =
-            item_reader.of_bufread(Box::new(Cursor::new(buffer.to_owned())));
+        let items = item_reader.of_bufread(Box::new(Cursor::new(buffer.to_owned())));
 
         // run_with() reads and shows items from the thread stream created above
         let res = match skim::Skim::run_with(skim_opts, Some(items)) {
