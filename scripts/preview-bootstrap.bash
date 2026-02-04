@@ -56,7 +56,7 @@ bootstrap_preview() {
 	local raw_input=""
 	local snap_file=""
 
-	raw_input={}
+	raw_input=$HTTM_SELECTION
 
 	[[ -n $raw_input ]] || print_err_exit "Selection is empty."
 
@@ -68,7 +68,7 @@ bootstrap_preview() {
 
 	[[ -n "$snap_file" ]] || print_err_exit "Snap file path is empty."
 
-	[[ -f "$snap_file" ]] || [[ -d "$snap_file" ]] || [[ -L "$snap_file" ]] || print_warn_exit "Selection does not refer to a valid file, link or directory."
+	#[[ -f "$snap_file" ]] || [[ -d "$snap_file" ]] || [[ -L "$snap_file" ]] || print_warn_exit "Selection does not refer to a valid file, link or directory."
 
 	exec 0<&-
 	{command} 2>&1

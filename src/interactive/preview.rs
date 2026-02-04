@@ -26,13 +26,16 @@ use std::path::PathBuf;
 use which::which;
 
 pub struct PreviewSelection {
-    preview_window: PreviewLayout,
     opt_preview_command: Option<String>,
 }
 
 impl PreviewSelection {
     pub fn opt_preview_window(&self) -> PreviewLayout {
-        self.preview_window.clone()
+        PreviewLayout {
+            direction: skim::tui::Direction::Up,
+            size: skim::tui::Size::Percent(50),
+            ..Default::default()
+        }
     }
 
     pub fn opt_preview_command(&self) -> Option<String> {
@@ -40,12 +43,6 @@ impl PreviewSelection {
     }
 
     pub fn new(view_mode: &ViewMode) -> HttmResult<Self> {
-        let preview_layout = PreviewLayout {
-            direction: skim::tui::Direction::Up,
-            size: skim::tui::Size::Percent(50),
-            ..Default::default()
-        };
-
         //let (opt_preview_window, opt_preview_command) =
         let res = match &GLOBAL_CONFIG.opt_preview {
             Some(defined_command) if matches!(view_mode, ViewMode::Select(_)) => {
@@ -61,12 +58,10 @@ impl PreviewSelection {
                 )?);
 
                 PreviewSelection {
-                    preview_window: preview_layout,
                     opt_preview_command,
                 }
             }
             _ => PreviewSelection {
-                preview_window: preview_layout,
                 opt_preview_command: None,
             },
         };
@@ -141,7 +136,13 @@ impl PreviewSelection {
 
                 let res = script.replace("{command}", &command);
 
-                Ok(res)
+                unsafe {
+                    std::env::set_var("HTTM_BOOTSTRAP_SCRIPT", res);
+                }
+
+                let done= format!("export HTTM_SELECTION={{}}; bash -c \"$HTTM_BOOTSTRAP_SCRIPT\"");
+
+                Ok(done)
             }
             Err(_) => {
                 return Err(
