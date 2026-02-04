@@ -199,7 +199,7 @@ impl SkimItem for SelectionCandidate {
             .into_text()
             .ok()
             .and_then(|text| text.into_iter().next())
-            .unwrap_or_default()
+            .unwrap_or_else(|| Line::from(self.text()))
     }
     fn output(&self) -> Cow<'_, str> {
         self.path.to_string_lossy()
