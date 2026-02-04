@@ -27,6 +27,7 @@ use crate::library::results::{
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 use crate::zfs::run_command::RunZFSCommand;
+use std::ops::Deref;
 
 pub struct PruneSnaps;
 
@@ -65,11 +66,7 @@ impl InteractivePrune {
             });
 
         let snap_names: Vec<String> = if select_mode {
-            let buffer: String = snap_name_map
-                .values()
-                .flatten()
-                .map(|name| format!("{name}"))
-                .collect();
+            let buffer: String = snap_name_map.values().flatten().cloned().collect();
             let view_mode = ViewMode::Select(None);
             view_mode.view_buffer(&buffer, MultiSelect::On)?
         } else {
