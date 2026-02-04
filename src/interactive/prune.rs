@@ -27,7 +27,6 @@ use crate::library::results::{
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 use crate::zfs::run_command::RunZFSCommand;
-use std::ops::Deref;
 
 pub struct PruneSnaps;
 
