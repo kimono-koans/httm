@@ -132,17 +132,17 @@ impl PreviewSelection {
 
         match which("cut") {
             Ok(_) => {
-                let script = include_str!("../../scripts/preview-bootstrap.bash");
+                let raw_script = include_str!("../../scripts/preview-bootstrap.bash");
 
-                let res = script.replace("{command}", &command);
+                let ready_script = raw_script.replace("{command}", &command);
 
                 unsafe {
-                    std::env::set_var("HTTM_BOOTSTRAP_SCRIPT", res);
+                    std::env::set_var("HTTM_BOOTSTRAP_SCRIPT", ready_script);
                 }
 
-                let done= format!("export HTTM_SELECTION={{}}; bash -c \"$HTTM_BOOTSTRAP_SCRIPT\"");
+                let res: String= format!("unset HTTM_SELECTION; export HTTM_SELECTION={{}}; bash -c \"$HTTM_BOOTSTRAP_SCRIPT\"");
 
-                Ok(done)
+                Ok(res)
             }
             Err(_) => {
                 return Err(
