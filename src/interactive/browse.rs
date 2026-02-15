@@ -116,10 +116,10 @@ impl InteractiveBrowse {
         // create the skim component for previews
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_layout)
-            .preview(Some("".to_string()))
+            .preview("".to_string())
             .no_sort(true)
             .exact(GLOBAL_CONFIG.opt_exact)
-            .header(Some(header))
+            .header(header)
             .multi(opt_multi)
             .regex(false)
             .tiebreak(TIEBREAK.to_vec())

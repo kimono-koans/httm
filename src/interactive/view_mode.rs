@@ -73,19 +73,24 @@ impl ViewMode {
             MultiSelect::Off => false,
         };
 
+        let mut opts = SkimOptionsBuilder::default();
+
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
-        let skim_opts = SkimOptionsBuilder::default()
-            .preview_window(preview_selection.opt_preview_window())
-            .preview(preview_selection.opt_preview_command())
+        if let Some(command) = preview_selection.opt_preview_command() {
+            opts.preview_window(preview_selection.opt_preview_window())
+                .preview(command);
+        };
+
+        let skim_opts = opts
             .disabled(true)
             .tac(true)
             .no_sort(true)
-            .tabstop(4)
+            .tabstop(4usize)
             .exact(true)
             .multi(opt_multi)
             .regex(false)
             .tiebreak(TIEBREAK.to_vec())
-            .header(Some(header))
+            .header(header)
             .build()
             .expect("Could not initialized skim options for select_restore_view");
 
