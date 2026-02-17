@@ -43,7 +43,6 @@ use lscolors::{
 use nix::NixPath;
 use ratatui_core::text::Line;
 use skim::prelude::*;
-use std::ffi::OsStr;
 use std::fs::{
     FileType,
     Metadata,
