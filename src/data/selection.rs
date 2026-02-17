@@ -40,8 +40,10 @@ use lscolors::{
     Colorable,
     Style,
 };
+use nix::NixPath;
 use ratatui_core::text::Line;
 use skim::prelude::*;
+use std::ffi::OsStr;
 use std::fs::{
     FileType,
     Metadata,
@@ -181,6 +183,7 @@ impl SelectionCandidate {
 
         // this only works because we do not resolve symlinks when doing traversal
         match self.path.strip_prefix(*REQUESTED_DIR) {
+            Ok(stripped) if stripped.len() == 0 => Cow::Borrowed("/"),
             Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
             Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
