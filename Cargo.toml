@@ -37,14 +37,14 @@ xattr = { version = "1.6.1", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.2.0", default-features = false }
-clap = { version = "4.5.58", default-features = true, features = ["cargo"] }
+clap = { version = "4.5.60", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", features = ["std"] }
 time = { version = "0.3.47", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.2", default-features = false }
-skim = { version = "3.2.0", default-features = false }
+skim = { version = "3.4.0", default-features = false }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
