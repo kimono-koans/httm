@@ -54,6 +54,7 @@ use std::path::{
 use std::sync::atomic::AtomicU32;
 use std::sync::{
     LazyLock,
+    Mutex,
     OnceLock,
 };
 use std::time::Duration;
@@ -111,35 +112,44 @@ impl SelectionCandidate {
         opt_metadata: Option<Metadata>,
         path_provenance: &PathProvenance,
     ) -> Self {
-        static CANDIDATE_INDEX: LazyLock<AtomicUsize> = LazyLock::new(|| AtomicUsize::new(0usize));
+        static CANDIDATE_INDEX: LazyLock<Arc<Mutex<usize>>> =
+            LazyLock::new(|| Arc::new(Mutex::new(usize::default())));
 
-        let idx = CANDIDATE_INDEX.fetch_add(1, Ordering::SeqCst);
+        loop {
+            let Ok(mut idx) = CANDIDATE_INDEX.lock() else {
+                continue;
+            };
 
-        match path_provenance {
-            PathProvenance::FromLiveDataset => {
-                let md = OnceLock::new();
+            let res = match path_provenance {
+                PathProvenance::FromLiveDataset => {
+                    let md = OnceLock::new();
 
-                if opt_metadata.is_some() {
-                    md.get_or_init(|| opt_metadata);
+                    if opt_metadata.is_some() {
+                        md.get_or_init(|| opt_metadata);
+                    }
+
+                    Self {
+                        path,
+                        opt_filetype,
+                        opt_style: OnceLock::new(),
+                        opt_metadata: md,
+                        count: AtomicU32::default(),
+                        idx: *idx,
+                    }
                 }
-
-                Self {
+                PathProvenance::IsPhantom => Self {
                     path,
-                    opt_filetype,
-                    opt_style: OnceLock::new(),
-                    opt_metadata: md,
+                    opt_filetype: None,
+                    opt_metadata: OnceLock::from(None),
+                    opt_style: OnceLock::from(None),
                     count: AtomicU32::default(),
-                    idx,
-                }
-            }
-            PathProvenance::IsPhantom => Self {
-                path,
-                opt_filetype: None,
-                opt_metadata: OnceLock::from(None),
-                opt_style: OnceLock::from(None),
-                count: AtomicU32::default(),
-                idx,
-            },
+                    idx: *idx,
+                },
+            };
+
+            *idx += 1;
+
+            return res;
         }
     }
 
