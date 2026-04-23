@@ -16,21 +16,43 @@
 // that was distributed with this source code.
 
 use crate::background::recursive::PathProvenance;
-use crate::config::generate::{DedupBy, FormattedMode, PrintMode};
+use crate::config::generate::{
+    DedupBy,
+    FormattedMode,
+    PrintMode,
+};
 use crate::data::paths::PathData;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
-use crate::library::utility::{ENV_LS_COLORS, PaintString};
-use crate::{Config, ExecMode, GLOBAL_CONFIG, VersionsMap};
+use crate::library::utility::{
+    ENV_LS_COLORS,
+    PaintString,
+};
+use crate::{
+    Config,
+    ExecMode,
+    GLOBAL_CONFIG,
+    VersionsMap,
+};
 use crossbeam_channel::bounded;
-use lscolors::Colorable;
-use lscolors::Style;
+use lscolors::{
+    Colorable,
+    Style,
+};
 use skim::prelude::*;
-use std::fs::{FileType, Metadata};
-use std::path::Path;
-use std::path::PathBuf;
+use std::fs::{
+    FileType,
+    Metadata,
+};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::sync::atomic::AtomicU32;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{
+    LazyLock,
+    OnceLock,
+};
 use std::time::Duration;
 
 static RETRY_NOTICE: &str = "NOTICE: httm filesystem requests are delayed...\n
@@ -176,7 +198,7 @@ impl SkimItem for SelectionCandidate {
         self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(200);
+        static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(1000);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
         static MAX_RETRIES: u32 = 3u32;
 
