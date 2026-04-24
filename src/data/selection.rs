@@ -74,7 +74,6 @@ pub struct SelectionCandidate {
     opt_style: OnceLock<Option<Style>>,
     opt_metadata: OnceLock<Option<Metadata>>,
     count: AtomicU32,
-    idx: usize,
 }
 
 impl Clone for SelectionCandidate {
@@ -85,7 +84,6 @@ impl Clone for SelectionCandidate {
             opt_style: OnceLock::new(),
             opt_metadata: OnceLock::new(),
             count: AtomicU32::default(),
-            idx: self.idx,
         }
     }
 }
@@ -134,7 +132,6 @@ impl SelectionCandidate {
                         opt_style: OnceLock::new(),
                         opt_metadata: md,
                         count: AtomicU32::default(),
-                        idx: *idx,
                     }
                 }
                 PathProvenance::IsPhantom => Self {
@@ -143,7 +140,6 @@ impl SelectionCandidate {
                     opt_metadata: OnceLock::from(None),
                     opt_style: OnceLock::from(None),
                     count: AtomicU32::default(),
-                    idx: *idx,
                 },
             };
 
