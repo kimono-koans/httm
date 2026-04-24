@@ -172,7 +172,7 @@ impl SelectionCandidate {
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
         let display_config: Config = Config::from(self);
-        let display_path_data = vec![PathData::from(&self.path)];
+        let display_path_data = [PathData::from(&self.path)];
 
         // finally run search on those paths
         let versions_map: VersionsMap = VersionsMap::new(&display_config, &display_path_data)?;
