@@ -207,7 +207,7 @@ impl SkimItem for SelectionCandidate {
         self.path.to_string_lossy()
     }
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
-        static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(200);
+        static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(1000);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
         static MAX_RETRIES: u32 = 3u32;
 
