@@ -344,7 +344,7 @@ pub trait CommonSearch {
     fn transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        let vec: Vec<Arc<dyn SkimItem>> = combined_entries
+        let vec = combined_entries
             .into_iter()
             .map(|basic_dir_entry_info| {
                 let item: Arc<dyn SkimItem> = Arc::new(

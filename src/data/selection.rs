@@ -34,11 +34,14 @@ use crate::{
     GLOBAL_CONFIG,
     VersionsMap,
 };
+use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
 use lscolors::{
     Colorable,
     Style,
 };
+use nix::NixPath;
+use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::fs::{
     FileType,
@@ -155,7 +158,7 @@ impl SelectionCandidate {
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
         let display_config: Config = Config::from(self);
-        let display_path_data = vec![PathData::from(&self.path)];
+        let display_path_data = [PathData::from(&self.path)];
 
         // finally run search on those paths
         let versions_map: VersionsMap = VersionsMap::new(&display_config, &display_path_data)?;
@@ -179,6 +182,7 @@ impl SelectionCandidate {
 
         // this only works because we do not resolve symlinks when doing traversal
         match self.path.strip_prefix(*REQUESTED_DIR) {
+            Ok(stripped) if stripped.len() == 0 => Cow::Borrowed("/"),
             Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
             Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
@@ -191,8 +195,13 @@ impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
         self.display_name()
     }
-    fn display(&self, _context: DisplayContext<'_>) -> AnsiString {
-        AnsiString::parse(&self.paint_string().to_string())
+    fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
+        self.paint_string()
+            .to_string()
+            .into_text()
+            .ok()
+            .and_then(|text| text.into_iter().next())
+            .unwrap_or_else(|| Line::from(self.text()))
     }
     fn output(&self) -> Cow<'_, str> {
         self.path.to_string_lossy()

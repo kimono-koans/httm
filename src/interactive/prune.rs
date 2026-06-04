@@ -16,8 +16,14 @@
 // that was distributed with this source code.
 
 use crate::config::generate::ListSnapsFilters;
-use crate::interactive::view_mode::{MultiSelect, ViewMode};
-use crate::library::results::{HttmError, HttmResult};
+use crate::interactive::view_mode::{
+    MultiSelect,
+    ViewMode,
+};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 use crate::zfs::run_command::RunZFSCommand;
@@ -59,18 +65,14 @@ impl InteractivePrune {
             });
 
         let snap_names: Vec<String> = if select_mode {
-            let buffer: String = snap_name_map
-                .values()
-                .flatten()
-                .map(|name| format!("{name}\n"))
-                .collect();
+            let buffer: String = snap_name_map.values().flatten().cloned().collect();
             let view_mode = ViewMode::Select(None);
             view_mode.view_buffer(&buffer, MultiSelect::On)?
         } else {
             snap_name_map
                 .values()
                 .flatten()
-                .map(|name| format!("{name}\n"))
+                .map(|name| format!("{name}"))
                 .collect()
         };
 

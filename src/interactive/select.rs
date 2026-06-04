@@ -16,14 +16,26 @@
 // that was distributed with this source code.
 
 use crate::GLOBAL_CONFIG;
-use crate::config::generate::{PrintMode, SelectMode};
+use crate::config::generate::{
+    PrintMode,
+    SelectMode,
+};
 use crate::interactive::preview::PreviewSelection;
 use crate::interactive::view_mode::ViewMode;
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{delimiter, print_output_buf};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    delimiter,
+    print_output_buf,
+};
 use crate::lookup::versions::VersionsMap;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::process::Command as ExecProcess;
 
 #[allow(dead_code)]
@@ -95,9 +107,7 @@ impl InteractiveSelect {
                 let mut contents = Vec::new();
                 f.read_to_end(&mut contents)?;
 
-                // SAFETY: Panic here is not the end of the world as we are just printing the bytes.
-                // This is the same as simply `cat`-ing the file.
-                let output_buf = unsafe { std::str::from_utf8_unchecked(&contents) };
+                let output_buf = std::str::from_utf8(&contents)?;
 
                 print_output_buf(output_buf)
             }

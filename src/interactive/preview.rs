@@ -17,22 +17,29 @@
 
 use crate::GLOBAL_CONFIG;
 use crate::interactive::view_mode::ViewMode;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use skim::tui::options::PreviewLayout;
 use std::path::PathBuf;
 use which::which;
 
 pub struct PreviewSelection {
-    opt_preview_window: Option<String>,
     opt_preview_command: Option<String>,
 }
 
 impl PreviewSelection {
-    pub fn opt_preview_window(&self) -> Option<&str> {
-        self.opt_preview_window.as_deref()
+    pub fn opt_preview_window(&self) -> PreviewLayout {
+        PreviewLayout {
+            direction: skim::tui::Direction::Up,
+            size: skim::tui::Size::Percent(50),
+            ..Default::default()
+        }
     }
 
-    pub fn opt_preview_command(&self) -> Option<&str> {
-        self.opt_preview_command.as_deref()
+    pub fn opt_preview_command(&self) -> Option<String> {
+        self.opt_preview_command.clone()
     }
 
     pub fn new(view_mode: &ViewMode) -> HttmResult<Self> {
@@ -51,12 +58,10 @@ impl PreviewSelection {
                 )?);
 
                 PreviewSelection {
-                    opt_preview_window: Some("up:50%".to_owned()),
                     opt_preview_command,
                 }
             }
             _ => PreviewSelection {
-                opt_preview_window: Some(String::new()),
                 opt_preview_command: None,
             },
         };
@@ -127,9 +132,15 @@ impl PreviewSelection {
 
         match which("cut") {
             Ok(_) => {
-                let script = include_str!("../../scripts/preview-bootstrap.bash");
+                let raw_script = include_str!("../../scripts/preview-bootstrap.bash");
 
-                let res = script.replace("{command}", &command);
+                let ready_script = raw_script.replace("{command}", &command);
+
+                unsafe {
+                    std::env::set_var("HTTM_BOOTSTRAP_SCRIPT", ready_script);
+                }
+
+                let res: String= format!("unset HTTM_SELECTION; export HTTM_SELECTION={{}}; bash -c \"$HTTM_BOOTSTRAP_SCRIPT\"");
 
                 Ok(res)
             }
