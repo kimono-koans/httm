@@ -72,6 +72,7 @@ pub struct SelectionCandidate {
     opt_filetype: Option<FileType>,
     opt_style: OnceLock<Option<Style>>,
     opt_metadata: OnceLock<Option<Metadata>>,
+    opt_painted: OnceLock<Vec<u8>>,
     count: AtomicU32,
 }
 
@@ -82,6 +83,7 @@ impl Clone for SelectionCandidate {
             opt_filetype: self.opt_filetype.clone(),
             opt_style: OnceLock::new(),
             opt_metadata: OnceLock::new(),
+            opt_painted: OnceLock::new(),
             count: AtomicU32::default(),
         }
     }
@@ -122,6 +124,7 @@ impl SelectionCandidate {
                     opt_filetype,
                     opt_style: OnceLock::new(),
                     opt_metadata: md,
+                    opt_painted: OnceLock::new(),
                     count: AtomicU32::default(),
                 }
             }
@@ -130,6 +133,7 @@ impl SelectionCandidate {
                 opt_filetype: None,
                 opt_metadata: OnceLock::from(None),
                 opt_style: OnceLock::from(None),
+                opt_painted: OnceLock::new(),
                 count: AtomicU32::default(),
             },
         }
@@ -153,6 +157,11 @@ impl SelectionCandidate {
         self.opt_metadata
             .get_or_init(|| self.path().symlink_metadata().ok())
             .as_ref()
+    }
+
+    pub fn opt_painted(&self) -> &[u8] {
+        self.opt_painted
+            .get_or_init(|| self.paint_string().to_string().into_bytes())
     }
 
     fn preview_view(&self) -> HttmResult<String> {
@@ -196,8 +205,7 @@ impl SkimItem for SelectionCandidate {
         self.display_name()
     }
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        self.paint_string()
-            .to_string()
+        self.opt_painted()
             .into_text()
             .ok()
             .and_then(|text| text.into_iter().next())
