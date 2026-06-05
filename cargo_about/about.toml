@@ -1,4 +1,4 @@
-accepted = ["Apache-2.0", "MIT", "MPL-2.0"]
+accepted = ["Apache-2.0", "MIT", "MPL-2.0", "0BSD"]
 targets = [
     "x86_64-unknown-linux-gnu",
     "x86_64-unknown-linux-musl",
