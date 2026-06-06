@@ -26,6 +26,7 @@ use crate::filesystem::mounts::{
     FilesystemType,
     IsFilterDir,
     MaxLen,
+    ROOT_PATH,
 };
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{
@@ -185,7 +186,7 @@ impl BasicDirEntryInfo {
 
         // this only works because we do not resolve symlinks when doing traversal
         match self.path.strip_prefix(*REQUESTED_DIR) {
-            Ok(stripped) if stripped.as_os_str().len() == 0 => Cow::Borrowed("/"),
+            Ok(_stripped) if self.path.as_ref() == ROOT_PATH.as_path() => Cow::Borrowed("/"),
             Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(stripped) => stripped.to_string_lossy(),
             Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
