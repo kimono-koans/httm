@@ -351,7 +351,7 @@ impl From<&SelectionCandidate> for PathData {
         PathData {
             path_buf: selection_candidate.path().into(),
             opt_path_metadata,
-            opt_file_type: selection_candidate.opt_filetype().copied(),
+            opt_file_type: selection_candidate.opt_filetype(),
         }
     }
 }

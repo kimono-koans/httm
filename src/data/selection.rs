@@ -57,7 +57,6 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 pub struct SelectionCandidate {
     path: Box<Path>,
     display_name: Box<str>,
-    opt_filetype: Option<FileType>,
     painted: Vec<u8>,
     count: AtomicU32,
 }
@@ -67,7 +66,6 @@ impl Clone for SelectionCandidate {
         SelectionCandidate {
             path: self.path.clone(),
             display_name: self.display_name.clone(),
-            opt_filetype: self.opt_filetype.clone(),
             painted: self.painted.clone(),
             count: AtomicU32::default(),
         }
@@ -81,7 +79,6 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         SelectionCandidate {
             path: value.path().into(),
             display_name: value.display_name().into(),
-            opt_filetype: value.opt_filetype().cloned(),
             painted,
             count: AtomicU32::default(),
         }
@@ -93,8 +90,8 @@ impl SelectionCandidate {
         &self.path
     }
 
-    pub fn opt_filetype(&self) -> Option<&FileType> {
-        self.opt_filetype.as_ref()
+    pub fn opt_filetype(&self) -> Option<FileType> {
+        self.opt_metadata().map(|md| md.file_type())
     }
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
