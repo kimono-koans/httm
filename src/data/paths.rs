@@ -173,8 +173,7 @@ impl BasicDirEntryInfo {
     pub fn new(path: &Path, opt_filetype: Option<FileType>) -> Self {
         Self {
             path: path.into(),
-            opt_filetype: opt_filetype
-                .or_else(|| path.symlink_metadata().ok().map(|md| md.file_type())),
+            opt_filetype,
             opt_dir_entry: None,
             opt_metadata: OnceLock::new(),
         }
@@ -201,6 +200,7 @@ impl BasicDirEntryInfo {
             Err(_) => self.path.to_string_lossy(),
         }
     }
+
     pub fn filename(&self) -> &OsStr {
         self.path.file_name().unwrap_or_default()
     }
