@@ -221,10 +221,10 @@ pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_
 pub trait PaintString<'a> {
     fn ls_style(&self) -> Option<lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
-    fn name(&self) -> Cow<'_, str>;
+    fn display_name(&self) -> Cow<'_, str>;
 
     fn paint_string(&'a self) -> AnsiString<'a> {
-        let display_name = self.name();
+        let display_name = self.display_name();
 
         if self.is_phantom() {
             return PHANTOM_STYLE.paint(display_name);
@@ -247,7 +247,7 @@ impl<'a> PaintString<'a> for PathData {
     fn is_phantom(&self) -> bool {
         self.opt_path_metadata().is_none()
     }
-    fn name(&self) -> Cow<'_, str> {
+    fn display_name(&self) -> Cow<'_, str> {
         self.path().to_string_lossy()
     }
 }
@@ -259,7 +259,7 @@ impl<'a> PaintString<'a> for BasicDirEntryInfo {
     fn is_phantom(&self) -> bool {
         self.opt_metadata().is_none()
     }
-    fn name(&self) -> Cow<'_, str> {
+    fn display_name(&self) -> Cow<'_, str> {
         let display_name = self.display_name();
 
         match self.opt_filetype() {
