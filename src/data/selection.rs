@@ -15,19 +15,18 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::background::recursive::PathProvenance;
 use crate::config::generate::{
     DedupBy,
     FormattedMode,
     PrintMode,
 };
-use crate::data::paths::PathData;
+use crate::data::paths::{
+    BasicDirEntryInfo,
+    PathData,
+};
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
-use crate::library::utility::{
-    ENV_LS_COLORS,
-    PaintString,
-};
+use crate::library::utility::PaintString;
 use crate::{
     Config,
     ExecMode,
@@ -36,26 +35,14 @@ use crate::{
 };
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
-use lscolors::{
-    Colorable,
-    Style,
-};
-use nix::NixPath;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::fs::{
     FileType,
     Metadata,
 };
-use std::path::{
-    Path,
-    PathBuf,
-};
+use std::path::Path;
 use std::sync::atomic::AtomicU32;
-use std::sync::{
-    LazyLock,
-    OnceLock,
-};
 use std::time::Duration;
 
 static RETRY_NOTICE: &str = "NOTICE: httm filesystem requests are delayed...\n
@@ -69,10 +56,9 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 #[derive(Debug)]
 pub struct SelectionCandidate {
     path: Box<Path>,
+    display_name: Box<str>,
     opt_filetype: Option<FileType>,
-    opt_style: OnceLock<Option<Style>>,
-    opt_metadata: OnceLock<Option<Metadata>>,
-    opt_painted: OnceLock<Vec<u8>>,
+    painted: Vec<u8>,
     count: AtomicU32,
 }
 
@@ -80,65 +66,29 @@ impl Clone for SelectionCandidate {
     fn clone(&self) -> Self {
         SelectionCandidate {
             path: self.path.clone(),
+            display_name: self.display_name.clone(),
             opt_filetype: self.opt_filetype.clone(),
-            opt_style: OnceLock::new(),
-            opt_metadata: OnceLock::new(),
-            opt_painted: OnceLock::new(),
+            painted: self.painted.clone(),
             count: AtomicU32::default(),
         }
     }
 }
 
-impl Colorable for &SelectionCandidate {
-    fn path(&self) -> PathBuf {
-        self.path.to_path_buf()
-    }
-    fn file_name(&self) -> std::ffi::OsString {
-        self.path.file_name().unwrap_or_default().to_os_string()
-    }
-    fn file_type(&self) -> Option<FileType> {
-        self.opt_filetype().copied()
-    }
-    fn metadata(&self) -> Option<std::fs::Metadata> {
-        self.opt_metadata().cloned()
+impl From<BasicDirEntryInfo> for SelectionCandidate {
+    fn from(value: BasicDirEntryInfo) -> Self {
+        let painted = value.paint_string().to_string().into_bytes();
+
+        SelectionCandidate {
+            path: value.path().into(),
+            display_name: value.display_name().into(),
+            opt_filetype: value.opt_filetype().cloned(),
+            painted,
+            count: AtomicU32::default(),
+        }
     }
 }
 
 impl SelectionCandidate {
-    pub fn new(
-        path: Box<Path>,
-        opt_filetype: Option<FileType>,
-        opt_metadata: Option<Metadata>,
-        path_provenance: &PathProvenance,
-    ) -> Self {
-        match path_provenance {
-            PathProvenance::FromLiveDataset => {
-                let md = OnceLock::new();
-
-                if opt_metadata.is_some() {
-                    md.get_or_init(|| opt_metadata);
-                }
-
-                Self {
-                    path,
-                    opt_filetype,
-                    opt_style: OnceLock::new(),
-                    opt_metadata: md,
-                    opt_painted: OnceLock::new(),
-                    count: AtomicU32::default(),
-                }
-            }
-            PathProvenance::IsPhantom => Self {
-                path,
-                opt_filetype: None,
-                opt_metadata: OnceLock::from(None),
-                opt_style: OnceLock::from(None),
-                opt_painted: OnceLock::new(),
-                count: AtomicU32::default(),
-            },
-        }
-    }
-
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -147,21 +97,8 @@ impl SelectionCandidate {
         self.opt_filetype.as_ref()
     }
 
-    pub fn opt_style(&self) -> Option<&Style> {
-        self.opt_style
-            .get_or_init(|| ENV_LS_COLORS.style_for(&self).copied())
-            .as_ref()
-    }
-
-    pub fn opt_metadata(&self) -> Option<&Metadata> {
-        self.opt_metadata
-            .get_or_init(|| self.path().symlink_metadata().ok())
-            .as_ref()
-    }
-
-    pub fn opt_painted(&self) -> &[u8] {
-        self.opt_painted
-            .get_or_init(|| self.paint_string().to_string().into_bytes())
+    pub fn opt_metadata(&self) -> Option<Metadata> {
+        self.path.symlink_metadata().ok()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
@@ -176,38 +113,16 @@ impl SelectionCandidate {
 
         Ok(output_buf)
     }
-
-    pub fn display_name(&self) -> Cow<'_, str> {
-        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
-            GLOBAL_CONFIG
-                .opt_requested_dir
-                .as_ref()
-                .unwrap_or_else(|| &GLOBAL_CONFIG.pwd)
-                .as_ref()
-        });
-
-        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> =
-            LazyLock::new(|| REQUESTED_DIR.parent());
-
-        // this only works because we do not resolve symlinks when doing traversal
-        match self.path.strip_prefix(*REQUESTED_DIR) {
-            Ok(stripped) if stripped.len() == 0 => Cow::Borrowed("/"),
-            Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
-            Ok(stripped) => stripped.to_string_lossy(),
-            Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
-            Err(_) => self.path.to_string_lossy(),
-        }
-    }
 }
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
-        self.display_name()
+        Cow::Borrowed(&self.display_name)
     }
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        self.opt_painted()
-            .into_text()
-            .ok()
+        let opt_text = self.painted.to_text().ok();
+
+        opt_text
             .and_then(|text| text.into_iter().next())
             .unwrap_or_else(|| Line::from(self.text()))
     }

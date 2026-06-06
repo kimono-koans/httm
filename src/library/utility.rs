@@ -24,7 +24,6 @@ use crate::data::paths::{
     BasicDirEntryInfo,
     PathData,
 };
-use crate::data::selection::SelectionCandidate;
 use crate::library::results::{
     HttmError,
     HttmResult,
@@ -215,16 +214,17 @@ impl HttmIsDir for BasicDirEntryInfo {
 
 pub static ENV_LS_COLORS: LazyLock<LsColors> =
     LazyLock::new(|| LsColors::from_env().unwrap_or_default());
-static BASE_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| nu_ansi_term::Style::default());
-static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
+pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> =
+    LazyLock::new(|| nu_ansi_term::Style::default());
+pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
 pub trait PaintString<'a> {
     fn ls_style(&self) -> Option<lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
-    fn name(&self) -> Cow<'_, str>;
+    fn display_name(&self) -> Cow<'_, str>;
 
     fn paint_string(&'a self) -> AnsiString<'a> {
-        let display_name = self.name();
+        let display_name = self.display_name();
 
         if self.is_phantom() {
             return PHANTOM_STYLE.paint(display_name);
@@ -242,24 +242,24 @@ pub trait PaintString<'a> {
 
 impl<'a> PaintString<'a> for PathData {
     fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style()
+        self.opt_style().copied()
     }
     fn is_phantom(&self) -> bool {
         self.opt_path_metadata().is_none()
     }
-    fn name(&self) -> Cow<'_, str> {
+    fn display_name(&self) -> Cow<'_, str> {
         self.path().to_string_lossy()
     }
 }
 
-impl<'a> PaintString<'a> for SelectionCandidate {
+impl<'a> PaintString<'a> for BasicDirEntryInfo {
     fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style().copied()
+        ENV_LS_COLORS.style_for(self).copied()
     }
     fn is_phantom(&self) -> bool {
-        self.opt_filetype().is_none()
+        self.opt_metadata().is_none()
     }
-    fn name(&self) -> Cow<'_, str> {
+    fn display_name(&self) -> Cow<'_, str> {
         let display_name = self.display_name();
 
         match self.opt_filetype() {
