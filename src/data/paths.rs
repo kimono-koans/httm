@@ -330,12 +330,9 @@ impl<T: AsRef<Path>> From<T> for PathData {
 
 impl From<BasicDirEntryInfo> for PathData {
     fn from(basic_info: BasicDirEntryInfo) -> Self {
-        let opt_metadata = basic_info
-            .opt_metadata()
-            .cloned()
-            .or_else(|| basic_info.path().symlink_metadata().ok());
+        let opt_metadata = basic_info.opt_metadata();
 
-        Self::with_metadata(basic_info.path, opt_metadata)
+        Self::with_metadata(basic_info.path(), opt_metadata)
     }
 }
 
@@ -360,17 +357,16 @@ impl From<&SelectionCandidate> for PathData {
 impl PathData {
     #[inline(always)]
     pub fn new(path: &Path) -> Self {
-        let canonical_path: Box<Path> = realpath(path, RealpathFlags::ALLOW_MISSING)
-            .unwrap_or_else(|_| path.to_path_buf())
-            .into_boxed_path();
+        let canonical_path =
+            realpath(path, RealpathFlags::ALLOW_MISSING).unwrap_or_else(|_| path.to_path_buf());
 
-        let opt_metadata = std::fs::symlink_metadata(canonical_path.as_ref()).ok();
+        let opt_metadata = canonical_path.as_path().symlink_metadata().ok();
 
-        Self::with_metadata(canonical_path, opt_metadata)
+        Self::with_metadata(&canonical_path, opt_metadata.as_ref())
     }
 
     #[inline(always)]
-    pub fn with_metadata(path: Box<Path>, opt_metadata: Option<Metadata>) -> Self {
+    pub fn with_metadata(path: &Path, opt_metadata: Option<&Metadata>) -> Self {
         // canonicalize() on any path that DNE will throw an error
         //
         // in general we handle those cases elsewhere, like the ingest
