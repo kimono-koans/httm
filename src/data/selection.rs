@@ -116,6 +116,7 @@ impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.display_name)
     }
+
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
         self.painted
             .to_text()
@@ -123,9 +124,11 @@ impl SkimItem for SelectionCandidate {
             .and_then(|text| text.into_iter().next())
             .unwrap_or_else(|| Line::from(self.text()))
     }
+
     fn output(&self) -> Cow<'_, str> {
         self.path.to_string_lossy()
     }
+
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(1000);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
