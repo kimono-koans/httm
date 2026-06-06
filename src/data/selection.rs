@@ -117,9 +117,9 @@ impl SkimItem for SelectionCandidate {
         Cow::Borrowed(&self.display_name)
     }
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        let opt_text = self.painted.to_text().ok();
-
-        opt_text
+        self.painted
+            .to_text()
+            .ok()
             .and_then(|text| text.into_iter().next())
             .unwrap_or_else(|| Line::from(self.text()))
     }
