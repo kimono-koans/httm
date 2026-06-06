@@ -98,7 +98,6 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
-    opt_dir_entry: Option<DirEntry>,
     opt_metadata: OnceLock<Option<Metadata>>,
 }
 
@@ -107,7 +106,6 @@ impl Clone for BasicDirEntryInfo {
         Self {
             path: self.path.clone(),
             opt_filetype: self.opt_filetype.clone(),
-            opt_dir_entry: None,
             opt_metadata: OnceLock::new(),
         }
     }
@@ -132,7 +130,6 @@ impl From<DirEntry> for BasicDirEntryInfo {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
-            opt_dir_entry: Some(dir_entry),
             opt_metadata: OnceLock::new(),
         }
     }
@@ -143,11 +140,7 @@ impl Colorable for BasicDirEntryInfo {
         self.path().to_path_buf()
     }
     fn file_name(&self) -> std::ffi::OsString {
-        self.opt_dir_entry
-            .as_ref()
-            .map(|de| de.file_name())
-            .unwrap_or_default()
-            .to_os_string()
+        self.path().file_name().unwrap_or_default().to_os_string()
     }
     fn file_type(&self) -> Option<FileType> {
         self.opt_filetype().copied()
@@ -174,7 +167,6 @@ impl BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype,
-            opt_dir_entry: None,
             opt_metadata: OnceLock::new(),
         }
     }
@@ -215,11 +207,7 @@ impl BasicDirEntryInfo {
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
         self.opt_metadata
-            .get_or_init(|| {
-                self.opt_dir_entry
-                    .as_ref()
-                    .and_then(|de| de.metadata().ok())
-            })
+            .get_or_init(|| self.path.symlink_metadata().ok())
             .as_ref()
     }
 
