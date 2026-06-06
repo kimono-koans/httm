@@ -76,13 +76,15 @@ impl Clone for SelectionCandidate {
 
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
-        let painted = value.paint_string().to_string().into_bytes();
+        let opt_painted = value
+            .opt_filetype()
+            .map(|_ft| value.paint_string().to_string().into_bytes());
 
         SelectionCandidate {
             path: value.path().into(),
             display_name: value.display_name().into(),
             opt_filetype: value.opt_filetype().cloned(),
-            opt_painted: Some(painted),
+            opt_painted,
             count: AtomicU32::default(),
         }
     }
