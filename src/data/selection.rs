@@ -58,7 +58,7 @@ pub struct SelectionCandidate {
     path: Box<Path>,
     display_name: Box<str>,
     opt_filetype: Option<FileType>,
-    opt_painted: Option<Vec<u8>>,
+    painted: Vec<u8>,
     count: AtomicU32,
 }
 
@@ -68,7 +68,7 @@ impl Clone for SelectionCandidate {
             path: self.path.clone(),
             display_name: self.display_name.clone(),
             opt_filetype: self.opt_filetype.clone(),
-            opt_painted: self.opt_painted.clone(),
+            painted: self.painted.clone(),
             count: AtomicU32::default(),
         }
     }
@@ -76,15 +76,13 @@ impl Clone for SelectionCandidate {
 
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
-        let opt_painted = value
-            .opt_filetype()
-            .map(|_ft| value.paint_string().to_string().into_bytes());
+        let painted = value.paint_string().to_string().into_bytes();
 
         SelectionCandidate {
             path: value.path().into(),
             display_name: value.display_name().into(),
             opt_filetype: value.opt_filetype().cloned(),
-            opt_painted,
+            painted,
             count: AtomicU32::default(),
         }
     }
@@ -101,10 +99,6 @@ impl SelectionCandidate {
 
     pub fn opt_metadata(&self) -> Option<Metadata> {
         self.path.symlink_metadata().ok()
-    }
-
-    pub fn opt_painted(&self) -> Option<Vec<u8>> {
-        self.opt_painted.clone()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
@@ -126,8 +120,9 @@ impl SkimItem for SelectionCandidate {
         Cow::Borrowed(&self.display_name)
     }
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        self.opt_painted()
-            .and_then(|vec: Vec<u8>| vec.into_text().ok())
+        let opt_text = self.painted.to_text().ok();
+
+        opt_text
             .and_then(|text| text.into_iter().next())
             .unwrap_or_else(|| Line::from(self.text()))
     }

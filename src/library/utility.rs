@@ -214,8 +214,9 @@ impl HttmIsDir for BasicDirEntryInfo {
 
 pub static ENV_LS_COLORS: LazyLock<LsColors> =
     LazyLock::new(|| LsColors::from_env().unwrap_or_default());
-static BASE_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| nu_ansi_term::Style::default());
-static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
+pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> =
+    LazyLock::new(|| nu_ansi_term::Style::default());
+pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
 pub trait PaintString<'a> {
     fn ls_style(&self) -> Option<lscolors::style::Style>;
@@ -256,7 +257,7 @@ impl<'a> PaintString<'a> for BasicDirEntryInfo {
         ENV_LS_COLORS.style_for(self).copied()
     }
     fn is_phantom(&self) -> bool {
-        self.opt_filetype().is_none()
+        self.opt_metadata().is_none()
     }
     fn name(&self) -> Cow<'_, str> {
         let display_name = self.display_name();
