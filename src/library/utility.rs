@@ -24,7 +24,6 @@ use crate::data::paths::{
     BasicDirEntryInfo,
     PathData,
 };
-use crate::data::selection::SelectionCandidate;
 use crate::library::results::{
     HttmError,
     HttmResult,
@@ -242,7 +241,7 @@ pub trait PaintString<'a> {
 
 impl<'a> PaintString<'a> for PathData {
     fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style()
+        self.opt_style().copied()
     }
     fn is_phantom(&self) -> bool {
         self.opt_path_metadata().is_none()
@@ -252,9 +251,9 @@ impl<'a> PaintString<'a> for PathData {
     }
 }
 
-impl<'a> PaintString<'a> for SelectionCandidate {
+impl<'a> PaintString<'a> for BasicDirEntryInfo {
     fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style().copied()
+        ENV_LS_COLORS.style_for(self).copied()
     }
     fn is_phantom(&self) -> bool {
         self.opt_filetype().is_none()

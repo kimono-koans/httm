@@ -17,7 +17,6 @@
 
 #[cfg(target_os = "macos")]
 use crate::MAC_OS_HIDDEN_DIRS;
-use crate::background::recursive::PathProvenance;
 use crate::config::generate::{
     DedupBy,
     PrintMode,
@@ -36,7 +35,6 @@ use crate::library::results::{
 use crate::library::utility::{
     DateFormat,
     ENV_LS_COLORS,
-    PaintString,
     date_string,
     display_human_size,
 };
@@ -57,6 +55,7 @@ use serde::{
     Serialize,
     Serializer,
 };
+use std::borrow::Cow;
 use std::cmp::{
     Ord,
     Ordering,
@@ -181,12 +180,27 @@ impl BasicDirEntryInfo {
         }
     }
 
-    pub fn into_selection_candidate(self, path_provenance: &PathProvenance) -> SelectionCandidate {
-        let opt_metadata = self.opt_metadata.into_inner().flatten();
+    pub fn display_name(&self) -> Cow<'_, str> {
+        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
+            GLOBAL_CONFIG
+                .opt_requested_dir
+                .as_ref()
+                .unwrap_or_else(|| &GLOBAL_CONFIG.pwd)
+                .as_ref()
+        });
 
-        SelectionCandidate::new(self.path, self.opt_filetype, opt_metadata, path_provenance)
+        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> =
+            LazyLock::new(|| REQUESTED_DIR.parent());
+
+        // this only works because we do not resolve symlinks when doing traversal
+        match self.path.strip_prefix(*REQUESTED_DIR) {
+            Ok(stripped) if stripped.as_os_str().len() == 0 => Cow::Borrowed("/"),
+            Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
+            Ok(stripped) => stripped.to_string_lossy(),
+            Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
+            Err(_) => self.path.to_string_lossy(),
+        }
     }
-
     pub fn filename(&self) -> &OsStr {
         self.path.file_name().unwrap_or_default()
     }
@@ -293,7 +307,6 @@ pub trait PathDeconstruction<'a> {
 pub struct PathData {
     path_buf: Box<Path>,
     opt_path_metadata: Option<PathMetadata>,
-    opt_style: Option<lscolors::Style>,
     opt_file_type: Option<FileType>,
 }
 
@@ -343,17 +356,12 @@ impl From<&SelectionCandidate> for PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let opt_metadata = selection_candidate
-            .opt_metadata()
-            .cloned()
-            .or_else(|| selection_candidate.path().symlink_metadata().ok());
+        let opt_metadata = selection_candidate.opt_metadata();
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
-        let opt_style = selection_candidate.ls_style();
 
         PathData {
             path_buf: selection_candidate.path().into(),
             opt_path_metadata,
-            opt_style,
             opt_file_type: selection_candidate.opt_filetype().copied(),
         }
     }
@@ -377,11 +385,6 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let opt_style = opt_metadata
-            .as_ref()
-            .and_then(|md| ENV_LS_COLORS.style_for_path_with_metadata(&path, Some(md)))
-            .copied();
-
         let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
 
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
@@ -389,7 +392,6 @@ impl PathData {
         Self {
             path_buf: path.into(),
             opt_path_metadata,
-            opt_style,
             opt_file_type,
         }
     }
@@ -403,7 +405,6 @@ impl PathData {
         Self {
             path_buf: path.into(),
             opt_path_metadata,
-            opt_style: None,
             opt_file_type: None,
         }
     }
@@ -412,13 +413,13 @@ impl PathData {
         &self.path_buf
     }
 
-    pub fn opt_path_metadata(&self) -> Option<PathMetadata> {
-        self.opt_path_metadata
+    pub fn opt_style(&self) -> Option<&lscolors::Style> {
+        let path = self.path();
+        ENV_LS_COLORS.style_for_path_with_metadata(&path, path.symlink_metadata().ok().as_ref())
     }
 
-    pub fn opt_style(&self) -> Option<lscolors::Style> {
-        self.opt_style
-            .or_else(|| ENV_LS_COLORS.style_for_path(self.path()).copied())
+    pub fn opt_path_metadata(&self) -> Option<PathMetadata> {
+        self.opt_path_metadata
     }
 
     pub fn opt_file_type(&self) -> Option<FileType> {

@@ -24,6 +24,7 @@ use crate::data::paths::{
     BasicDirEntryInfo,
     PathData,
 };
+use crate::data::selection::SelectionCandidate;
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{
     HttmError,
@@ -347,9 +348,8 @@ pub trait CommonSearch {
         let vec = combined_entries
             .into_iter()
             .map(|basic_dir_entry_info| {
-                let item: Arc<dyn SkimItem> = Arc::new(
-                    basic_dir_entry_info.into_selection_candidate(&self.path_provenance()),
-                );
+                let item: Arc<dyn SkimItem> =
+                    Arc::new(SelectionCandidate::from(basic_dir_entry_info));
 
                 item
             })
