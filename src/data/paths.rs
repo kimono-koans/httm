@@ -345,13 +345,14 @@ impl From<&SelectionCandidate> for PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let opt_metadata = selection_candidate.opt_metadata();
+        let opt_metadata = selection_candidate.path().symlink_metadata().ok();
+        let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         PathData {
             path_buf: selection_candidate.path().into(),
             opt_path_metadata,
-            opt_file_type: selection_candidate.opt_filetype(),
+            opt_file_type,
         }
     }
 }

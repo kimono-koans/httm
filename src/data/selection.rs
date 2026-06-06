@@ -37,10 +37,6 @@ use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
 use ratatui_core::text::Line;
 use skim::prelude::*;
-use std::fs::{
-    FileType,
-    Metadata,
-};
 use std::path::Path;
 use std::sync::atomic::AtomicU32;
 use std::time::Duration;
@@ -88,14 +84,6 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
 impl SelectionCandidate {
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    pub fn opt_filetype(&self) -> Option<FileType> {
-        self.opt_metadata().map(|md| md.file_type())
-    }
-
-    pub fn opt_metadata(&self) -> Option<Metadata> {
-        self.path.symlink_metadata().ok()
     }
 
     fn preview_view(&self) -> HttmResult<String> {
