@@ -39,8 +39,11 @@ pub enum MultiSelect {
 
 pub const TIEBREAK: &[RankCriteria] = &[
     RankCriteria::Score,
+    RankCriteria::PathName,
     RankCriteria::Index,
     RankCriteria::NegLength,
+    RankCriteria::Begin,
+    RankCriteria::End,
 ];
 
 impl ViewMode {
