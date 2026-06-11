@@ -36,6 +36,7 @@ use crate::library::results::{
 use crate::library::utility::{
     DateFormat,
     ENV_LS_COLORS,
+    HttmIsDir,
     date_string,
     display_human_size,
 };
@@ -887,7 +888,11 @@ impl Ord for CompareContentsContainer {
             }
         }
 
-        self.cmp_file_contents(other)
+        if self.path_data.httm_is_dir::<PathData>() {
+            return self.cmp_file_contents(other);
+        }
+
+        Ordering::Equal
     }
 }
 
