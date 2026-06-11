@@ -61,8 +61,36 @@ pub enum PathProvenance {
 }
 
 pub struct EntriesPartitioned {
-    vec_dirs: Vec<BasicDirEntryInfo>,
-    vec_files: Vec<BasicDirEntryInfo>,
+    pub vec_dirs: Vec<BasicDirEntryInfo>,
+    pub vec_files: Vec<BasicDirEntryInfo>,
+}
+
+impl EntriesPartitioned {
+    pub fn complete_recursive_dir_list(path: &Path) -> HttmResult<Self> {
+        let mut directory_list: Vec<BasicDirEntryInfo> = Vec::new();
+        let mut file_list: Vec<BasicDirEntryInfo> = Vec::new();
+        let mut queue: Vec<BasicDirEntryInfo> = vec![BasicDirEntryInfo::new(path, None)];
+
+        while let Some(item) = queue.pop() {
+            let (mut vec_dirs, mut vec_files): (Vec<BasicDirEntryInfo>, Vec<BasicDirEntryInfo>) =
+                read_dir(item.path())?
+                    .flatten()
+                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
+                    .partition(|dir_entry| dir_entry.opt_filetype().is_some_and(|ft| ft.is_dir()));
+
+            queue.extend_from_slice(&vec_dirs);
+            directory_list.append(&mut vec_dirs);
+            file_list.append(&mut vec_files);
+        }
+
+        directory_list.sort_unstable();
+        file_list.sort_unstable();
+
+        Ok(Self {
+            vec_dirs: directory_list,
+            vec_files: file_list,
+        })
+    }
 }
 
 pub struct RecursiveSearch<'a> {

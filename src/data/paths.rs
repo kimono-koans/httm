@@ -17,6 +17,7 @@
 
 #[cfg(target_os = "macos")]
 use crate::MAC_OS_HIDDEN_DIRS;
+use crate::background::recursive::EntriesPartitioned;
 use crate::config::generate::{
     DedupBy,
     PrintMode,
@@ -887,6 +888,10 @@ impl Ord for CompareContentsContainer {
             }
         }
 
+        if self.path_data.path().is_dir() {
+            return self.cmp_dir_contents(other);
+        }
+
         self.cmp_file_contents(other)
     }
 }
@@ -943,6 +948,40 @@ impl CompareContentsContainer {
     #[inline(always)]
     pub fn metadata_infallible(&self) -> PathMetadata {
         self.path_data.metadata_infallible()
+    }
+
+    #[allow(unused)]
+    #[allow(unused_assignments)]
+    pub fn cmp_dir_contents(&self, other: &Self) -> Ordering {
+        let (self_list_res, other_list_res) = rayon::join(
+            || EntriesPartitioned::complete_recursive_dir_list(self.path_data.path()),
+            || EntriesPartitioned::complete_recursive_dir_list(other.path_data.path()),
+        );
+
+        let Ok(self_list) = self_list_res else {
+            return Ordering::Less;
+        };
+
+        let Ok(other_list) = other_list_res else {
+            return Ordering::Greater;
+        };
+
+        let dir_order = self_list.vec_dirs.cmp(&other_list.vec_dirs);
+
+        if dir_order.is_ne() {
+            return dir_order;
+        }
+
+        while let Some((a, b)) = self_list.vec_files.iter().zip(&other_list.vec_files).next() {
+            let (self_hash, other_hash): (u64, u64) = rayon::join(
+                || ChecksumFileContents::from(a.path()).checksum(),
+                || ChecksumFileContents::from(b.path()).checksum(),
+            );
+
+            return self_hash.cmp(&other_hash);
+        }
+
+        std::cmp::Ordering::Equal
     }
 
     #[allow(unused)]
