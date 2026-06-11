@@ -892,7 +892,7 @@ impl Ord for CompareContentsContainer {
             return self.cmp_file_contents(other);
         }
 
-        Ordering::Equal
+        Ordering::Greater
     }
 }
 
