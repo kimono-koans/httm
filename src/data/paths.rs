@@ -902,7 +902,7 @@ impl Ord for CompareContentsContainer {
             return mtime_order;
         }
 
-        if !self.path_data.path().is_dir() {
+        if !self.path_data.httm_is_dir::<PathData>() {
             return self.cmp_file_contents(other);
         }
 
