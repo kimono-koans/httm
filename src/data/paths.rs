@@ -872,27 +872,41 @@ impl Ord for CompareContentsContainer {
             return size_order;
         }
 
+        let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
+
         if matches!(GLOBAL_CONFIG.dedup_by, DedupBy::Suspect) {
             let btime_order: Ordering = self.btime().cmp(&other.btime());
             let inode_order: Ordering = self.inode().cmp(&other.inode());
             let dev_order: Ordering = self.dev().cmp(&other.dev());
 
-            if btime_order.is_eq() && inode_order.is_eq() && dev_order.is_eq() {
-                let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
-
-                if mtime_order.is_eq() {
-                    return Ordering::Equal;
-                }
-
-                return mtime_order;
+            if btime_order.is_eq()
+                && inode_order.is_eq()
+                && dev_order.is_eq()
+                && mtime_order.is_eq()
+            {
+                return Ordering::Equal;
             }
+
+            if btime_order.is_ne() {
+                return btime_order;
+            }
+
+            if inode_order.is_ne() {
+                return inode_order;
+            }
+
+            if dev_order.is_ne() {
+                return dev_order;
+            }
+
+            return mtime_order;
         }
 
-        if self.path_data.httm_is_dir::<PathData>() {
+        if !self.path_data.path().is_dir() {
             return self.cmp_file_contents(other);
         }
 
-        Ordering::Greater
+        mtime_order
     }
 }
 
