@@ -303,11 +303,11 @@ fn parse_args() -> ArgMatches {
                 .visible_aliases(&["unique", "uniqueness"])
                 .default_missing_value("contents")
                 .require_equals(true)
-                .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives\".  \
+                .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives and negatives\".  \
                 This is because metadata, specifically modify time and size, is not a precise measure of whether a file has actually changed. A program might overwrite a file with the same contents, \
                 and/or a user can simply update the modify time via 'touch'. This flag, when specified with the \"contents\" option, compares the actual file contents of same-sized file versions, \
-                overriding the default \"metadata\" only behavior. The \"contents\" option can be expensive, as the file versions need to be read back and compared, and, thus, should probably only be used for smaller files. \
-                Given how expensive this operation can be, for larger files or files with many versions, if specified, the \"contents\" option is not shown in BROWSE mode, \
+                overriding the default \"metadata\" only behavior. The \"contents\" option is file-only (it does not apply to non-file objects, like directories) and can be expensive, \
+                as the file versions need to be read back and compared.  Given how time expensive this operation can be if specified, the \"contents\" option is not shown in BROWSE mode, \
                 but after a selection is made, can be utilized, when enabled, in SELECT or RESTORE modes.  A less expensive, \"suspect\" option, only compares file contents when a file's metadata makes it likely the file may have new file contents, \
                 such as when that file has a new inode or birth time.  The \"disable\" \"all\" or \"no-filter\" option dumps all snapshot versions, without deduplication.")
                 .display_order(10)
