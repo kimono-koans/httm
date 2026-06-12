@@ -879,10 +879,7 @@ impl Ord for CompareContentsContainer {
             let inode_order: Ordering = self.inode().cmp(&other.inode());
             let dev_order: Ordering = self.dev().cmp(&other.dev());
 
-            if (btime_order.is_ne()
-                || inode_order.is_ne()
-                || dev_order.is_ne()
-                || mtime_order.is_ne())
+            if (btime_order.is_ne() || inode_order.is_ne() || dev_order.is_ne())
                 && !self.path_data.httm_is_dir::<PathData>()
             {
                 return self.cmp_file_contents(other);
