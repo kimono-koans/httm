@@ -122,6 +122,7 @@ impl InteractiveBrowse {
             .header(header)
             .multi(opt_multi)
             .regex(false)
+            .algorithm(FuzzyAlgorithm::Arinae)
             .tiebreak(TIEBREAK.to_vec())
             .build()
             .expect("Could not initialized skim options for browse_view");
