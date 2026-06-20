@@ -304,7 +304,7 @@ pub fn date_string(
 ) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 
-    let parsed_format = format_description::parse(date_string_format(&date_format))
+    let parsed_format = format_description::parse_borrowed::<2>(date_string_format(&date_format))
         .expect("timestamp date format is invalid");
 
     let raw_string = date_time

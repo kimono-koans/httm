@@ -39,18 +39,18 @@ xattr = { version = "1.6.1", default-features = false, optional = true }
 foldhash = { version = "0.2.0", default-features = false }
 clap = { version = "4.6.1", default-features = true, features = ["cargo"] }
 crossbeam-channel = { version = "0.5.15", features = ["std"] }
-time = { version = "0.3.47", default-features = false, features = [
+time = { version = "0.3.49", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.2", default-features = false }
-skim = { version = "4.7.0", default-features = false }
+skim = { version = "4.8.0", default-features = false }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
 terminal_size = { version = "0.4.4", default-features = false }
-which = { version = "8.0.3", default-features = false, features = ["real-sys"] }
+which = { version = "8.0.4", default-features = false, features = ["real-sys"] }
 rayon = { version = "1.12.0", default-features = false }
 indicatif = { version = "0.18.4", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
@@ -71,8 +71,8 @@ serde_json = { version = "1.0.150", default-features = false, features = [
 realpath-ext = { version = "0.1.3", default-features = false, features = [
     "std",
 ] }
-itertools = { version = "0.14.0", default-features = false }
-ratatui-core = { version = "0.1.1", default-features = false }
+itertools = { version = "0.15.0", default-features = false }
+ratatui-core = { version = "0.1.2", default-features = false }
 ansi-to-tui = { version = "8.0.1", features = ["zero-copy"] }
 
 # these are strictly not required to build, only included for attribution sake (to be picked up by cargo_about)
