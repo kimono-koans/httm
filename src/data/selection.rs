@@ -35,6 +35,7 @@ use crate::{
 };
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
+use nu_ansi_term::AnsiByteString;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::path::Path;
@@ -52,7 +53,6 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 #[derive(Debug)]
 pub struct SelectionCandidate {
     path: Box<Path>,
-    display_name: Box<str>,
     painted: Vec<u8>,
     count: AtomicU32,
 }
@@ -61,7 +61,6 @@ impl Clone for SelectionCandidate {
     fn clone(&self) -> Self {
         SelectionCandidate {
             path: self.path.clone(),
-            display_name: self.display_name.clone(),
             painted: self.painted.clone(),
             count: AtomicU32::default(),
         }
@@ -74,7 +73,6 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
 
         SelectionCandidate {
             path: value.path().into(),
-            display_name: value.display_name().into(),
             painted,
             count: AtomicU32::default(),
         }
@@ -102,7 +100,14 @@ impl SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
-        Cow::Borrowed(&self.display_name)
+        let painted = AnsiByteString::from(&self.painted);
+
+        let slice = painted.as_str();
+
+        // unsafe fn from_utf_unchecked is same fn but calling it seems to anger the borrow checker gods
+        let ret: &str = unsafe { &*(slice as *const [u8] as *const str) };
+
+        Cow::Borrowed(ret)
     }
 
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
