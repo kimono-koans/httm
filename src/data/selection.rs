@@ -35,7 +35,7 @@ use crate::{
 };
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
-use nu_ansi_term::AnsiByteString;
+use nu_ansi_term::AnsiGenericString;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::path::Path;
@@ -100,11 +100,12 @@ impl SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
-        let painted = AnsiByteString::from(&self.painted);
+        let painted = AnsiGenericString::from(&self.painted);
 
         let slice = painted.as_str();
 
-        // unsafe fn from_utf_unchecked is same fn but calling it seems to anger the borrow checker gods
+        // SAFETY: "unsafe fn from_utf_unchecked" is functionally the same, but calling it seems to anger the borrow checker gods
+        // Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
         let ret: &str = unsafe { &*(slice as *const [u8] as *const str) };
 
         Cow::Borrowed(ret)
