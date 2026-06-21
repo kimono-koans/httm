@@ -19,10 +19,18 @@ use crate::MapOfSnaps;
 use crate::filesystem::aliases::MapOfAliases;
 use crate::filesystem::alts::MapOfAlts;
 use crate::filesystem::mounts::{
-    BaseFilesystemInfo, FilesystemType, FilterDirs, MapOfDatasets, TM_DIR_LOCAL_PATH,
+    BaseFilesystemInfo,
+    FilesystemType,
+    FilterDirs,
+    LinkType,
+    MapOfDatasets,
+    TM_DIR_LOCAL_PATH,
     TM_DIR_REMOTE_PATH,
 };
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::library::utility::find_common_path;
 use std::borrow::Cow;
 use std::ops::Deref;
@@ -74,12 +82,17 @@ impl FilesystemInfo {
             Some(ref repo_type) => {
                 base_fs_info.from_blob_repo(&repo_type)?;
             }
-            None if base_fs_info.map_of_datasets.is_empty() => {
-                // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
+            None // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
                 if cfg!(target_os = "macos")
-                    && opt_map_of_aliases.is_none()
                     && TM_DIR_REMOTE_PATH.exists()
-                    && TM_DIR_LOCAL_PATH.exists()
+                    && TM_DIR_LOCAL_PATH.exists() => 
+            {
+                if base_fs_info.map_of_datasets.is_empty()
+                || (base_fs_info
+                    .map_of_datasets
+                    .iter()
+                    .all(|(_k, md)| md.link_type == LinkType::Network)
+                    && opt_map_of_aliases.is_none())
                 {
                     opt_alt_store.replace(FilesystemType::Apfs);
                     base_fs_info.from_blob_repo(&FilesystemType::Apfs)?;
