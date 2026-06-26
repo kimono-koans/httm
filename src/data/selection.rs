@@ -53,7 +53,7 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 #[derive(Debug)]
 pub struct SelectionCandidate {
     path: Box<Path>,
-    painted: Vec<u8>,
+    painted: Box<[u8]>,
     count: AtomicU32,
 }
 
@@ -69,7 +69,11 @@ impl Clone for SelectionCandidate {
 
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
-        let painted = value.paint_string().to_string().into_bytes();
+        let painted = value
+            .paint_string()
+            .to_string()
+            .into_bytes()
+            .into_boxed_slice();
 
         SelectionCandidate {
             path: value.path().into(),
@@ -100,7 +104,7 @@ impl SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
-        let painted = AnsiGenericString::from(&self.painted);
+        let painted = AnsiGenericString::from(self.painted.as_ref());
 
         let slice = painted.as_str();
 
