@@ -421,7 +421,7 @@ impl PathData {
     }
 
     #[inline(always)]
-    pub fn proximate_plus_neighbors(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
+    pub fn proximate_plus_parent_and_top_level(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
         // we map to return the key, instead of the value

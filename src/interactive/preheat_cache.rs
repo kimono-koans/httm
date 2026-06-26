@@ -19,7 +19,11 @@ use crate::lookup::versions::RelativePathAndSnapMounts;
 use hashbrown::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, RwLock, TryLockError};
+use std::sync::{
+    Arc,
+    RwLock,
+    TryLockError,
+};
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -88,7 +92,7 @@ impl PreheatCache {
                 match inner_clone.set.try_write() {
                     Ok(mut locked) => {
                         break path_data_clone
-                            .proximate_plus_neighbors(&dataset_of_interest_clone)
+                            .proximate_plus_parent_and_top_level(&dataset_of_interest_clone)
                             .into_iter()
                             .filter(|item| locked.insert(item.to_path_buf()))
                             .collect();
