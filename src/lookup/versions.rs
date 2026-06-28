@@ -503,6 +503,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         let mut versions = self.all_versions();
 
         match opt_dedup_by {
+            Some(DedupBy::Metadata) => {
+                Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
+            }
             _ if self.path_data.httm_is_dir::<PathData>() => {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
             }
