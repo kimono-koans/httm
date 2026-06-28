@@ -16,7 +16,6 @@
 // that was distributed with this source code.
 
 use crate::config::generate::{
-    DedupBy,
     FormattedMode,
     PrintMode,
 };
@@ -188,7 +187,7 @@ impl From<&[PathData]> for Config {
             opt_last_snap: None,
             opt_preview: None,
             opt_deleted_mode: None,
-            dedup_by: DedupBy::Metadata,
+            opt_dedup_by: None,
             opt_omit_ditto: config.opt_omit_ditto,
             requested_utc_offset: config.requested_utc_offset,
             exec_mode: ExecMode::Preview,

@@ -668,7 +668,7 @@ pub struct Config {
     pub opt_one_filesystem: bool,
     pub opt_no_clones: bool,
     pub opt_lazy: bool,
-    pub dedup_by: DedupBy,
+    pub opt_dedup_by: Option<DedupBy>,
     pub opt_bulk_exclusion: Option<BulkExclusion>,
     pub opt_last_snap: Option<LastSnapMode>,
     pub opt_preview: Option<String>,
@@ -877,17 +877,17 @@ impl TryFrom<&ArgMatches> for Config {
             None
         };
 
-        let dedup_by = match matches
+        let opt_dedup_by = match matches
             .get_one::<String>("DEDUP_BY")
             .map(|inner| inner.as_str())
         {
-            _ if matches.get_flag("PRUNE") => DedupBy::Disable,
-            Some("all" | "no-filter" | "disable") => DedupBy::Disable,
-            Some("contents") => DedupBy::Contents,
-            Some("suspect") => DedupBy::Suspect,
-            Some("metadata" | _) => DedupBy::Metadata,
-            _ if matches.contains_id("LIST_SNAPS") => DedupBy::Disable,
-            None => DedupBy::Metadata,
+            _ if matches.get_flag("PRUNE") => Some(DedupBy::Disable),
+            _ if matches.contains_id("LIST_SNAPS") => Some(DedupBy::Disable),
+            Some("all" | "no-filter" | "disable") => Some(DedupBy::Disable),
+            Some("contents") => Some(DedupBy::Contents),
+            Some("suspect") => Some(DedupBy::Suspect),
+            Some("metadata" | _) => Some(DedupBy::Metadata),
+            None => None,
         };
 
         if opt_no_hidden && !opt_recursive && opt_interactive_mode.is_none() {
@@ -1031,7 +1031,7 @@ impl TryFrom<&ArgMatches> for Config {
             opt_one_filesystem,
             opt_no_clones,
             opt_lazy,
-            dedup_by,
+            opt_dedup_by,
             requested_utc_offset,
             exec_mode,
             print_mode,

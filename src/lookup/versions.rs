@@ -33,6 +33,7 @@ use crate::library::results::{
     HttmError,
     HttmResult,
 };
+use crate::library::utility::HttmIsDir;
 use crate::{
     GLOBAL_CONFIG,
     MAP_OF_SNAPS,
@@ -171,7 +172,7 @@ impl Versions {
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
-                relative_path_snap_mounts.version_search(&config.dedup_by)
+                relative_path_snap_mounts.version_search(&config.opt_dedup_by)
             })
             .collect();
 
@@ -470,10 +471,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     fn sort_dedup_versions(vec: &mut Vec<PathData>, dedup_by: &DedupBy) {
         match dedup_by {
             DedupBy::Disable => {
-                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
+                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible().mtime());
             }
             DedupBy::Metadata => {
-                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
+                vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible().mtime());
                 vec.dedup_by_key(|a| a.metadata_infallible());
             }
             DedupBy::Contents | DedupBy::Suspect => {
@@ -484,7 +485,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 container_vec.sort_unstable();
                 container_vec.dedup();
-                container_vec.sort_unstable_by_key(|path_data| path_data.metadata_infallible());
+                container_vec
+                    .sort_unstable_by_key(|path_data| path_data.metadata_infallible().mtime());
 
                 *vec = container_vec
                     .into_iter()
@@ -495,12 +497,25 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
-    pub fn version_search(&'a self, dedup_by: &DedupBy) -> Vec<PathData> {
+    pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
         self.enable_preheat_cache();
 
         let mut versions = self.all_versions();
 
-        Self::sort_dedup_versions(&mut versions, dedup_by);
+        match opt_dedup_by {
+            None => {
+                let dedup_by = if self.path_data.httm_is_dir::<PathData>() {
+                    DedupBy::Disable
+                } else {
+                    DedupBy::Metadata
+                };
+
+                Self::sort_dedup_versions(&mut versions, &dedup_by);
+            }
+            Some(dedup_by) => {
+                Self::sort_dedup_versions(&mut versions, dedup_by);
+            }
+        }
 
         versions
     }
@@ -517,6 +532,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             let cache = GLOBAL_CONFIG
                 .opt_preheat_cache
                 .get_or_init(|| PreheatCache::new());
+
             cache.exec(self);
         }
     }

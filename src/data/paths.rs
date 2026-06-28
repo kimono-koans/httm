@@ -874,7 +874,7 @@ impl Ord for CompareContentsContainer {
 
         let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        if matches!(GLOBAL_CONFIG.dedup_by, DedupBy::Suspect) {
+        if let Some(DedupBy::Suspect) = GLOBAL_CONFIG.opt_dedup_by {
             let btime_order: Ordering = self.btime().cmp(&other.btime());
             let inode_order: Ordering = self.inode().cmp(&other.inode());
             let dev_order: Ordering = self.dev().cmp(&other.dev());
