@@ -502,6 +502,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
         let mut versions = self.all_versions();
 
+        // POSIX metadata is useless for deduping between directories, so we don't here
+        // unless we are expressly requested to do so.  We also don't read back all the
+        // directory contents because this would be very expensive
         match opt_dedup_by {
             Some(DedupBy::Metadata) => {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
