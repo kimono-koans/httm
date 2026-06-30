@@ -172,6 +172,11 @@ impl Versions {
         let snap_versions: Vec<PathData> = prox_opt_alts
             .into_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
+                // run preheat cache
+                {
+                    relative_path_snap_mounts.enable_preheat_cache();
+                }
+
                 relative_path_snap_mounts.version_search(&config.opt_dedup_by)
             })
             .collect();
@@ -440,6 +445,31 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline(always)]
+    pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
+        let mut versions = self.all_versions();
+
+        // POSIX metadata is useless for deduping between directories, so we don't here
+        // unless we are expressly requested to do so.  We also don't read back all the
+        // directory contents because this would be very expensive
+        match opt_dedup_by {
+            Some(DedupBy::Metadata) => {
+                Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
+            }
+            _ if self.path_data.httm_is_dir::<PathData>() => {
+                Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
+            }
+            None => {
+                Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
+            }
+            Some(dedup_by) => {
+                Self::sort_dedup_versions(&mut versions, dedup_by);
+            }
+        }
+
+        versions
+    }
+
+    #[inline(always)]
     fn all_versions(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
@@ -496,37 +526,10 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         }
     }
 
-    #[inline(always)]
-    pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
-        self.enable_preheat_cache();
-
-        let mut versions = self.all_versions();
-
-        // POSIX metadata is useless for deduping between directories, so we don't here
-        // unless we are expressly requested to do so.  We also don't read back all the
-        // directory contents because this would be very expensive
-        match opt_dedup_by {
-            Some(DedupBy::Metadata) => {
-                Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
-            }
-            _ if self.path_data.httm_is_dir::<PathData>() => {
-                Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
-            }
-            None => {
-                Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
-            }
-            Some(dedup_by) => {
-                Self::sort_dedup_versions(&mut versions, dedup_by);
-            }
-        }
-
-        versions
-    }
-
     fn enable_preheat_cache(&self) {
-        if matches!(self.config().exec_mode, ExecMode::Preview)
+        if matches!(self.config.exec_mode, ExecMode::Preview)
             || self
-                .config()
+                .config
                 .dataset_collection
                 .map_of_datasets
                 .get(self.dataset_of_interest())
