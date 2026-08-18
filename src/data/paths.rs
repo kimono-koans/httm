@@ -851,7 +851,6 @@ impl Ord for CompareContentsContainer {
         let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
 
         match GLOBAL_CONFIG.opt_dedup_by {
-            _ if self.path_data.httm_is_dir::<PathData>() => mtime_order,
             Some(DedupBy::Contents) => self.cmp_file_contents(other),
             Some(DedupBy::Suspect) => {
                 let btime_order: Ordering = self.btime().cmp(&other.btime());
@@ -926,6 +925,14 @@ impl CompareContentsContainer {
     #[allow(unused)]
     #[allow(unused_assignments)]
     pub fn cmp_file_contents(&self, other: &Self) -> Ordering {
+        // early bailout by returning disorder (could be Less or Greater) upon finding a directory
+        // why? don't want to hash directories. might return insane values.
+        // deduping by mtime is not "better" alternative here here
+        // policy is directories are not deduped by mtime unless this is the explicit direction of the user
+        if self.path_data.httm_is_dir::<PathData>() {
+            return Ordering::Less;
+        }
+
         let (self_hash, other_hash): (&u64, &u64) = rayon::join(
             || {
                 self.hash
