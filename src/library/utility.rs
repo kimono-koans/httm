@@ -219,7 +219,7 @@ pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> =
     LazyLock::new(|| nu_ansi_term::Style::default());
 pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
-pub trait PaintString<'a> {
+pub trait PaintPath<'a> {
     fn path(&self) -> &Path;
     fn opt_filetype(&self) -> Option<FileType>;
     fn ls_style(&self) -> Option<lscolors::style::Style>;
@@ -266,7 +266,7 @@ pub trait PaintString<'a> {
     }
 }
 
-impl<'a> PaintString<'a> for PathData {
+impl<'a> PaintPath<'a> for PathData {
     fn path(&self) -> &Path {
         self.path()
     }
@@ -284,7 +284,7 @@ impl<'a> PaintString<'a> for PathData {
     }
 }
 
-impl<'a> PaintString<'a> for BasicDirEntryInfo {
+impl<'a> PaintPath<'a> for BasicDirEntryInfo {
     fn path(&self) -> &Path {
         self.path()
     }

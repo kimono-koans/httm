@@ -25,7 +25,7 @@ use crate::data::paths::{
 };
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::HttmResult;
-use crate::library::utility::PaintString;
+use crate::library::utility::PaintPath;
 use crate::{
     Config,
     ExecMode,

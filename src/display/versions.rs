@@ -32,7 +32,7 @@ use crate::data::paths::{
 use crate::filesystem::mounts::IsFilterDir;
 use crate::library::utility::{
     DateFormat,
-    PaintString,
+    PaintPath,
     date_string,
     display_human_size,
 };
