@@ -875,6 +875,7 @@ impl Ord for CompareContentsContainer {
         let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
 
         match GLOBAL_CONFIG.opt_dedup_by {
+            _ if self.path_data.httm_is_dir::<PathData>() => mtime_order,
             Some(DedupBy::Contents) => self.cmp_file_contents(other),
             Some(DedupBy::Suspect) => {
                 let btime_order: Ordering = self.btime().cmp(&other.btime());
@@ -899,23 +900,13 @@ impl From<CompareContentsContainer> for PathData {
     }
 }
 
-impl TryFrom<PathData> for CompareContentsContainer {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
+impl From<PathData> for CompareContentsContainer {
     #[inline(always)]
-    fn try_from(path_data: PathData) -> HttmResult<Self> {
-        if path_data.httm_is_dir::<PathData>() {
-            return Err(HttmError::new(
-                "PathData is a directory, and thus its contents will not be compared by httm.  \
-                CompareContentsContainer should be prevented from being run on directories, earlier in the program.",
-            )
-            .into());
-        }
-
-        Ok(Self {
+    fn from(path_data: PathData) -> Self {
+        Self {
             path_data,
             hash: OnceLock::new(),
-        })
+        }
     }
 }
 
