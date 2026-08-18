@@ -221,15 +221,14 @@ pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_
 
 pub trait PaintPath<'a> {
     fn path(&self) -> &Path;
+    fn path_name(&self) -> Cow<'_, str>;
     fn opt_filetype(&self) -> Option<FileType>;
-    fn ls_style(&self) -> Option<lscolors::style::Style>;
+    fn ls_style(&self) -> Option<&lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
-    fn display_name(&self) -> Cow<'_, str>;
+    fn display_name(&self) -> Cow<'_, str> {
+        let display_name = self.path_name();
 
-    fn paint_string(&'a self) -> AnsiString<'a> {
-        let mut display_name = self.display_name();
-
-        display_name = match self.opt_filetype() {
+        match self.opt_filetype() {
             Some(ft) if ft.is_file() => display_name,
             Some(ft) if ft.is_dir() && display_name != "/" => {
                 let mut res = display_name.to_string();
@@ -250,7 +249,11 @@ pub trait PaintPath<'a> {
                 }
             },
             _ => display_name,
-        };
+        }
+    }
+
+    fn paint_string(&'a self) -> AnsiString<'a> {
+        let display_name = self.display_name();
 
         if self.is_phantom() {
             return PHANTOM_STYLE.paint(display_name);
@@ -273,13 +276,13 @@ impl<'a> PaintPath<'a> for PathData {
     fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype()
     }
-    fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style().copied()
+    fn ls_style(&self) -> Option<&lscolors::style::Style> {
+        self.opt_style()
     }
     fn is_phantom(&self) -> bool {
         self.opt_path_metadata().is_none()
     }
-    fn display_name(&self) -> Cow<'_, str> {
+    fn path_name(&self) -> Cow<'_, str> {
         self.path().to_string_lossy()
     }
 }
@@ -291,13 +294,13 @@ impl<'a> PaintPath<'a> for BasicDirEntryInfo {
     fn opt_filetype(&self) -> Option<FileType> {
         self.opt_filetype().copied()
     }
-    fn ls_style(&self) -> Option<lscolors::style::Style> {
-        ENV_LS_COLORS.style_for(self).copied()
+    fn ls_style(&self) -> Option<&lscolors::style::Style> {
+        ENV_LS_COLORS.style_for(self)
     }
     fn is_phantom(&self) -> bool {
         self.opt_metadata().is_none()
     }
-    fn display_name(&self) -> Cow<'_, str> {
+    fn path_name(&self) -> Cow<'_, str> {
         static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
             GLOBAL_CONFIG
                 .opt_requested_dir
