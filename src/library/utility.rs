@@ -152,7 +152,7 @@ pub trait HttmIsDir {
     fn file_type(&self) -> Result<FileType, std::io::Error>;
     fn path(&self) -> &Path;
 
-    // is this path/dir_entry something we should count as a directory for our purposes?
+    // is this pa th/dir_entry something we should count as a directory for our purposes?
     fn httm_is_dir<T>(&self) -> bool {
         match self.file_type() {
             Ok(file_type) => match file_type {
