@@ -512,10 +512,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 let mut container_vec: Vec<CompareContentsContainer> = taken
                     .into_iter()
-                    .map(|path_data| CompareContentsContainer::try_from(path_data))
-                    .collect::<HttmResult<Vec<CompareContentsContainer>>>()
-                    .map_err(|err| exit_error(err))
-                    .unwrap();
+                    .map(|path_data| CompareContentsContainer::from(path_data))
+                    .collect();
 
                 container_vec.sort_unstable();
                 container_vec.dedup();
