@@ -455,7 +455,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             Some(DedupBy::Metadata) => {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
             }
-            _ if self.path_data.httm_is_dir::<PathData>() => {
+            _ if versions.iter().any(|pd| pd.httm_is_dir::<PathData>())
+                || self.path_data.httm_is_dir::<PathData>() =>
+            {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
             }
             None => {
