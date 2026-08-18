@@ -31,28 +31,28 @@ malloc_trim = ["libc"]
 licensing = ["lms"]
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.186", default-features = false, optional = true }
+libc = { version = "0.2.189", default-features = false, optional = true }
 exacl = { version = "0.13.0", default-features = false, optional = true }
 xattr = { version = "1.6.1", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.2.0", default-features = false }
-clap = { version = "4.6.1", default-features = true, features = ["cargo"] }
-crossbeam-channel = { version = "0.5.15", features = ["std"] }
-time = { version = "0.3.51", default-features = false, features = [
+clap = { version = "4.6.6", default-features = true, features = ["cargo"] }
+crossbeam-channel = { version = "0.5.16", features = ["std"] }
+time = { version = "0.3.55", default-features = false, features = [
     "formatting",
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.2", default-features = false }
-skim = { version = "=4.7.0", default-features = false }
+skim = { version = "5.6.5", default-features = false }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
 ] }
 terminal_size = { version = "0.4.4", default-features = false }
-which = { version = "8.0.4", default-features = false, features = ["real-sys"] }
+which = { version = "8.0.5", default-features = false, features = ["real-sys"] }
 rayon = { version = "1.12.0", default-features = false }
-indicatif = { version = "0.18.5", default-features = false }
+indicatif = { version = "0.18.6", default-features = false }
 proc-mounts = { version = "0.3.0", default-features = false }
 hashbrown = { version = "0.17.1", default-features = false, features = [
     "rayon",
@@ -63,8 +63,8 @@ nix = { version = "0.31.3", default-features = false, features = [
     "user",
     "zerocopy",
 ] }
-serde = { version = "1.0.228", default-features = false, features = ["alloc"] }
-serde_json = { version = "1.0.150", default-features = false, features = [
+serde = { version = "1.0.229", default-features = false, features = ["alloc"] }
+serde_json = { version = "1.0.151", default-features = false, features = [
     "alloc",
     "preserve_order",
 ] }

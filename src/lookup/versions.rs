@@ -508,10 +508,14 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 vec.dedup_by_key(|a| a.metadata_infallible());
             }
             DedupBy::Contents | DedupBy::Suspect => {
-                let mut container_vec: Vec<CompareContentsContainer> = std::mem::take(vec)
+                let mut container_vec: Vec<CompareContentsContainer> = match std::mem::take(vec)
                     .into_iter()
-                    .map(|path_data| CompareContentsContainer::from(path_data))
-                    .collect();
+                    .map(|path_data| CompareContentsContainer::try_from(path_data))
+                    .collect::<HttmResult<Vec<CompareContentsContainer>>>()
+                {
+                    Ok(val) => val,
+                    Err(err) => exit_error(err),
+                };
 
                 container_vec.sort_unstable();
                 container_vec.dedup();

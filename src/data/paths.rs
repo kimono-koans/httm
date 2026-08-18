@@ -874,25 +874,21 @@ impl Ord for CompareContentsContainer {
 
         let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
 
-        if let Some(DedupBy::Suspect) = GLOBAL_CONFIG.opt_dedup_by {
-            let btime_order: Ordering = self.btime().cmp(&other.btime());
-            let inode_order: Ordering = self.inode().cmp(&other.inode());
-            let dev_order: Ordering = self.dev().cmp(&other.dev());
+        match GLOBAL_CONFIG.opt_dedup_by {
+            Some(DedupBy::Contents) => self.cmp_file_contents(other),
+            Some(DedupBy::Suspect) => {
+                let btime_order: Ordering = self.btime().cmp(&other.btime());
+                let inode_order: Ordering = self.inode().cmp(&other.inode());
+                let dev_order: Ordering = self.dev().cmp(&other.dev());
 
-            if (btime_order.is_ne() || inode_order.is_ne() || dev_order.is_ne())
-                && !self.path_data.httm_is_dir::<PathData>()
-            {
-                return self.cmp_file_contents(other);
+                if btime_order.is_ne() || inode_order.is_ne() || dev_order.is_ne() {
+                    return self.cmp_file_contents(other);
+                }
+
+                mtime_order
             }
-
-            return mtime_order;
+            None | Some(DedupBy::Metadata) | Some(DedupBy::Disable) => mtime_order,
         }
-
-        if !self.path_data.httm_is_dir::<PathData>() {
-            return self.cmp_file_contents(other);
-        }
-
-        mtime_order
     }
 }
 
@@ -903,13 +899,23 @@ impl From<CompareContentsContainer> for PathData {
     }
 }
 
-impl From<PathData> for CompareContentsContainer {
+impl TryFrom<PathData> for CompareContentsContainer {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
     #[inline(always)]
-    fn from(path_data: PathData) -> Self {
-        Self {
+    fn try_from(path_data: PathData) -> HttmResult<Self> {
+        if path_data.httm_is_dir::<PathData>() {
+            return Err(HttmError::new(
+                "PathData is a directory, and thus its contents will not be compared by httm.  \
+                CompareContentsContainer should be prevented from being run on directories, earlier in the program.",
+            )
+            .into());
+        }
+
+        Ok(Self {
             path_data,
             hash: OnceLock::new(),
-        }
+        })
     }
 }
 
