@@ -24,6 +24,7 @@ use crate::data::paths::{
     BasicDirEntryInfo,
     PathData,
 };
+use crate::filesystem::mounts::ROOT_PATH;
 use crate::library::results::{
     HttmError,
     HttmResult,
@@ -190,7 +191,7 @@ impl HttmIsDir for PathData {
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
         Ok(self
-            .opt_file_type()
+            .opt_filetype()
             .ok_or_else(|| std::io::ErrorKind::NotFound)?)
     }
     fn path(&self) -> &Path {
@@ -219,50 +220,16 @@ pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> =
 pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
 pub trait PaintString<'a> {
+    fn path(&self) -> &Path;
+    fn opt_filetype(&self) -> Option<FileType>;
     fn ls_style(&self) -> Option<lscolors::style::Style>;
     fn is_phantom(&self) -> bool;
     fn display_name(&self) -> Cow<'_, str>;
 
     fn paint_string(&'a self) -> AnsiString<'a> {
-        let display_name = self.display_name();
+        let mut display_name = self.display_name();
 
-        if self.is_phantom() {
-            return PHANTOM_STYLE.paint(display_name);
-        }
-
-        match self
-            .ls_style()
-            .map(|style| Style::to_nu_ansi_term_style(&style))
-        {
-            Some(ansi_style) => ansi_style.paint(display_name),
-            None => BASE_STYLE.paint(display_name),
-        }
-    }
-}
-
-impl<'a> PaintString<'a> for PathData {
-    fn ls_style(&self) -> Option<lscolors::style::Style> {
-        self.opt_style().copied()
-    }
-    fn is_phantom(&self) -> bool {
-        self.opt_path_metadata().is_none()
-    }
-    fn display_name(&self) -> Cow<'_, str> {
-        self.path().to_string_lossy()
-    }
-}
-
-impl<'a> PaintString<'a> for BasicDirEntryInfo {
-    fn ls_style(&self) -> Option<lscolors::style::Style> {
-        ENV_LS_COLORS.style_for(self).copied()
-    }
-    fn is_phantom(&self) -> bool {
-        self.opt_metadata().is_none()
-    }
-    fn display_name(&self) -> Cow<'_, str> {
-        let display_name = self.display_name();
-
-        match self.opt_filetype() {
+        display_name = match self.opt_filetype() {
             Some(ft) if ft.is_file() => display_name,
             Some(ft) if ft.is_dir() && display_name != "/" => {
                 let mut res = display_name.to_string();
@@ -283,7 +250,75 @@ impl<'a> PaintString<'a> for BasicDirEntryInfo {
                 }
             },
             _ => display_name,
+        };
+
+        if self.is_phantom() {
+            return PHANTOM_STYLE.paint(display_name);
         }
+
+        match self
+            .ls_style()
+            .map(|style| Style::to_nu_ansi_term_style(&style))
+        {
+            Some(ansi_style) => ansi_style.paint(display_name),
+            None => BASE_STYLE.paint(display_name),
+        }
+    }
+}
+
+impl<'a> PaintString<'a> for PathData {
+    fn path(&self) -> &Path {
+        self.path()
+    }
+    fn opt_filetype(&self) -> Option<FileType> {
+        self.opt_filetype()
+    }
+    fn ls_style(&self) -> Option<lscolors::style::Style> {
+        self.opt_style().copied()
+    }
+    fn is_phantom(&self) -> bool {
+        self.opt_path_metadata().is_none()
+    }
+    fn display_name(&self) -> Cow<'_, str> {
+        self.path().to_string_lossy()
+    }
+}
+
+impl<'a> PaintString<'a> for BasicDirEntryInfo {
+    fn path(&self) -> &Path {
+        self.path()
+    }
+    fn opt_filetype(&self) -> Option<FileType> {
+        self.opt_filetype().copied()
+    }
+    fn ls_style(&self) -> Option<lscolors::style::Style> {
+        ENV_LS_COLORS.style_for(self).copied()
+    }
+    fn is_phantom(&self) -> bool {
+        self.opt_metadata().is_none()
+    }
+    fn display_name(&self) -> Cow<'_, str> {
+        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
+            GLOBAL_CONFIG
+                .opt_requested_dir
+                .as_ref()
+                .unwrap_or_else(|| &GLOBAL_CONFIG.pwd)
+                .as_ref()
+        });
+
+        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> =
+            LazyLock::new(|| REQUESTED_DIR.parent());
+
+        // this only works because we do not resolve symlinks when doing traversal
+        let display_name = match self.path().strip_prefix(*REQUESTED_DIR) {
+            Ok(_stripped) if self.path() == ROOT_PATH.as_path() => Cow::Borrowed("/"),
+            Ok(_) if self.path() == *REQUESTED_DIR => Cow::Borrowed("."),
+            Ok(stripped) => stripped.to_string_lossy(),
+            Err(_) if Some(self.path()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
+            Err(_) => self.path().to_string_lossy(),
+        };
+
+        display_name
     }
 }
 

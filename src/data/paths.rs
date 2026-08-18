@@ -26,7 +26,6 @@ use crate::filesystem::mounts::{
     FilesystemType,
     IsFilterDir,
     MaxLen,
-    ROOT_PATH,
 };
 use crate::library::file_ops::ChecksumFileContents;
 use crate::library::results::{
@@ -57,7 +56,6 @@ use serde::{
     Serialize,
     Serializer,
 };
-use std::borrow::Cow;
 use std::cmp::{
     Ord,
     Ordering,
@@ -173,28 +171,6 @@ impl BasicDirEntryInfo {
         }
     }
 
-    pub fn display_name(&self) -> Cow<'_, str> {
-        static REQUESTED_DIR: LazyLock<&Path> = LazyLock::new(|| {
-            GLOBAL_CONFIG
-                .opt_requested_dir
-                .as_ref()
-                .unwrap_or_else(|| &GLOBAL_CONFIG.pwd)
-                .as_ref()
-        });
-
-        static REQUESTED_DIR_PARENT: LazyLock<Option<&Path>> =
-            LazyLock::new(|| REQUESTED_DIR.parent());
-
-        // this only works because we do not resolve symlinks when doing traversal
-        match self.path.strip_prefix(*REQUESTED_DIR) {
-            Ok(_stripped) if self.path.as_ref() == ROOT_PATH.as_path() => Cow::Borrowed("/"),
-            Ok(_) if self.path.as_ref() == *REQUESTED_DIR => Cow::Borrowed("."),
-            Ok(stripped) => stripped.to_string_lossy(),
-            Err(_) if Some(self.path.as_ref()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
-            Err(_) => self.path.to_string_lossy(),
-        }
-    }
-
     pub fn filename(&self) -> &OsStr {
         self.path.file_name().unwrap_or_default()
     }
@@ -297,7 +273,7 @@ pub trait PathDeconstruction<'a> {
 pub struct PathData {
     path_buf: Box<Path>,
     opt_path_metadata: Option<PathMetadata>,
-    opt_file_type: Option<FileType>,
+    opt_filetype: Option<FileType>,
 }
 
 impl PartialEq for PathData {
@@ -344,13 +320,13 @@ impl From<&SelectionCandidate> for PathData {
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
         let opt_metadata = selection_candidate.path().symlink_metadata().ok();
-        let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
+        let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         PathData {
             path_buf: selection_candidate.path().into(),
             opt_path_metadata,
-            opt_file_type,
+            opt_filetype,
         }
     }
 }
@@ -372,14 +348,14 @@ impl PathData {
         //
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
-        let opt_file_type = opt_metadata.as_ref().map(|md| md.file_type());
+        let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
 
         let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         Self {
             path_buf: path.into(),
             opt_path_metadata,
-            opt_file_type,
+            opt_filetype,
         }
     }
 
@@ -392,7 +368,7 @@ impl PathData {
         Self {
             path_buf: path.into(),
             opt_path_metadata,
-            opt_file_type: None,
+            opt_filetype: None,
         }
     }
 
@@ -409,8 +385,8 @@ impl PathData {
         self.opt_path_metadata
     }
 
-    pub fn opt_file_type(&self) -> Option<FileType> {
-        self.opt_file_type
+    pub fn opt_filetype(&self) -> Option<FileType> {
+        self.opt_filetype
             .or_else(|| self.path().symlink_metadata().ok().map(|md| md.file_type()))
     }
 
