@@ -252,7 +252,7 @@ pub trait PaintPath<'a> {
         }
     }
 
-    fn paint_string(&'a self) -> AnsiString<'a> {
+    fn paint_path(&'a self) -> AnsiString<'a> {
         let display_name = self.display_name();
 
         if self.is_phantom() {

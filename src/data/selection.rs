@@ -69,7 +69,7 @@ impl Clone for SelectionCandidate {
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
         let painted = value
-            .paint_string()
+            .paint_path()
             .to_string()
             .into_bytes()
             .into_boxed_slice();

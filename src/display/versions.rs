@@ -253,7 +253,7 @@ impl PathData {
                 let path = {
                     // paint the live strings with ls colors - idx == 1 is 2nd or live set
                     let painted_path_str = match display_set_type {
-                        DisplaySetType::IsLive => self.paint_string(),
+                        DisplaySetType::IsLive => self.paint_path(),
                         DisplaySetType::IsSnap => {
                             let path_buf = &self.path();
                             AnsiGenericString::from(path_buf.to_string_lossy())
