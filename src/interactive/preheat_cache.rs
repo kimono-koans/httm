@@ -15,9 +15,16 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::data::paths::{
+    PathData,
+    PathDeconstruction,
+};
 use crate::lookup::versions::RelativePathAndSnapMounts;
 use hashbrown::HashSet;
-use std::path::PathBuf;
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::sync::atomic::AtomicBool;
 use std::sync::{
     Arc,
@@ -91,11 +98,13 @@ impl PreheatCache {
 
                 match inner_clone.set.try_write() {
                     Ok(mut locked) => {
-                        break path_data_clone
-                            .proximate_plus_parent_and_top_level(&dataset_of_interest_clone)
-                            .into_iter()
-                            .filter(|item| locked.insert(item.to_path_buf()))
-                            .collect();
+                        break Self::proximate_plus_parent_and_top_level(
+                            &path_data_clone,
+                            &dataset_of_interest_clone,
+                        )
+                        .into_iter()
+                        .filter(|item| locked.insert(item.to_path_buf()))
+                        .collect();
                     }
                     Err(err) => {
                         if let TryLockError::Poisoned(_) = err {
@@ -130,5 +139,58 @@ impl PreheatCache {
                         .next();
                 });
         });
+    }
+
+    #[inline(always)]
+    pub fn proximate_plus_parent_and_top_level(
+        pathdata: &PathData,
+        proximate_dataset: &Path,
+    ) -> Vec<PathBuf> {
+        // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
+        // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
+        // we map to return the key, instead of the value
+        let mut res = vec![proximate_dataset.to_path_buf()];
+
+        match pathdata
+            .path()
+            .parent()
+            .map(|path| PathData::without_styling(path, None))
+            .map(|pathdata| {
+                pathdata
+                    .proximate_dataset()
+                    .ok()
+                    .map(|path| path.to_owned())
+            })
+            .flatten()
+            .filter(|parent_dataset| parent_dataset != proximate_dataset)
+        {
+            Some(parent_dataset) => {
+                res.push(parent_dataset);
+            }
+            _ => (),
+        };
+
+        let dir_iter = std::fs::read_dir(pathdata.path())
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|de| match de.file_type().ok() {
+                Some(ft) if ft.is_dir() => {
+                    Some(PathData::without_styling(&de.path(), de.metadata().ok()))
+                }
+                Some(ft) if ft.is_symlink() => std::fs::read_link(de.path())
+                    .ok()
+                    .map(|path| PathData::without_styling(&path, None)),
+                _ => None,
+            })
+            .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()))
+            .filter(|parent_dataset| parent_dataset != proximate_dataset);
+
+        res.extend(dir_iter);
+
+        res.sort();
+        res.dedup();
+
+        res
     }
 }

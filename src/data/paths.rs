@@ -395,51 +395,6 @@ impl PathData {
         self.opt_path_metadata
             .unwrap_or_else(|| PHANTOM_PATH_METADATA)
     }
-
-    #[inline(always)]
-    pub fn proximate_plus_parent_and_top_level(&self, proximate_dataset: &Path) -> Vec<PathBuf> {
-        // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
-        // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
-        // we map to return the key, instead of the value
-        let mut res = vec![proximate_dataset.to_path_buf()];
-
-        match self
-            .path()
-            .parent()
-            .map(|path| PathData::without_styling(path, None))
-            .map(|path| path.proximate_dataset().ok().map(|path| path.to_owned()))
-            .flatten()
-            .filter(|parent_dataset| parent_dataset != proximate_dataset)
-        {
-            Some(parent_dataset) => {
-                res.push(parent_dataset);
-            }
-            _ => (),
-        };
-
-        let dir_iter = std::fs::read_dir(self.path())
-            .into_iter()
-            .flatten()
-            .flatten()
-            .filter_map(|de| match de.file_type().ok() {
-                Some(ft) if ft.is_dir() => {
-                    Some(PathData::without_styling(&de.path(), de.metadata().ok()))
-                }
-                Some(ft) if ft.is_symlink() => std::fs::read_link(de.path())
-                    .ok()
-                    .map(|path| PathData::without_styling(&path, None)),
-                _ => None,
-            })
-            .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()))
-            .filter(|parent_dataset| parent_dataset != proximate_dataset);
-
-        res.extend(dir_iter);
-
-        res.sort();
-        res.dedup();
-
-        res
-    }
 }
 
 impl<'a> PathDeconstruction<'a> for PathData {
