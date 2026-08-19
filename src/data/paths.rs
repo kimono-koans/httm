@@ -818,7 +818,9 @@ impl Ord for CompareContentsContainer {
 
                 mtime_order
             }
-            None | Some(DedupBy::Metadata) | Some(DedupBy::Disable) => mtime_order,
+            _ => unreachable!(
+                "CompareContentsContainer is only for DedupBy::Contents and DedupBy::Suspect configuration options"
+            ),
         }
     }
 }
