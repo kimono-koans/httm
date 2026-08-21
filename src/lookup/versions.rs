@@ -295,7 +295,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
             .opt_map_of_alts
             .as_ref()
             .and_then(|map_of_alts| map_of_alts.get(proximate_dataset))
-            .and_then(|alt_metadata| alt_metadata.deref().as_deref());
+            .and_then(|alt_metadata| alt_metadata.as_deref());
 
         Ok(Self {
             config,
@@ -476,26 +476,16 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
         const CHUNK_SIZE: usize = 64;
-        let snap_mounts_len = self.snap_mounts.len();
-
-        if snap_mounts_len > CHUNK_SIZE {
-            return self
-                .snap_mounts
-                .par_chunks(CHUNK_SIZE)
-                .map(|chunk| {
-                    chunk
-                        .into_iter()
-                        .map(|snap_path| snap_path.join(self.relative_path))
-                        .filter_map(|joined_path| self.match_metadata(joined_path))
-                })
-                .flatten_iter()
-                .collect::<Vec<PathData>>();
-        }
 
         self.snap_mounts
-            .into_iter()
-            .map(|snap_path| snap_path.join(self.relative_path))
-            .filter_map(|joined_path| self.match_metadata(joined_path))
+            .par_chunks(CHUNK_SIZE)
+            .map(|chunk| {
+                chunk
+                    .into_iter()
+                    .map(|snap_path| snap_path.join(self.relative_path))
+                    .filter_map(|joined_path| self.match_metadata(joined_path))
+            })
+            .flatten_iter()
             .collect::<Vec<PathData>>()
     }
 
