@@ -21,6 +21,9 @@ codegen-units = 1
 panic = "abort"
 inherits = "release"
 
+[profile.release]
+debug = "line-tables-only"
+
 [features]
 default = ["std"]
 std = ["xattrs", "malloc_trim"]
