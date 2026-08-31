@@ -38,7 +38,7 @@ use nu_ansi_term::AnsiGenericString;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::path::Path;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU8;
 use std::time::Duration;
 
 static RETRY_NOTICE: &str = "NOTICE: httm filesystem requests are delayed...\n
@@ -53,7 +53,7 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 pub struct SelectionCandidate {
     path: Box<Path>,
     painted: Box<[u8]>,
-    count: AtomicU32,
+    count: AtomicU8,
 }
 
 impl Clone for SelectionCandidate {
@@ -61,7 +61,7 @@ impl Clone for SelectionCandidate {
         SelectionCandidate {
             path: self.path.clone(),
             painted: self.painted.clone(),
-            count: AtomicU32::default(),
+            count: AtomicU8::default(),
         }
     }
 }
@@ -77,7 +77,7 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         SelectionCandidate {
             path: value.path().into(),
             painted,
-            count: AtomicU32::default(),
+            count: AtomicU8::default(),
         }
     }
 }
@@ -129,7 +129,7 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(1000);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
-        static MAX_RETRIES: u32 = 3u32;
+        static MAX_RETRIES: u8 = 3u8;
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
             Some(requested_dir) if requested_dir.as_ref() == self.path() => REQUESTED_DIR_TIME_OUT,
