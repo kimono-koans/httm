@@ -19,6 +19,7 @@ use crate::config::generate::{
     Config,
     DedupBy,
     ExecMode,
+    InteractiveMode,
     LastSnapMode,
 };
 use crate::data::paths::{
@@ -455,8 +456,11 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             Some(DedupBy::Metadata) => {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
             }
-            _ if versions.iter().any(|pd| pd.httm_is_dir::<PathData>())
-                || self.path_data.httm_is_dir::<PathData>() =>
+            _ if matches!(
+                self.config.exec_mode,
+                ExecMode::Interactive(InteractiveMode::Restore(_))
+            ) && (versions.iter().any(|pd| pd.httm_is_dir::<PathData>())
+                || self.path_data.httm_is_dir::<PathData>()) =>
             {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
             }
