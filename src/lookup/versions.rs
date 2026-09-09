@@ -449,9 +449,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
         let mut versions = self.all_versions();
 
-        // POSIX metadata is useless for deduping between directories, so we don't here
-        // unless we are expressly requested to do so.  We also don't read back all the
-        // directory contents because this would be very expensive
+        // POSIX metadata is less useful for deduping between directories,
+        // here we do dedup by metadata EXCEPT when restoring.  When restoring,
+        // we want the user to see all possible directories for restoration.
         match opt_dedup_by {
             Some(DedupBy::Metadata) => {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
