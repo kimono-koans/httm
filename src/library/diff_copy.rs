@@ -143,6 +143,9 @@ impl<'a> HttmCopy<'a> {
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
+                        eprintln!("DEBUG: Confirmation initiated.");
+                        Self::confirm(self.src_path, self.dst_path)?;
+                        eprintln!("DEBUG: Confirmation completed successfully.");
                     }
 
                     return Ok(());
@@ -165,8 +168,10 @@ impl<'a> HttmCopy<'a> {
         DiffCopy::try_from(&self)?.exec()?;
 
         if GLOBAL_CONFIG.opt_debug {
-            eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
+            eprintln!("DEBUG: DiffCopy successful.");
+            eprintln!("DEBUG: Confirmation initiated.");
             Self::confirm(self.src_path, self.dst_path)?;
+            eprintln!("DEBUG: Confirmation completed successfully.");
         }
 
         Ok(())
