@@ -252,10 +252,11 @@ pub trait CommonSearch {
         // create entries struct here
         let entries = self.entries_partitioned(requested_dir)?;
 
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
-        let mut vec_dirs = self.combine_and_deliver_entries(entries)?;
+        // append dirs to queue
+        queue.extend_from_slice(&entries.vec_dirs);
 
-        queue.append(&mut vec_dirs);
+        // combined entries will be sent or printed, but we need the vec_dirs to recurse
+        self.combine_and_deliver_entries(entries)?;
 
         Ok(())
     }
@@ -288,12 +289,7 @@ pub trait CommonSearch {
     }
 
     #[inline(always)]
-    fn combine_and_deliver_entries(
-        &self,
-        entries: EntriesPartitioned,
-    ) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        let vec_dirs = entries.vec_dirs.clone();
-
+    fn combine_and_deliver_entries(&self, entries: EntriesPartitioned) -> HttmResult<()> {
         match self.path_provenance() {
             PathProvenance::FromLiveDataset
                 if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
@@ -304,12 +300,9 @@ pub trait CommonSearch {
             PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
                 self.display_or_transmit(entries)?;
             }
-        };
+        }
 
-        // here we consume the struct after sending the entries,
-        // however we still need the dirs to populate the loop's queue
-        // so we return the vec of dirs here
-        Ok(vec_dirs)
+        Ok(())
     }
 
     fn display_or_transmit(&self, entries: EntriesPartitioned) -> HttmResult<()> {
