@@ -66,7 +66,7 @@ pub struct EntriesPartitioned {
 }
 
 impl EntriesPartitioned {
-    fn into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
+    fn combine_into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
         self.vec_files.into_iter().chain(self.vec_dirs.into_iter())
     }
 
@@ -345,7 +345,7 @@ pub trait CommonSearch {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
         let vec = entries
-            .into_iter()
+            .combine_into_iter()
             .map(|basic_dir_entry_info| {
                 let item: Arc<dyn SkimItem> =
                     Arc::new(SelectionCandidate::from(basic_dir_entry_info));
@@ -361,7 +361,8 @@ pub trait CommonSearch {
     }
 
     fn display(entries: EntriesPartitioned) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = entries.into_iter().map(PathData::from).collect();
+        let pseudo_live_set: Vec<PathData> =
+            entries.combine_into_iter().map(PathData::from).collect();
 
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
         let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
