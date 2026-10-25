@@ -33,7 +33,7 @@ malloc_trim = ["libc"]
 licensing = ["lms"]
 
 [target.'cfg(unix)'.dependencies]
-libc = { version = "0.2.189", default-features = false, optional = true }
+libc = { version = "0.2.191", default-features = false, optional = true }
 exacl = { version = "0.13.0", default-features = false, optional = true }
 xattr = { version = "1.6.1", default-features = false, optional = true }
 
@@ -46,7 +46,7 @@ time = { version = "0.3.55", default-features = false, features = [
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.2", default-features = false }
-skim = { version = "5.7.0", default-features = false }
+skim = { version = "5.8.0", default-features = false }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
@@ -66,7 +66,7 @@ nix = { version = "0.31.3", default-features = false, features = [
     "zerocopy",
 ] }
 serde = { version = "1.0.229", default-features = false, features = ["alloc"] }
-serde_json = { version = "1.0.151", default-features = false, features = [
+serde_json = { version = "1.0.154", default-features = false, features = [
     "alloc",
     "preserve_order",
 ] }
