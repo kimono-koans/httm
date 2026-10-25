@@ -255,7 +255,7 @@ pub trait CommonSearch {
         // append dirs to queue
         queue.extend_from_slice(&entries.vec_dirs);
 
-        // combined entries will be sent or printed, but we need the vec_dirs to recurse
+        // combined entries will be sent or printed
         self.combine_and_deliver_entries(entries)?;
 
         Ok(())
@@ -291,6 +291,7 @@ pub trait CommonSearch {
     #[inline(always)]
     fn combine_and_deliver_entries(&self, entries: EntriesPartitioned) -> HttmResult<()> {
         match self.path_provenance() {
+            // no need to display or transmit live entries in deleted only mode
             PathProvenance::FromLiveDataset
                 if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
                     || matches!(
