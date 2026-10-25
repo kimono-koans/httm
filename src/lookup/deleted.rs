@@ -30,10 +30,7 @@ use std::ffi::{
     OsStr,
     OsString,
 };
-use std::fs::{
-    FileType,
-    ReadDir,
-};
+use std::fs::FileType;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,13 +60,7 @@ impl DeletedFiles {
         //
         // create a collection of local file names
         // dir may or may not still exist
-        if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
-            let live_paths: HashSet<OsString> = Self::get_live_paths(read_dir);
-
-            if !live_paths.is_empty() {
-                deleted_files.retain(|v| !live_paths.contains(v.filename()))
-            }
-        };
+        Self::prune_live_paths(&mut deleted_files, requested_dir);
 
         Self {
             inner: deleted_files,
@@ -82,13 +73,19 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn get_live_paths(read_dir: ReadDir) -> HashSet<OsString> {
-        // SAFETY: Files in a single directory have unique file names
-        unsafe {
-            read_dir
-                .flatten()
-                .map(|entry| entry.file_name())
-                .collect_set_known_unique()
+    fn prune_live_paths(deleted_files: &mut HashSet<BasicDirEntryInfo>, requested_dir: &Path) {
+        if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
+            // SAFETY: Files in a single directory have unique file names
+            let live_paths: HashSet<OsString> = unsafe {
+                read_dir
+                    .flatten()
+                    .map(|entry| entry.file_name())
+                    .collect_set_known_unique()
+            };
+
+            if !live_paths.is_empty() {
+                deleted_files.retain(|v| !live_paths.contains(v.filename()))
+            }
         }
     }
 
@@ -109,7 +106,7 @@ impl DeletedFiles {
         let pseudo_live_versions: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
             .fold(HashSet::new(), |mut acc, search_bundle| {
-                let iter = Self::deleted_paths_for_directory(&requested_dir, &search_bundle);
+                let iter = Self::unique_filenames_from_snap_mount(&requested_dir, &search_bundle);
 
                 if acc.is_empty() {
                     acc = iter.collect_set_no_update();
@@ -128,7 +125,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn deleted_paths_for_directory<'a>(
+    fn unique_filenames_from_snap_mount<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: &'a RelativePathAndSnapMounts<'a>,
     ) -> impl Iterator<Item = BasicDirEntryInfo> {

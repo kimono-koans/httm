@@ -254,7 +254,7 @@ pub trait CommonSearch {
         Self: Sized,
     {
         if let PathProvenance::FromLiveDataset = self.path_provenance() {
-            // no need to display or transmit live entries in deleted only mode or non-interactice recursive
+            // no need to display or transmit live entries in deleted only mode or non-interactive recursive
             static DELETED_ONLY_OR_NON_INTERACTIVE_RECURSIVE: LazyLock<bool> =
                 LazyLock::new(|| {
                     matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
