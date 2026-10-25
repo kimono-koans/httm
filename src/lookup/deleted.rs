@@ -30,7 +30,10 @@ use std::ffi::{
     OsStr,
     OsString,
 };
-use std::fs::FileType;
+use std::fs::{
+    FileType,
+    ReadDir,
+};
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,13 +64,7 @@ impl DeletedFiles {
         // create a collection of local file names
         // dir may or may not still exist
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
-            // SAFETY: Files in a single directory have unique file names
-            let live_paths: HashSet<OsString> = unsafe {
-                read_dir
-                    .flatten()
-                    .map(|entry| entry.file_name())
-                    .collect_set_known_unique()
-            };
+            let live_paths: HashSet<OsString> = Self::get_live_paths(read_dir);
 
             if !live_paths.is_empty() {
                 deleted_files.retain(|v| !live_paths.contains(v.filename()))
@@ -76,6 +73,17 @@ impl DeletedFiles {
 
         Self {
             inner: deleted_files,
+        }
+    }
+
+    #[inline(always)]
+    fn get_live_paths(read_dir: ReadDir) -> HashSet<OsString> {
+        // SAFETY: Files in a single directory have unique file names
+        unsafe {
+            read_dir
+                .flatten()
+                .map(|entry| entry.file_name())
+                .collect_set_known_unique()
         }
     }
 
