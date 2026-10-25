@@ -803,17 +803,19 @@ impl Ord for CompareContentsContainer {
             return size_order;
         }
 
-        let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
-
         match GLOBAL_CONFIG.opt_dedup_by {
             Some(DedupBy::Contents) => self.cmp_file_contents(other),
             Some(DedupBy::Suspect) => {
-                let btime_order: Ordering = self.btime().cmp(&other.btime());
-                let inode_order: Ordering = self.inode().cmp(&other.inode());
-                let dev_order: Ordering = self.dev().cmp(&other.dev());
+                let mtime_order: Ordering = self.mtime().cmp(&other.mtime());
 
-                if btime_order.is_ne() || inode_order.is_ne() || dev_order.is_ne() {
-                    return self.cmp_file_contents(other);
+                if mtime_order.is_eq() {
+                    let btime_order: Ordering = self.btime().cmp(&other.btime());
+                    let inode_order: Ordering = self.inode().cmp(&other.inode());
+                    let dev_order: Ordering = self.dev().cmp(&other.dev());
+
+                    if btime_order.is_ne() || inode_order.is_ne() || dev_order.is_ne() {
+                        return self.cmp_file_contents(other);
+                    }
                 }
 
                 mtime_order
