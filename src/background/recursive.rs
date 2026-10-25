@@ -63,113 +63,6 @@ pub enum PathProvenance {
     IsPhantom,
 }
 
-pub struct EntriesPartitioned {
-    vec_dirs: Vec<BasicDirEntryInfo>,
-    vec_files: Vec<BasicDirEntryInfo>,
-}
-
-impl EntriesPartitioned {
-    fn new(common_search: &mut impl CommonSearch, requested_dir: &Path) -> HttmResult<Self> {
-        // separates entries into dirs and files
-        let (vec_dirs, vec_files) = match common_search.path_provenance() {
-            PathProvenance::FromLiveDataset => {
-                read_dir(requested_dir)?
-                    .flatten()
-                    // checking file_type on dir entries is always preferable
-                    // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
-                    .filter(|entry: &BasicDirEntryInfo| entry.recursive_search_filter())
-                    .partition(|entry| common_search.entry_is_dir(entry))
-            }
-            PathProvenance::IsPhantom => {
-                // obtain all unique deleted, unordered, unsorted, will need to fix
-                DeletedFiles::new(requested_dir)
-                    .into_inner()
-                    .into_iter()
-                    .partition(|pseudo_entry| common_search.entry_is_dir(pseudo_entry))
-            }
-        };
-
-        Ok(EntriesPartitioned {
-            vec_dirs,
-            vec_files,
-        })
-    }
-
-    fn combine_into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
-        self.vec_files.into_iter().chain(self.vec_dirs.into_iter())
-    }
-
-    fn is_empty(&self) -> bool {
-        self.vec_dirs.is_empty() && self.vec_files.is_empty()
-    }
-
-    fn transmit(self, common_search: &impl CommonSearch) -> HttmResult<()> {
-        // don't want a par_iter here because it will block and wait for all
-        // results, instead of printing and recursing into the subsequent dirs
-        let vec = self
-            .combine_into_iter()
-            .map(|basic_dir_entry_info| {
-                let item: Arc<dyn SkimItem> =
-                    Arc::new(SelectionCandidate::from(basic_dir_entry_info));
-
-                item
-            })
-            .collect();
-
-        common_search
-            .opt_sender()
-            .expect("Sender must be Some in any interactive mode")
-            .send(vec)
-            .map_err(std::convert::Into::into)
-    }
-
-    fn display(self) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> = self.combine_into_iter().map(PathData::from).collect();
-
-        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
-        let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
-
-        print_output_buf(&output_buf)
-    }
-}
-
-pub struct UniqueInode {
-    ino: u64,
-    dev: u64,
-}
-
-impl UniqueInode {
-    fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
-        if entry.opt_filetype().is_some_and(|ft| ft.is_symlink()) {
-            return entry.path().metadata().ok().map(|md| Self {
-                ino: md.ino(),
-                dev: md.dev(),
-            });
-        }
-
-        entry.opt_metadata().map(|md| Self {
-            ino: md.ino(),
-            dev: md.dev(),
-        })
-    }
-}
-
-impl PartialEq for UniqueInode {
-    fn eq(&self, other: &Self) -> bool {
-        self.ino == other.ino && self.dev == other.dev
-    }
-}
-
-impl Eq for UniqueInode {}
-
-impl Hash for UniqueInode {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.ino.hash(state);
-        self.dev.hash(state);
-    }
-}
-
 pub struct RecursiveSearch<'a> {
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
@@ -402,6 +295,113 @@ pub trait CommonSearch {
         }
 
         Ok(())
+    }
+}
+
+pub struct EntriesPartitioned {
+    vec_dirs: Vec<BasicDirEntryInfo>,
+    vec_files: Vec<BasicDirEntryInfo>,
+}
+
+impl EntriesPartitioned {
+    fn new(common_search: &mut impl CommonSearch, requested_dir: &Path) -> HttmResult<Self> {
+        // separates entries into dirs and files
+        let (vec_dirs, vec_files) = match common_search.path_provenance() {
+            PathProvenance::FromLiveDataset => {
+                read_dir(requested_dir)?
+                    .flatten()
+                    // checking file_type on dir entries is always preferable
+                    // as it is much faster than a metadata call on the path
+                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
+                    .filter(|entry: &BasicDirEntryInfo| entry.recursive_search_filter())
+                    .partition(|entry| common_search.entry_is_dir(entry))
+            }
+            PathProvenance::IsPhantom => {
+                // obtain all unique deleted, unordered, unsorted, will need to fix
+                DeletedFiles::new(requested_dir)
+                    .into_inner()
+                    .into_iter()
+                    .partition(|pseudo_entry| common_search.entry_is_dir(pseudo_entry))
+            }
+        };
+
+        Ok(EntriesPartitioned {
+            vec_dirs,
+            vec_files,
+        })
+    }
+
+    fn combine_into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
+        self.vec_files.into_iter().chain(self.vec_dirs.into_iter())
+    }
+
+    fn is_empty(&self) -> bool {
+        self.vec_dirs.is_empty() && self.vec_files.is_empty()
+    }
+
+    fn transmit(self, common_search: &impl CommonSearch) -> HttmResult<()> {
+        // don't want a par_iter here because it will block and wait for all
+        // results, instead of printing and recursing into the subsequent dirs
+        let vec = self
+            .combine_into_iter()
+            .map(|basic_dir_entry_info| {
+                let item: Arc<dyn SkimItem> =
+                    Arc::new(SelectionCandidate::from(basic_dir_entry_info));
+
+                item
+            })
+            .collect();
+
+        common_search
+            .opt_sender()
+            .expect("Sender must be Some in any interactive mode")
+            .send(vec)
+            .map_err(std::convert::Into::into)
+    }
+
+    fn display(self) -> HttmResult<()> {
+        let pseudo_live_set: Vec<PathData> = self.combine_into_iter().map(PathData::from).collect();
+
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
+        let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+        print_output_buf(&output_buf)
+    }
+}
+
+pub struct UniqueInode {
+    ino: u64,
+    dev: u64,
+}
+
+impl UniqueInode {
+    fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
+        if entry.opt_filetype().is_some_and(|ft| ft.is_symlink()) {
+            return entry.path().metadata().ok().map(|md| Self {
+                ino: md.ino(),
+                dev: md.dev(),
+            });
+        }
+
+        entry.opt_metadata().map(|md| Self {
+            ino: md.ino(),
+            dev: md.dev(),
+        })
+    }
+}
+
+impl PartialEq for UniqueInode {
+    fn eq(&self, other: &Self) -> bool {
+        self.ino == other.ino && self.dev == other.dev
+    }
+}
+
+impl Eq for UniqueInode {}
+
+impl Hash for UniqueInode {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ino.hash(state);
+        self.dev.hash(state);
     }
 }
 
