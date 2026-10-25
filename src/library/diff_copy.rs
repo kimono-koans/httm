@@ -118,6 +118,7 @@ impl DstFileState {
 pub struct HttmCopy<'a> {
     src_path: &'a Path,
     dst_path: &'a Path,
+    src_len: u64,
     opt_bar: Option<ProgressBar>,
 }
 
@@ -131,6 +132,7 @@ impl<'a> HttmCopy<'a> {
         Self {
             src_path,
             dst_path,
+            src_len,
             opt_bar,
         }
     }
@@ -245,6 +247,7 @@ impl<'a> HttmCopy<'a> {
     }
 }
 
+#[allow(dead_code)]
 pub struct CloneCopy<'a> {
     src_file: File,
     dst_file: File,
@@ -259,7 +262,6 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
         let src_file = std::fs::OpenOptions::new()
             .read(true)
             .open(value.src_path)?;
-        let src_len = value.src_path.symlink_metadata()?.len();
 
         let dst_file = OpenOptions::new()
             .write(true)
@@ -267,7 +269,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
             .create(true)
             .open(value.dst_path)?;
 
-        dst_file.set_len(src_len)?;
+        dst_file.set_len(value.src_len)?;
 
         Ok(Self {
             src_file,
@@ -279,14 +281,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
 
 impl<'a> CloneCopy<'a> {
     fn exec(mut self) -> HttmResult<()> {
-        let src_len = self.src_file.metadata()?.len();
-
-        if let Err(err) = self.copy_file_range(src_len, self.httm_copy.opt_bar.as_ref()) {
-            // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-            let description =
-                format!("DEBUG: copy_file_range call unsuccessful for the following reason");
-            return HttmError::with_source(description, err.as_ref()).into();
-        }
+        self.copy_file_range()?;
 
         // re docs, both a flush and a sync seem to be required re consistency
         self.dst_file.flush()?;
@@ -297,14 +292,15 @@ impl<'a> CloneCopy<'a> {
 
     #[allow(unreachable_code, unused_variables)]
     #[inline]
-    fn copy_file_range(&self, len: u64, opt_bar: Option<&ProgressBar>) -> HttmResult<()> {
+    fn copy_file_range(&self) -> HttmResult<()> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             let src_fd = self.src_file.as_fd();
             let dst_fd = self.dst_file.as_fd();
 
             let mut amt_written = 0u64;
-            let mut remainder = len as usize;
+            let len = self.httm_copy.src_len;
+            let mut remainder = len.clone() as usize;
 
             while remainder > 0 {
                 let mut off_src = amt_written as i64;
@@ -319,18 +315,16 @@ impl<'a> CloneCopy<'a> {
                 ) {
                     // a return of zero for a non-zero len argument
                     // indicates that the offset for infd is at or beyond EOF.
-                    Ok(bytes_written) if bytes_written == 0 && remainder != 0 => break,
+                    Ok(bytes_written) if bytes_written == 0 && remainder != 0 => {
+                        return Err(
+                            HttmError::new("Offset for fd_in at or beyond end of file").into()
+                        );
+                    }
                     Ok(bytes_written) => {
                         amt_written += bytes_written as u64;
-                        remainder = len.saturating_sub(amt_written) as usize;
+                        remainder -= bytes_written as usize;
 
                         self.httm_copy.increment_bar(bytes_written as u64);
-
-                        if amt_written > len {
-                            return Err(
-                                HttmError::new("Amount written larger than file len.").into()
-                            );
-                        }
                     }
                     Err(err) => match err {
                         nix::errno::Errno::ENOSYS => {
@@ -352,6 +346,8 @@ impl<'a> CloneCopy<'a> {
                     },
                 }
             }
+
+            assert_eq!(amt_written, src_len);
 
             self.httm_copy.finish_and_clear_bar();
 
@@ -377,7 +373,6 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for DiffCopy<'a> {
         let src_file = std::fs::OpenOptions::new()
             .read(true)
             .open(value.src_path)?;
-        let src_len = value.src_path.symlink_metadata()?.len();
 
         let dst_file = OpenOptions::new()
             .write(true)
@@ -385,7 +380,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for DiffCopy<'a> {
             .create(true)
             .open(value.dst_path)?;
 
-        dst_file.set_len(src_len)?;
+        dst_file.set_len(value.src_len)?;
 
         Ok(Self {
             src_file,
