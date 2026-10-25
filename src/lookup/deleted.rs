@@ -54,7 +54,7 @@ impl DeletedFiles {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let Some(mut deleted_files) = Self::unique_pseudo_live_versions(requested_dir) else {
+        let Some(mut deleted_files) = Self::unique_filenames_from_snapshots(requested_dir) else {
             return Self::default();
         };
 
@@ -77,6 +77,11 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
+    pub fn into_inner(self) -> HashSet<BasicDirEntryInfo> {
+        self.inner
+    }
+
+    #[inline(always)]
     fn get_live_paths(read_dir: ReadDir) -> HashSet<OsString> {
         // SAFETY: Files in a single directory have unique file names
         unsafe {
@@ -88,12 +93,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    pub fn into_inner(self) -> HashSet<BasicDirEntryInfo> {
-        self.inner
-    }
-
-    #[inline(always)]
-    fn unique_pseudo_live_versions<'a>(
+    fn unique_filenames_from_snapshots<'a>(
         requested_dir: &'a Path,
     ) -> Option<HashSet<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
