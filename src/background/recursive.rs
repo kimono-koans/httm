@@ -137,7 +137,7 @@ impl<'a> RecursiveSearch<'a> {
             vec_files: Vec::new(),
         };
 
-        self.combine_and_deliver_entries(entries)?;
+        self.display_or_transmit(entries)?;
 
         Ok(())
     }
@@ -256,7 +256,7 @@ pub trait CommonSearch {
         queue.extend_from_slice(&entries.vec_dirs);
 
         // combined entries will be sent or printed
-        self.combine_and_deliver_entries(entries)?;
+        self.display_or_transmit(entries)?;
 
         Ok(())
     }
@@ -288,8 +288,7 @@ pub trait CommonSearch {
         })
     }
 
-    #[inline(always)]
-    fn combine_and_deliver_entries(&self, entries: EntriesPartitioned) -> HttmResult<()> {
+    fn display_or_transmit(&self, entries: EntriesPartitioned) -> HttmResult<()> {
         match self.path_provenance() {
             // no need to display or transmit live entries in deleted only mode
             PathProvenance::FromLiveDataset
@@ -297,16 +296,13 @@ pub trait CommonSearch {
                     || matches!(
                         GLOBAL_CONFIG.exec_mode,
                         ExecMode::NonInteractiveRecursive(_)
-                    ) => {}
-            PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
-                self.display_or_transmit(entries)?;
+                    ) =>
+            {
+                return Ok(());
             }
+            PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {}
         }
 
-        Ok(())
-    }
-
-    fn display_or_transmit(&self, entries: EntriesPartitioned) -> HttmResult<()> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
             ExecMode::Interactive(_) => self.transmit(entries)?,
