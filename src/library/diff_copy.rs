@@ -347,7 +347,7 @@ impl<'a> CloneCopy<'a> {
                 }
             }
 
-            assert_eq!(amt_written, src_len);
+            assert_eq!(amt_written, len);
 
             self.httm_copy.finish_and_clear_bar();
 
