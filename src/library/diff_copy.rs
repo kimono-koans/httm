@@ -43,16 +43,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::config::generate::{ExecMode, InteractiveMode};
 use crate::library::file_ops::is_same_file_contents;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::zfs::run_command::RunZFSCommand;
-use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
-use indicatif::{ProgressBar, ProgressStyle};
+use crate::{
+    ExecMode,
+    GLOBAL_CONFIG,
+    IN_BUFFER_SIZE,
+    InteractiveMode,
+};
+use indicatif::{
+    ProgressBar,
+    ProgressStyle,
+};
 use std::borrow::Cow;
-use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Seek, SeekFrom, Write};
-use std::os::fd::{AsFd, BorrowedFd};
+use std::fs::{
+    File,
+    OpenOptions,
+};
+use std::io::{
+    BufRead,
+    BufReader,
+    BufWriter,
+    ErrorKind,
+    Seek,
+    SeekFrom,
+    Write,
+};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use std::os::fd::AsFd;
 use std::path::Path;
 use std::sync::LazyLock;
 use std::sync::atomic::AtomicBool;
@@ -84,7 +106,7 @@ enum DstFileState {
 }
 
 impl DstFileState {
-    fn exists(dst_file: &File) -> Self {
+    fn new(dst_file: &File) -> Self {
         if dst_file.metadata().is_ok() {
             DstFileState::Exists
         } else {
@@ -93,30 +115,31 @@ impl DstFileState {
     }
 }
 
-pub struct HttmCopy;
+pub struct HttmCopy<'a> {
+    src_path: &'a Path,
+    dst_path: &'a Path,
+    opt_bar: Option<ProgressBar>,
+}
 
-impl HttmCopy {
-    pub fn new(src: &Path, dst: &Path) -> HttmResult<()> {
-        // create source file reader
-        let src_file = std::fs::OpenOptions::new().read(true).open(src)?;
-        let src_len = src.symlink_metadata()?.len();
+impl<'a> HttmCopy<'a> {
+    pub fn new(src_path: &'a Path, dst_path: &'a Path) -> Self {
+        let file_name = src_path.file_name().unwrap_or_default().to_string_lossy();
+        let src_len = src_path.symlink_metadata().unwrap().len();
 
-        let mut dst_file = OpenOptions::new()
-            .write(true)
-            .read(true)
-            .create(true)
-            .open(dst)?;
+        let opt_bar = Self::opt_bar(file_name, src_len);
 
-        dst_file.set_len(src_len)?;
+        Self {
+            src_path,
+            dst_path,
+            opt_bar,
+        }
+    }
 
-        let file_name = src.file_name().unwrap_or_default().to_string_lossy();
-
-        let opt_bar = Self::opt_bar(file_name, src_len)?;
-
+    pub fn exec(self) -> HttmResult<()> {
         if !GLOBAL_CONFIG.opt_no_clones
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
-            match CloneCopy::new(&src_file, &mut dst_file, opt_bar.as_ref()) {
+            match CloneCopy::try_from(&self)?.exec() {
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
@@ -139,63 +162,121 @@ impl HttmCopy {
             }
         }
 
-        DiffCopy::new(&src_file, &mut dst_file, opt_bar.as_ref())?;
+        DiffCopy::try_from(&self)?.exec()?;
 
         if GLOBAL_CONFIG.opt_debug {
             eprintln!("DEBUG: Write to file completed.  Confirmation initiated.");
-            Self::confirm(src, dst)?;
+            Self::confirm(self.src_path, self.dst_path)?;
         }
 
         Ok(())
     }
 
-    fn opt_bar(file_name: Cow<str>, len: u64) -> HttmResult<Option<ProgressBar>> {
-        match GLOBAL_CONFIG.exec_mode {
-            ExecMode::Interactive(InteractiveMode::Restore(_)) => {
-                let bar = ProgressBar::new(len).with_style(ProgressStyle::with_template(
-                    "[{decimal_total_bytes}] {bar:40.cyan/blue} {msg}",
-                )?);
+    fn opt_bar(file_name: Cow<str>, len: u64) -> Option<ProgressBar> {
+        let bar = match GLOBAL_CONFIG.exec_mode {
+            ExecMode::Interactive(InteractiveMode::Restore(_)) => ProgressBar::new(len).with_style(
+                ProgressStyle::with_template("[{decimal_total_bytes}] {bar:40.cyan/blue} {msg}")
+                    .ok()?,
+            ),
+            _ if len.gt(&1_000_000_000) => ProgressBar::new(len).with_style(
+                ProgressStyle::with_template("[{decimal_total_bytes}] {bar:40.cyan/blue} {msg}")
+                    .ok()?,
+            ),
+            _ => return None,
+        };
 
-                bar.set_message(file_name.to_string());
-                Ok(Some(bar))
-            }
-            _ if len.gt(&1_000_000_000) => {
-                let bar = ProgressBar::new(len).with_style(ProgressStyle::with_template(
-                    "[{decimal_total_bytes}] {bar:40.cyan/blue} {msg}",
-                )?);
+        bar.set_message(file_name.into_owned());
 
-                bar.set_message(file_name.to_string());
-                Ok(Some(bar))
-            }
-            _ => Ok(None),
+        Some(bar)
+    }
+
+    fn finish_and_clear_bar(&self) {
+        if let Some(bar) = &self.opt_bar {
+            bar.finish_and_clear()
+        }
+    }
+
+    fn increment_bar(&self, bytes_written: u64) {
+        if let Some(bar) = &self.opt_bar {
+            bar.inc(bytes_written as u64)
         }
     }
 
     pub fn confirm(src: &Path, dst: &Path) -> HttmResult<()> {
         if is_same_file_contents(src, dst) {
-            Ok(())
-        } else {
-            let description = format!(
-                "Copy failed.  File contents of {} and {} are NOT the same.",
-                src.display(),
-                dst.display()
-            );
-
-            HttmError::from(description).into()
+            return Ok(());
         }
+
+        let description = format!(
+            "Copy failed.  File contents of {} and {} are NOT the same.",
+            src.display(),
+            dst.display()
+        );
+
+        HttmError::from(description).into()
+    }
+
+    #[inline]
+    fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
+        let (a_hash, b_hash): (u64, u64) =
+            rayon::join(|| Self::hash(a_bytes), || Self::hash(b_bytes));
+
+        a_hash == b_hash
+    }
+
+    #[inline]
+    fn hash(bytes: &[u8]) -> u64 {
+        use foldhash::quality::FixedState;
+        use std::hash::{
+            BuildHasher,
+            Hasher,
+        };
+
+        let s = FixedState::default();
+        let mut hash = s.build_hasher();
+
+        hash.write(bytes);
+        hash.finish()
     }
 }
 
-pub struct CloneCopy;
+pub struct CloneCopy<'a> {
+    src_file: File,
+    dst_file: File,
+    httm_copy: &'a HttmCopy<'a>,
+}
 
-impl CloneCopy {
-    fn new(src_file: &File, dst_file: &mut File, opt_bar: Option<&ProgressBar>) -> HttmResult<()> {
-        let src_len = src_file.metadata()?.len();
+impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
 
-        let src_fd = src_file.as_fd();
-        let dst_fd = dst_file.as_fd();
+    fn try_from(value: &'a HttmCopy) -> HttmResult<CloneCopy<'a>> {
+        // create source file reader
+        let src_file = std::fs::OpenOptions::new()
+            .read(true)
+            .open(value.src_path)?;
+        let src_len = value.src_path.symlink_metadata()?.len();
 
-        if let Err(err) = Self::copy_file_range(src_fd, dst_fd, src_len, opt_bar) {
+        let dst_file = OpenOptions::new()
+            .write(true)
+            .read(true)
+            .create(true)
+            .open(value.dst_path)?;
+
+        dst_file.set_len(src_len)?;
+
+        Ok(Self {
+            src_file,
+            dst_file,
+            httm_copy: value,
+        })
+    }
+}
+
+impl<'a> CloneCopy<'a> {
+    fn exec(mut self) -> HttmResult<()> {
+        let src_len = self.src_file.metadata()?.len();
+
+        if let Err(err) = self.copy_file_range(src_len, self.httm_copy.opt_bar.as_ref()) {
             // IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
             let description =
                 format!("DEBUG: copy_file_range call unsuccessful for the following reason");
@@ -203,22 +284,20 @@ impl CloneCopy {
         }
 
         // re docs, both a flush and a sync seem to be required re consistency
-        dst_file.flush()?;
-        dst_file.sync_data()?;
+        self.dst_file.flush()?;
+        self.dst_file.sync_data()?;
 
         Ok(())
     }
 
     #[allow(unreachable_code, unused_variables)]
     #[inline]
-    fn copy_file_range(
-        src_file_fd: BorrowedFd,
-        dst_file_fd: BorrowedFd,
-        len: u64,
-        opt_bar: Option<&ProgressBar>,
-    ) -> HttmResult<()> {
+    fn copy_file_range(&self, len: u64, opt_bar: Option<&ProgressBar>) -> HttmResult<()> {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
+            let src_fd = self.src_file.as_fd();
+            let dst_fd = self.dst_file.as_fd();
+
             let mut amt_written = 0u64;
             let mut remainder = len as usize;
 
@@ -227,9 +306,9 @@ impl CloneCopy {
                 let mut off_dst = off_src.clone();
 
                 match nix::fcntl::copy_file_range(
-                    src_file_fd,
+                    src_fd,
                     Some(&mut off_src),
-                    dst_file_fd,
+                    dst_fd,
                     Some(&mut off_dst),
                     remainder,
                 ) {
@@ -240,9 +319,7 @@ impl CloneCopy {
                         amt_written += bytes_written as u64;
                         remainder = len.saturating_sub(amt_written) as usize;
 
-                        if let Some(ref bar) = opt_bar {
-                            bar.inc(bytes_written as u64)
-                        }
+                        self.httm_copy.increment_bar(bytes_written as u64);
 
                         if amt_written > len {
                             return Err(
@@ -271,9 +348,7 @@ impl CloneCopy {
                 }
             }
 
-            if let Some(ref bar) = opt_bar {
-                bar.finish_and_clear()
-            }
+            self.httm_copy.finish_and_clear_bar();
 
             return Ok(());
         }
@@ -283,33 +358,59 @@ impl CloneCopy {
     }
 }
 
-pub struct DiffCopy;
+pub struct DiffCopy<'a> {
+    src_file: File,
+    dst_file: File,
+    httm_copy: &'a HttmCopy<'a>,
+}
 
-impl DiffCopy {
-    fn new(src_file: &File, dst_file: &mut File, opt_bar: Option<&ProgressBar>) -> HttmResult<()> {
-        Self::write_no_cow(&src_file, &dst_file, opt_bar)?;
+impl<'a> TryFrom<&'a HttmCopy<'a>> for DiffCopy<'a> {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(value: &'a HttmCopy) -> HttmResult<DiffCopy<'a>> {
+        // create source file reader
+        let src_file = std::fs::OpenOptions::new()
+            .read(true)
+            .open(value.src_path)?;
+        let src_len = value.src_path.symlink_metadata()?.len();
+
+        let dst_file = OpenOptions::new()
+            .write(true)
+            .read(true)
+            .create(true)
+            .open(value.dst_path)?;
+
+        dst_file.set_len(src_len)?;
+
+        Ok(Self {
+            src_file,
+            dst_file,
+            httm_copy: value,
+        })
+    }
+}
+
+impl<'a> DiffCopy<'a> {
+    fn exec(mut self) -> HttmResult<()> {
+        self.write_no_cow()?;
 
         // re docs, both a flush and a sync seem to be required re consistency
-        dst_file.flush()?;
-        dst_file.sync_data()?;
+        self.dst_file.flush()?;
+        self.dst_file.sync_data()?;
 
         Ok(())
     }
 
     #[inline]
-    fn write_no_cow(
-        src_file: &File,
-        dst_file: &File,
-        opt_bar: Option<&ProgressBar>,
-    ) -> HttmResult<()> {
+    fn write_no_cow(&self) -> HttmResult<()> {
         // create destination file writer and maybe reader
         // only include dst file reader if the dst file exists
         // otherwise we just write to that location
-        let mut src_reader = BufReader::with_capacity(IN_BUFFER_SIZE, src_file);
-        let mut dst_reader = BufReader::with_capacity(IN_BUFFER_SIZE, dst_file);
-        let mut dst_writer = BufWriter::with_capacity(IN_BUFFER_SIZE, dst_file);
+        let mut src_reader = BufReader::with_capacity(IN_BUFFER_SIZE, &self.src_file);
+        let mut dst_reader = BufReader::with_capacity(IN_BUFFER_SIZE, &self.dst_file);
+        let mut dst_writer = BufWriter::with_capacity(IN_BUFFER_SIZE, &self.dst_file);
 
-        let dst_exists = DstFileState::exists(dst_file);
+        let dst_exists = DstFileState::new(&self.dst_file);
 
         // cur pos - byte offset in file,
         let mut cur_pos = 0u64;
@@ -332,7 +433,7 @@ impl DiffCopy {
                             // read same amt from dst file, if it exists, to compare
                             match dst_reader.fill_buf() {
                                 Ok(dst_read) => {
-                                    if !Self::is_same_bytes(src_read, dst_read) {
+                                    if !HttmCopy::is_same_bytes(src_read, dst_read) {
                                         Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?
                                     }
 
@@ -350,9 +451,7 @@ impl DiffCopy {
                         }
                     };
 
-                    if let Some(ref bar) = opt_bar {
-                        bar.inc(src_amt_read as u64)
-                    }
+                    self.httm_copy.increment_bar(src_amt_read as u64);
 
                     cur_pos += src_amt_read as u64;
 
@@ -368,31 +467,9 @@ impl DiffCopy {
             };
         }
 
-        if let Some(ref bar) = opt_bar {
-            bar.finish_and_clear();
-        }
+        self.httm_copy.finish_and_clear_bar();
 
         Ok(())
-    }
-
-    #[inline]
-    fn is_same_bytes(a_bytes: &[u8], b_bytes: &[u8]) -> bool {
-        let (a_hash, b_hash): (u64, u64) =
-            rayon::join(|| Self::hash(a_bytes), || Self::hash(b_bytes));
-
-        a_hash == b_hash
-    }
-
-    #[inline]
-    fn hash(bytes: &[u8]) -> u64 {
-        use foldhash::quality::FixedState;
-        use std::hash::{BuildHasher, Hasher};
-
-        let s = FixedState::default();
-        let mut hash = s.build_hasher();
-
-        hash.write(bytes);
-        hash.finish()
     }
 
     #[inline]

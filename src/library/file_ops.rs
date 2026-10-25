@@ -15,18 +15,45 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::{PathData, PathDeconstruction};
+use crate::data::paths::{
+    PathData,
+    PathDeconstruction,
+};
 use crate::library::diff_copy::HttmCopy;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::library::utility::is_metadata_same;
-use crate::{GLOBAL_CONFIG, IN_BUFFER_SIZE};
+use crate::{
+    GLOBAL_CONFIG,
+    IN_BUFFER_SIZE,
+};
 use nix::sys::stat::SFlag;
-use nu_ansi_term::Color::{Red, Yellow};
-use std::fs::{create_dir_all, read_dir, set_permissions};
-use std::hash::{Hash, Hasher};
-use std::io::{BufRead, BufReader, ErrorKind};
+use nu_ansi_term::Color::{
+    Red,
+    Yellow,
+};
+use std::fs::{
+    create_dir_all,
+    read_dir,
+    set_permissions,
+};
+use std::hash::{
+    Hash,
+    Hasher,
+};
+use std::io::{
+    BufRead,
+    BufReader,
+    ErrorKind,
+};
 use std::iter::Iterator;
-use std::os::unix::fs::{FileTypeExt, MetadataExt, chown};
+use std::os::unix::fs::{
+    FileTypeExt,
+    MetadataExt,
+    chown,
+};
 use std::path::Path;
 
 const CHAR_KIND: SFlag = nix::sys::stat::SFlag::S_IFCHR;
@@ -99,7 +126,7 @@ impl Copy {
             Self::generate_dst_parent(&dst)?;
 
             if src.is_file() {
-                HttmCopy::new(&src, &dst)?;
+                HttmCopy::new(&src, &dst).exec()?;
             } else {
                 if dst.exists() {
                     Remove::recursive_quiet(dst)?;
@@ -343,7 +370,10 @@ pub struct ChecksumFileContents<'a> {
 impl<'a> ChecksumFileContents<'a> {
     pub fn checksum(&self) -> u64 {
         use foldhash::quality::FixedState;
-        use std::hash::{BuildHasher, Hasher};
+        use std::hash::{
+            BuildHasher,
+            Hasher,
+        };
 
         let s = FixedState::default();
         let mut hash = s.build_hasher();
