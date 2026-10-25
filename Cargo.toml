@@ -65,9 +65,9 @@ nix = { version = "0.31.3", default-features = false, features = [
     "user",
     "zerocopy",
 ] }
-serde = { version = "1.0.229", default-features = false, features = ["alloc"] }
+serde = { version = "1.0.229", default-features = false, features = ["std"] }
 serde_json = { version = "1.0.154", default-features = false, features = [
-    "alloc",
+    "std",
     "preserve_order",
 ] }
 realpath-ext = { version = "0.1.3", default-features = false, features = [
