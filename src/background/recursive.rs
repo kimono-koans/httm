@@ -51,8 +51,11 @@ use std::fs::read_dir;
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::{
+    Arc,
+    LazyLock,
+};
 
 #[derive(Clone, Copy)]
 pub enum PathProvenance {
@@ -289,18 +292,20 @@ pub trait CommonSearch {
     }
 
     fn display_or_transmit(&self, entries: EntriesPartitioned) -> HttmResult<()> {
-        match self.path_provenance() {
-            // no need to display or transmit live entries in deleted only mode
-            PathProvenance::FromLiveDataset
-                if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
-                    || matches!(
-                        GLOBAL_CONFIG.exec_mode,
-                        ExecMode::NonInteractiveRecursive(_)
-                    ) =>
-            {
+        if let PathProvenance::FromLiveDataset = self.path_provenance() {
+            // no need to display or transmit live entries in deleted only mode or non-interactice recursive
+            static DELETED_ONLY_OR_NON_INTERACTIVE_RECURSIVE: LazyLock<bool> =
+                LazyLock::new(|| {
+                    matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
+                        || matches!(
+                            GLOBAL_CONFIG.exec_mode,
+                            ExecMode::NonInteractiveRecursive(_)
+                        )
+                });
+
+            if *DELETED_ONLY_OR_NON_INTERACTIVE_RECURSIVE {
                 return Ok(());
             }
-            PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {}
         }
 
         // send to the interactive view, or print directly, never return back
