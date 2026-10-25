@@ -889,7 +889,7 @@ impl CompareContentsContainer {
         // deduping by mtime is not "better" alternative here here
         // policy is directories are not deduped by mtime unless this is the explicit direction of the user
         if self.path_data.httm_is_dir::<PathData>() {
-            return Ordering::Less;
+            return self.mtime().cmp(&other.mtime());
         }
 
         let (self_hash, other_hash): (&u64, &u64) = rayon::join(
