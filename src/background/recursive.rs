@@ -65,6 +65,12 @@ pub struct EntriesPartitioned {
     vec_files: Vec<BasicDirEntryInfo>,
 }
 
+impl EntriesPartitioned {
+    fn into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
+        self.vec_files.into_iter().chain(self.vec_dirs.into_iter())
+    }
+}
+
 pub struct RecursiveSearch<'a> {
     opt_skim_tx: Option<&'a SkimItemSender>,
     hangup: Arc<AtomicBool>,
@@ -282,30 +288,19 @@ pub trait CommonSearch {
         &self,
         entries: EntriesPartitioned,
     ) -> HttmResult<Vec<BasicDirEntryInfo>> {
-        let EntriesPartitioned {
-            vec_dirs,
-            vec_files,
-        } = entries;
+        let vec_dirs = entries.vec_dirs.clone();
 
-        let entries_ready_to_send = match self.path_provenance() {
+        match self.path_provenance() {
             PathProvenance::FromLiveDataset
                 if matches!(GLOBAL_CONFIG.opt_deleted_mode, Some(DeletedMode::Only))
                     || matches!(
                         GLOBAL_CONFIG.exec_mode,
                         ExecMode::NonInteractiveRecursive(_)
-                    ) =>
-            {
-                Vec::new()
-            }
+                    ) => {}
             PathProvenance::FromLiveDataset | PathProvenance::IsPhantom => {
-                let mut combined = vec_files;
-
-                combined.extend_from_slice(&vec_dirs);
-                combined
+                self.display_or_transmit(entries)?;
             }
         };
-
-        self.display_or_transmit(entries_ready_to_send)?;
 
         // here we consume the struct after sending the entries,
         // however we still need the dirs to populate the loop's queue
@@ -313,11 +308,13 @@ pub trait CommonSearch {
         Ok(vec_dirs)
     }
 
-    fn display_or_transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+    fn display_or_transmit(&self, entries: EntriesPartitioned) -> HttmResult<()> {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
-            ExecMode::Interactive(_) => self.transmit(combined_entries)?,
-            ExecMode::NonInteractiveRecursive(progress_bar) if combined_entries.is_empty() => {
+            ExecMode::Interactive(_) => self.transmit(entries)?,
+            ExecMode::NonInteractiveRecursive(progress_bar)
+                if entries.vec_dirs.is_empty() || entries.vec_files.is_empty() =>
+            {
                 if !GLOBAL_CONFIG.opt_recursive {
                     eprintln!(
                         "NOTICE: httm could not find any deleted files at this directory level.  \
@@ -329,7 +326,7 @@ pub trait CommonSearch {
                 progress_bar.tick();
             }
             ExecMode::NonInteractiveRecursive(_) => {
-                Self::display(combined_entries)?;
+                Self::display(entries)?;
 
                 // keeps spinner from squashing last line of output
                 if GLOBAL_CONFIG.opt_recursive {
@@ -342,10 +339,10 @@ pub trait CommonSearch {
         Ok(())
     }
 
-    fn transmit(&self, combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
+    fn transmit(&self, entries: EntriesPartitioned) -> HttmResult<()> {
         // don't want a par_iter here because it will block and wait for all
         // results, instead of printing and recursing into the subsequent dirs
-        let vec = combined_entries
+        let vec = entries
             .into_iter()
             .map(|basic_dir_entry_info| {
                 let item: Arc<dyn SkimItem> =
@@ -361,9 +358,8 @@ pub trait CommonSearch {
             .map_err(std::convert::Into::into)
     }
 
-    fn display(combined_entries: Vec<BasicDirEntryInfo>) -> HttmResult<()> {
-        let pseudo_live_set: Vec<PathData> =
-            combined_entries.into_iter().map(PathData::from).collect();
+    fn display(entries: EntriesPartitioned) -> HttmResult<()> {
+        let pseudo_live_set: Vec<PathData> = entries.into_iter().map(PathData::from).collect();
 
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &pseudo_live_set)?;
         let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
