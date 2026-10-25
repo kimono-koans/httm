@@ -69,6 +69,10 @@ impl EntriesPartitioned {
     fn into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
         self.vec_files.into_iter().chain(self.vec_dirs.into_iter())
     }
+
+    fn is_empty(&self) -> bool {
+        self.vec_dirs.is_empty() && self.vec_files.is_empty()
+    }
 }
 
 pub struct RecursiveSearch<'a> {
@@ -312,9 +316,7 @@ pub trait CommonSearch {
         // send to the interactive view, or print directly, never return back
         match &GLOBAL_CONFIG.exec_mode {
             ExecMode::Interactive(_) => self.transmit(entries)?,
-            ExecMode::NonInteractiveRecursive(progress_bar)
-                if entries.vec_dirs.is_empty() || entries.vec_files.is_empty() =>
-            {
+            ExecMode::NonInteractiveRecursive(progress_bar) if entries.is_empty() => {
                 if !GLOBAL_CONFIG.opt_recursive {
                     eprintln!(
                         "NOTICE: httm could not find any deleted files at this directory level.  \
