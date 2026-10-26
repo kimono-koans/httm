@@ -347,7 +347,9 @@ impl<'a> CloneCopy<'a> {
                 }
             }
 
-            assert_eq!(amt_written, len);
+            if amt_written != len {
+                return HttmError::new("INFO: Amount written != source file length.  Falling back to default diff copy behavior.").into();
+            };
 
             self.httm_copy.finish_and_clear_bar();
 
