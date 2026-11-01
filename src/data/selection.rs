@@ -34,7 +34,6 @@ use crate::{
 };
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
-use nu_ansi_term::AnsiGenericString;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::path::Path;
@@ -51,8 +50,8 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 // and impl Colorable for how we paint the path strings
 #[derive(Debug)]
 pub struct SelectionCandidate {
-    path: Box<Path>,
-    painted: Box<[u8]>,
+    path: Box<[u8]>,
+    mid: usize,
     count: AtomicU8,
 }
 
@@ -60,7 +59,7 @@ impl Clone for SelectionCandidate {
     fn clone(&self) -> Self {
         SelectionCandidate {
             path: self.path.clone(),
-            painted: self.painted.clone(),
+            mid: self.mid.clone(),
             count: AtomicU8::default(),
         }
     }
@@ -68,15 +67,15 @@ impl Clone for SelectionCandidate {
 
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
-        let painted = value
-            .paint_path()
-            .to_string()
-            .into_bytes()
-            .into_boxed_slice();
+        let mut all_bytes = value.path().as_os_str().as_encoded_bytes().to_vec();
+        let mid = all_bytes.len();
+        let painted = value.paint_path();
+
+        all_bytes.extend_from_slice(painted.to_string().as_bytes());
 
         SelectionCandidate {
-            path: value.path().into(),
-            painted,
+            path: all_bytes.into(),
+            mid,
             count: AtomicU8::default(),
         }
     }
@@ -84,13 +83,23 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
 
 impl SelectionCandidate {
     pub fn path(&self) -> &Path {
-        &self.path
+        let slice = self.path.split_at(self.mid).0;
+
+        // SAFETY: "unsafe fn from_utf_unchecked" is functionally the same, but calling it seems to anger the borrow checker gods
+        // Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
+        let ret: &str = unsafe { &*(slice as *const [u8] as *const str) };
+
+        Path::new(ret)
+    }
+
+    pub fn painted_slice(&self) -> &[u8] {
+        self.path.split_at(self.mid).1
     }
 
     fn preview_view(&self) -> HttmResult<String> {
         // generate a config for display
         let display_config: Config = Config::from(self);
-        let display_path_data = [PathData::from(&self.path)];
+        let display_path_data = [PathData::from(&self.path())];
 
         // finally run search on those paths
         let versions_map: VersionsMap = VersionsMap::new(&display_config, &display_path_data)?;
@@ -103,9 +112,7 @@ impl SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
-        let painted = AnsiGenericString::from(self.painted.as_ref());
-
-        let slice = painted.as_str();
+        let slice = self.painted_slice();
 
         // SAFETY: "unsafe fn from_utf_unchecked" is functionally the same, but calling it seems to anger the borrow checker gods
         // Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
@@ -115,15 +122,17 @@ impl SkimItem for SelectionCandidate {
     }
 
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        self.painted
-            .to_text()
+        let painted_slice = self.painted_slice();
+
+        painted_slice
+            .into_text()
             .ok()
-            .and_then(|text| text.into_iter().next())
-            .unwrap_or_else(|| Line::from(self.text()))
+            .and_then(|inner| inner.into_iter().next())
+            .unwrap()
     }
 
     fn output(&self) -> Cow<'_, str> {
-        self.path.to_string_lossy()
+        self.path().to_string_lossy()
     }
 
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
