@@ -22,6 +22,7 @@ use crate::config::generate::{
 use crate::data::paths::{
     BasicDirEntryInfo,
     PathData,
+    PathDeconstruction,
 };
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{
@@ -37,9 +38,14 @@ use crate::{
 };
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
+use hashbrown::HashMap;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::path::Path;
+use std::sync::{
+    LazyLock,
+    Mutex,
+};
 use std::time::Duration;
 
 static MAX_RETRIES: usize = 3usize;
@@ -59,7 +65,6 @@ static PREVIEW_FAILURE_NOTICE: &str =
 pub struct SelectionCandidate {
     path: Box<[u8]>,
     mid: usize,
-    count: AtomicUsize,
 }
 
 impl Clone for SelectionCandidate {
@@ -67,7 +72,6 @@ impl Clone for SelectionCandidate {
         SelectionCandidate {
             path: self.path.clone(),
             mid: self.mid.clone(),
-            count: AtomicUsize::default(),
         }
     }
 }
@@ -83,7 +87,6 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         SelectionCandidate {
             path: all_bytes.into(),
             mid,
-            count: AtomicUsize::default(),
         }
     }
 }
@@ -114,26 +117,6 @@ impl SelectionCandidate {
         let output_buf = DisplayWrapper::from(&display_config, versions_map).to_string();
 
         Ok(output_buf)
-    }
-
-    fn get_count(&self) -> usize {
-        self.count.load(Ordering::Relaxed)
-    }
-
-    fn increment_count(&self) -> usize {
-        self.count.fetch_add(1, Ordering::Relaxed)
-    }
-
-    fn retries_not_exceeded(&self) -> bool {
-        let retry_count = self.get_count();
-
-        retry_count <= MAX_RETRIES
-    }
-
-    fn retry_notice(&self) -> String {
-        let count = self.get_count();
-        let retries_left = MAX_RETRIES - count;
-        format!("{}{}\n--", PREVIEW_RETRY_NOTICE, retries_left)
     }
 
     fn fail_notice(err: HttmGenericErrorWrapper) -> String {
@@ -167,6 +150,11 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(1000);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
+        static CACHE: LazyLock<Arc<Mutex<DelayCache>>> = LazyLock::new(|| {
+            let map = DelayCache::new();
+
+            Arc::new(Mutex::new(map))
+        });
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
             Some(requested_dir) if requested_dir.as_ref() == self.path() => REQUESTED_DIR_TIME_OUT,
@@ -174,24 +162,42 @@ impl SkimItem for SelectionCandidate {
             _ => REGULAR_TIME_OUT,
         };
 
-        if self.retries_not_exceeded() {
-            self.increment_count();
+        let pathdata: PathData = self.path().into();
 
-            let (s, r) = bounded(1);
+        if let Ok(mut locked) = CACHE.lock() {
+            if locked.retries_not_exceeded(&pathdata) {
+                let (s, r) = bounded(1);
 
-            let cloned = self.clone();
+                let cloned = self.clone();
 
-            rayon::spawn(move || {
-                let preview_output = cloned
-                    .preview_view()
-                    .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
-                let _ = s.send(preview_output);
-            });
+                rayon::spawn(move || {
+                    let preview_output = cloned
+                        .preview_view()
+                        .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
+                    let _ = s.send(preview_output);
+                });
 
-            match r.recv_timeout(time_out) {
-                Ok(preview_output) => return skim::ItemPreview::AnsiText(preview_output),
-                Err(_) => return skim::ItemPreview::AnsiText(self.retry_notice()),
+                match r.recv_timeout(time_out) {
+                    Ok(preview_output) => {
+                        locked.remove_entry(&pathdata);
+
+                        return skim::ItemPreview::AnsiText(preview_output);
+                    }
+                    Err(_) => {
+                        return skim::ItemPreview::AnsiText(locked.retry_notice(&pathdata));
+                    }
+                }
             }
+
+            let preview_output = self
+                .preview_view()
+                .map(|res| {
+                    let _ = locked.remove_entry(&pathdata);
+                    res
+                })
+                .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
+
+            return skim::ItemPreview::AnsiText(preview_output);
         }
 
         let preview_output = self
@@ -241,5 +247,81 @@ impl From<&SelectionCandidate> for Config {
         let vec = [PathData::from(selection_candidate)];
 
         Config::from(vec.as_slice())
+    }
+}
+
+struct DelayCache {
+    inner: HashMap<Arc<Path>, usize>,
+}
+
+impl DelayCache {
+    fn new() -> Self {
+        let opt_prox = GLOBAL_CONFIG
+            .opt_requested_dir
+            .as_ref()
+            .map(|requested_dir| PathData::from(&requested_dir))
+            .and_then(|pd| pd.proximate_dataset().ok().map(|path| path.to_path_buf()));
+
+        let map = GLOBAL_CONFIG
+            .dataset_collection
+            .map_of_datasets
+            .keys()
+            .cloned()
+            .filter_map(|key| match &opt_prox {
+                Some(prox) if key.starts_with(prox) => Some(key),
+                Some(_) => None,
+                None => Some(key),
+            })
+            .map(|key| (key, 0usize))
+            .collect();
+
+        Self { inner: map }
+    }
+
+    fn get_count(&mut self, pathdata: &PathData) -> Option<usize> {
+        pathdata
+            .proximate_dataset()
+            .ok()
+            .and_then(|prox| self.inner.get(prox).cloned())
+    }
+
+    fn increment_count(&mut self, pathdata: &PathData) -> Option<usize> {
+        pathdata
+            .proximate_dataset()
+            .ok()
+            .and_then(|prox| self.inner.get_mut(prox))
+            .map(|count| {
+                *count += 1;
+                *count
+            })
+    }
+
+    fn remove_entry(&mut self, pathdata: &PathData) -> Option<(Arc<Path>, usize)> {
+        pathdata
+            .proximate_dataset()
+            .ok()
+            .and_then(|prox| self.inner.remove_entry(prox))
+    }
+
+    fn retries_not_exceeded(&mut self, pathdata: &PathData) -> bool {
+        if self.inner.is_empty() {
+            return false;
+        }
+
+        let Some(retry_count) = self.get_count(pathdata) else {
+            return false;
+        };
+
+        if self.increment_count(&pathdata).is_none() {
+            return false;
+        }
+
+        retry_count <= MAX_RETRIES
+    }
+
+    fn retry_notice(&mut self, pathdata: &PathData) -> String {
+        let count = self.get_count(pathdata);
+        let retries_left = MAX_RETRIES - count.unwrap_or_else(|| MAX_RETRIES);
+        format!("{}{}\n--", PREVIEW_RETRY_NOTICE, retries_left)
     }
 }
