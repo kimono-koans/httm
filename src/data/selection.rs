@@ -85,10 +85,7 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
 
 impl SelectionCandidate {
     pub fn path(&self) -> &Path {
-        let slice = self.deconstructed_bytes().0;
-
-        // SAFETY: Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
-        let ret: &str = unsafe { std::str::from_utf8_unchecked(slice) };
+        let ret = self.path_as_str();
 
         Path::new(ret)
     }
@@ -103,7 +100,16 @@ impl SelectionCandidate {
         deconstructed_bytes
     }
 
-    pub fn painted_slice(&self) -> &[u8] {
+    fn path_as_str(&self) -> &str {
+        let slice = self.deconstructed_bytes().0;
+
+        // SAFETY: Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
+        let ret: &str = unsafe { std::str::from_utf8_unchecked(slice) };
+
+        ret
+    }
+
+    pub fn painted_byte_slice(&self) -> &[u8] {
         self.deconstructed_bytes().1
     }
 
@@ -127,17 +133,13 @@ impl SelectionCandidate {
 
 impl SkimItem for SelectionCandidate {
     fn text(&self) -> Cow<'_, str> {
-        let slice = self.painted_slice();
-
-        // SAFETY: "unsafe fn from_utf_unchecked" is functionally the same, but calling it seems to anger the borrow checker gods
-        // Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
-        let ret: &str = unsafe { &*(slice as *const [u8] as *const str) };
+        let ret = self.path_as_str();
 
         Cow::Borrowed(ret)
     }
 
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        self.painted_slice()
+        self.painted_byte_slice()
             .into_text()
             .ok()
             .and_then(|inner| inner.into_iter().next())
