@@ -273,7 +273,7 @@ pub trait PathDeconstruction<'a> {
 #[derive(Clone, Debug, Hash)]
 pub struct PathData {
     path_buf: Box<Path>,
-    opt_path_metadata: Option<PathMetadata>,
+    opt_path_metadata: Box<Option<PathMetadata>>,
     opt_filetype: Option<FileType>,
 }
 
@@ -326,7 +326,7 @@ impl From<&SelectionCandidate> for PathData {
 
         PathData {
             path_buf: selection_candidate.path().into(),
-            opt_path_metadata,
+            opt_path_metadata: opt_path_metadata.into(),
             opt_filetype,
         }
     }
@@ -355,7 +355,7 @@ impl PathData {
 
         Self {
             path_buf: path.into(),
-            opt_path_metadata,
+            opt_path_metadata: opt_path_metadata.into(),
             opt_filetype,
         }
     }
@@ -368,7 +368,7 @@ impl PathData {
 
         Self {
             path_buf: path.into(),
-            opt_path_metadata,
+            opt_path_metadata: opt_path_metadata.into(),
             opt_filetype: None,
         }
     }
@@ -383,7 +383,7 @@ impl PathData {
     }
 
     pub fn opt_path_metadata(&self) -> Option<PathMetadata> {
-        self.opt_path_metadata
+        *self.opt_path_metadata
     }
 
     pub fn opt_filetype(&self) -> Option<FileType> {
