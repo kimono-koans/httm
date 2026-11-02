@@ -124,7 +124,7 @@ impl SelectionCandidate {
         self.count.fetch_add(1, Ordering::Relaxed)
     }
 
-    fn retries_exceeded(&self) -> bool {
+    fn retries_not_exceeded(&self) -> bool {
         let retry_count = self.get_count();
 
         retry_count <= MAX_RETRIES
@@ -174,7 +174,7 @@ impl SkimItem for SelectionCandidate {
             _ => REGULAR_TIME_OUT,
         };
 
-        if self.retries_exceeded() {
+        if self.retries_not_exceeded() {
             self.increment_count();
 
             let (s, r) = bounded(1);
