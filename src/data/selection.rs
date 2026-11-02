@@ -61,39 +61,31 @@ static PREVIEW_FAILURE_NOTICE: &str =
 // contains everything one needs to request preview and paint with
 // LsColors -- see preview_view, preview for how preview is done
 // and impl Colorable for how we paint the path strings
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SelectionCandidate {
     path: Box<[u8]>,
-    mid: usize,
-}
-
-impl Clone for SelectionCandidate {
-    fn clone(&self) -> Self {
-        SelectionCandidate {
-            path: self.path.clone(),
-            mid: self.mid.clone(),
-        }
-    }
 }
 
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
-        let mut all_bytes = value.path().as_os_str().as_encoded_bytes().to_vec();
-        let mid = all_bytes.len();
-        let painted = value.paint_path();
+        let path_bytes = value.path().as_os_str().as_encoded_bytes();
+        let mid = path_bytes.len();
+        let mid_be_bytes = mid.to_be_bytes();
+        let mut all_bytes = mid_be_bytes.to_vec();
+        let painted_bytes = value.paint_path();
 
-        all_bytes.extend_from_slice(painted.to_string().as_bytes());
+        all_bytes.extend_from_slice(path_bytes);
+        all_bytes.extend_from_slice(painted_bytes.to_string().as_bytes());
 
         SelectionCandidate {
-            path: all_bytes.into(),
-            mid,
+            path: all_bytes.into_boxed_slice(),
         }
     }
 }
 
 impl SelectionCandidate {
     pub fn path(&self) -> &Path {
-        let slice = self.path.split_at(self.mid).0;
+        let slice = self.deconstructed_bytes().0;
 
         // SAFETY: "unsafe fn from_utf_unchecked" is functionally the same, but calling it seems to anger the borrow checker gods
         // Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
@@ -102,8 +94,18 @@ impl SelectionCandidate {
         Path::new(ret)
     }
 
+    fn deconstructed_bytes(&self) -> (&[u8], &[u8]) {
+        let bytes = self.path.split_at(size_of::<u64>());
+        let array: [u8; 8] = bytes.0.try_into().unwrap();
+        let mid = u64::from_be_bytes(array) as usize;
+
+        let deconstructed_bytes = bytes.1.split_at(mid);
+
+        deconstructed_bytes
+    }
+
     pub fn painted_slice(&self) -> &[u8] {
-        self.path.split_at(self.mid).1
+        self.deconstructed_bytes().1
     }
 
     fn preview_view(&self) -> HttmResult<String> {
