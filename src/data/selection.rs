@@ -252,6 +252,7 @@ impl From<&SelectionCandidate> for Config {
 
 struct DelayCache {
     inner: HashMap<Arc<Path>, usize>,
+    is_empty: bool,
 }
 
 impl DelayCache {
@@ -262,7 +263,7 @@ impl DelayCache {
             .map(|requested_dir| PathData::from(&requested_dir))
             .and_then(|pd| pd.proximate_dataset().ok().map(|path| path.to_path_buf()));
 
-        let map = GLOBAL_CONFIG
+        let map: HashMap<Arc<Path>, usize> = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .keys()
@@ -275,7 +276,12 @@ impl DelayCache {
             .map(|key| (key, 0usize))
             .collect();
 
-        Self { inner: map }
+        let is_empty = map.is_empty();
+
+        Self {
+            inner: map,
+            is_empty,
+        }
     }
 
     fn get_count(&self, pathdata: &PathData) -> Option<usize> {
@@ -304,7 +310,13 @@ impl DelayCache {
     }
 
     fn retries_not_exceeded(&mut self, pathdata: &PathData) -> bool {
-        if self.inner.is_empty() {
+        let is_empty = self.is_empty || self.inner.is_empty();
+
+        if is_empty {
+            if !self.is_empty {
+                self.is_empty = is_empty;
+            }
+
             return false;
         }
 
