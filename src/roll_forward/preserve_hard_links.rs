@@ -17,14 +17,31 @@
 
 use crate::RollForward;
 use crate::data::paths::BasicDirEntryInfo;
-use crate::library::file_ops::{Copy, Preserve, Remove};
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::file_ops::{
+    Copy,
+    Preserve,
+    Remove,
+};
+use crate::library::results::{
+    HttmError,
+    HttmGenericErrorWrapper,
+    HttmResult,
+};
 use crate::roll_forward::diff_events::DiffEvent;
-use hashbrown::{HashMap, HashSet};
-use nu_ansi_term::Color::{Green, Yellow};
+use hashbrown::{
+    HashMap,
+    HashSet,
+};
+use nu_ansi_term::Color::{
+    Green,
+    Yellow,
+};
 use std::fs::read_dir;
 use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 
@@ -128,7 +145,7 @@ pub struct PreserveHardLinks<'a> {
 }
 
 impl<'a> TryFrom<SpawnPreserveLinks<'a>> for PreserveHardLinks<'a> {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = HttmGenericErrorWrapper;
 
     fn try_from(value: SpawnPreserveLinks<'a>) -> Result<Self, Self::Error> {
         // need to wait for these to finish before executing any diff_action

@@ -76,6 +76,7 @@ use crate::config::generate::InteractiveMode;
 use crate::filesystem::snaps::MapOfSnaps;
 use crate::interactive::browse::InteractiveBrowse;
 use crate::interactive::select::InteractiveSelect;
+use crate::library::results::HttmGenericErrorWrapper;
 use background::recursive::NonInteractiveRecursiveWrapper;
 use config::generate::{
     Config,
@@ -125,7 +126,7 @@ fn main() {
     }
 }
 
-pub fn exit_error(error: Box<dyn std::error::Error + Send + Sync>) -> ! {
+pub fn exit_error(error: HttmGenericErrorWrapper) -> ! {
     eprintln!("ERROR: {error}");
     std::process::exit(1)
 }

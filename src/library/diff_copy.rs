@@ -46,6 +46,7 @@
 use crate::library::file_ops::is_same_file_contents;
 use crate::library::results::{
     HttmError,
+    HttmGenericErrorWrapper,
     HttmResult,
 };
 use crate::zfs::run_command::RunZFSCommand;
@@ -255,7 +256,7 @@ pub struct CloneCopy<'a> {
 }
 
 impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = HttmGenericErrorWrapper;
 
     fn try_from(value: &'a HttmCopy) -> HttmResult<CloneCopy<'a>> {
         // create source file reader
@@ -368,7 +369,7 @@ pub struct DiffCopy<'a> {
 }
 
 impl<'a> TryFrom<&'a HttmCopy<'a>> for DiffCopy<'a> {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = HttmGenericErrorWrapper;
 
     fn try_from(value: &'a HttmCopy) -> HttmResult<DiffCopy<'a>> {
         // create source file reader

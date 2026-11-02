@@ -29,6 +29,7 @@ use crate::filesystem::mounts::{
 use crate::interactive::preheat_cache::PreheatCache;
 use crate::library::results::{
     HttmError,
+    HttmGenericErrorWrapper,
     HttmResult,
 };
 use crate::library::utility::{
@@ -683,7 +684,7 @@ pub struct Config {
 }
 
 impl TryFrom<&ArgMatches> for Config {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = HttmGenericErrorWrapper;
 
     fn try_from(matches: &ArgMatches) -> HttmResult<Self> {
         if matches.get_flag("ZSH_HOT_KEYS") {

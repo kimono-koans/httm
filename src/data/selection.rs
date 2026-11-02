@@ -25,7 +25,7 @@ use crate::data::paths::{
 };
 use crate::display::wrapper::DisplayWrapper;
 use crate::library::results::{
-    HttmGenericError,
+    HttmGenericErrorWrapper,
     HttmResult,
 };
 use crate::library::utility::PaintPath;
@@ -136,7 +136,7 @@ impl SelectionCandidate {
         format!("{}{}\n--", PREVIEW_RETRY_NOTICE, retries_left)
     }
 
-    fn fail_notice(err: HttmGenericError) -> String {
+    fn fail_notice(err: HttmGenericErrorWrapper) -> String {
         format!("{}\nERROR: {}\n--", PREVIEW_FAILURE_NOTICE, err)
     }
 }

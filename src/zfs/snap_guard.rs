@@ -15,7 +15,10 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::library::results::HttmResult;
+use crate::library::results::{
+    HttmGenericErrorWrapper,
+    HttmResult,
+};
 use crate::library::utility::{
     DateFormat,
     date_string,
@@ -39,7 +42,7 @@ pub enum PrecautionarySnapType {
 }
 
 impl TryFrom<&Path> for SnapGuard {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = HttmGenericErrorWrapper;
 
     fn try_from(path: &Path) -> HttmResult<Self> {
         // guards the ZFS action, returns source dataset

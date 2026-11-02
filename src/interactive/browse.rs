@@ -24,6 +24,7 @@ use crate::interactive::view_mode::{
 };
 use crate::library::results::{
     HttmError,
+    HttmGenericErrorWrapper,
     HttmResult,
 };
 use crate::{
@@ -171,7 +172,7 @@ impl InteractiveBrowse {
 }
 
 impl TryInto<InteractiveSelect> for InteractiveBrowse {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Error = HttmGenericErrorWrapper;
 
     fn try_into(self) -> HttmResult<InteractiveSelect> {
         let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &self.selected_path_data)?;
