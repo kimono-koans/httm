@@ -162,9 +162,9 @@ impl SkimItem for SelectionCandidate {
             _ => REGULAR_TIME_OUT,
         };
 
-        let pathdata: PathData = PathData::without_styling(self.path(), None);
-
         if let Ok(mut locked) = CACHE.lock() {
+            let pathdata: PathData = PathData::without_styling(self.path(), None);
+
             if locked.retries_not_exceeded(&pathdata) {
                 let (s, r) = bounded(1);
 
