@@ -24,7 +24,10 @@ use crate::data::paths::{
     PathData,
 };
 use crate::display::wrapper::DisplayWrapper;
-use crate::library::results::HttmResult;
+use crate::library::results::{
+    HttmGenericError,
+    HttmResult,
+};
 use crate::library::utility::PaintPath;
 use crate::{
     Config,
@@ -37,12 +40,16 @@ use crossbeam_channel::bounded;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::path::Path;
-use std::sync::atomic::AtomicU8;
 use std::time::Duration;
 
-static RETRY_NOTICE: &str = "NOTICE: httm filesystem requests are delayed...\n
+static MAX_RETRIES: usize = 3usize;
+
+static PREVIEW_RETRY_NOTICE: &str = "NOTICE: httm filesystem requests are delayed...\n
 We are probably waiting for your kernel auto-mounter to mount the snapshots which correspond to this file object.\n
 Try again soon.  Number of retries you have left before this timeout is removed for this file object: ";
+
+static PREVIEW_FAILURE_NOTICE: &str =
+    "NOTICE: httm could not render a preview for the selected path for the following reason...";
 
 // these represent the items ready for selection and preview
 // contains everything one needs to request preview and paint with
@@ -52,7 +59,7 @@ Try again soon.  Number of retries you have left before this timeout is removed 
 pub struct SelectionCandidate {
     path: Box<[u8]>,
     mid: usize,
-    count: AtomicU8,
+    count: AtomicUsize,
 }
 
 impl Clone for SelectionCandidate {
@@ -60,7 +67,7 @@ impl Clone for SelectionCandidate {
         SelectionCandidate {
             path: self.path.clone(),
             mid: self.mid.clone(),
-            count: AtomicU8::default(),
+            count: AtomicUsize::default(),
         }
     }
 }
@@ -76,7 +83,7 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         SelectionCandidate {
             path: all_bytes.into(),
             mid,
-            count: AtomicU8::default(),
+            count: AtomicUsize::default(),
         }
     }
 }
@@ -108,6 +115,30 @@ impl SelectionCandidate {
 
         Ok(output_buf)
     }
+
+    fn get_count(&self) -> usize {
+        self.count.load(Ordering::Relaxed)
+    }
+
+    fn increment_count(&self) -> usize {
+        self.count.fetch_add(1, Ordering::Relaxed)
+    }
+
+    fn retries_exceeded(&self) -> bool {
+        let retry_count = self.get_count();
+
+        retry_count <= MAX_RETRIES
+    }
+
+    fn retry_notice(&self) -> String {
+        let count = self.get_count();
+        let retries_left = MAX_RETRIES - count;
+        format!("{}{}\n--", PREVIEW_RETRY_NOTICE, retries_left)
+    }
+
+    fn fail_notice(err: HttmGenericError) -> String {
+        format!("{}\nERROR: {}\n--", PREVIEW_FAILURE_NOTICE, err)
+    }
 }
 
 impl SkimItem for SelectionCandidate {
@@ -122,13 +153,11 @@ impl SkimItem for SelectionCandidate {
     }
 
     fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
-        let painted_slice = self.painted_slice();
-
-        painted_slice
+        self.painted_slice()
             .into_text()
             .ok()
             .and_then(|inner| inner.into_iter().next())
-            .unwrap()
+            .unwrap_or_else(|| Line::from(self.text()))
     }
 
     fn output(&self) -> Cow<'_, str> {
@@ -138,7 +167,6 @@ impl SkimItem for SelectionCandidate {
     fn preview(&self, _: PreviewContext<'_>) -> skim::ItemPreview {
         static REQUESTED_DIR_TIME_OUT: Duration = Duration::from_millis(1000);
         static REGULAR_TIME_OUT: Duration = Duration::from_millis(100);
-        static MAX_RETRIES: u8 = 3u8;
 
         let time_out = match GLOBAL_CONFIG.opt_requested_dir.as_ref() {
             Some(requested_dir) if requested_dir.as_ref() == self.path() => REQUESTED_DIR_TIME_OUT,
@@ -146,31 +174,30 @@ impl SkimItem for SelectionCandidate {
             _ => REGULAR_TIME_OUT,
         };
 
-        let retry_count = self.count.load(Ordering::Relaxed);
-
-        if retry_count <= MAX_RETRIES {
-            self.count.fetch_add(1, Ordering::Relaxed);
+        if self.retries_exceeded() {
+            self.increment_count();
 
             let (s, r) = bounded(1);
 
             let cloned = self.clone();
 
             rayon::spawn(move || {
-                let preview_output = cloned.preview_view().unwrap_or_default();
+                let preview_output = cloned
+                    .preview_view()
+                    .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
                 let _ = s.send(preview_output);
             });
 
             match r.recv_timeout(time_out) {
                 Ok(preview_output) => return skim::ItemPreview::AnsiText(preview_output),
-                Err(_) => {
-                    let retries_left = MAX_RETRIES - retry_count;
-                    let err_output = format!("{}{}\n--", RETRY_NOTICE, retries_left);
-                    return skim::ItemPreview::AnsiText(err_output);
-                }
+                Err(_) => return skim::ItemPreview::AnsiText(self.retry_notice()),
             }
         }
 
-        let preview_output = self.preview_view().unwrap_or_default();
+        let preview_output = self
+            .preview_view()
+            .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
+
         skim::ItemPreview::AnsiText(preview_output)
     }
 }

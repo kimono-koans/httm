@@ -20,7 +20,8 @@ use std::fmt;
 
 // wrap this complex looking error type, which is used everywhere,
 // into something more simple looking. This error, FYI, is really easy to use with rayon.
-pub type HttmResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+pub type HttmGenericError = Box<dyn std::error::Error + Send + Sync>;
+pub type HttmResult<T> = Result<T, HttmGenericError>;
 
 #[derive(Debug)]
 pub struct HttmError {
