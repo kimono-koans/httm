@@ -69,7 +69,7 @@ pub struct SelectionCandidate {
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
         let path_bytes = value.path().as_os_str().as_encoded_bytes();
-        let mid = path_bytes.len();
+        let mid = path_bytes.len() as u32;
         let mid_be_bytes = mid.to_be_bytes();
         let mut all_bytes = mid_be_bytes.to_vec();
         let painted_bytes = value.paint_path();
@@ -87,17 +87,16 @@ impl SelectionCandidate {
     pub fn path(&self) -> &Path {
         let slice = self.deconstructed_bytes().0;
 
-        // SAFETY: "unsafe fn from_utf_unchecked" is functionally the same, but calling it seems to anger the borrow checker gods
-        // Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
-        let ret: &str = unsafe { &*(slice as *const [u8] as *const str) };
+        // SAFETY: Bytes were already been UTF-8 validated when string was painted and then converted into bytes from path.
+        let ret: &str = unsafe { std::str::from_utf8_unchecked(slice) };
 
         Path::new(ret)
     }
 
     fn deconstructed_bytes(&self) -> (&[u8], &[u8]) {
-        let bytes = self.path.split_at(size_of::<u64>());
-        let array: [u8; 8] = bytes.0.try_into().unwrap();
-        let mid = u64::from_be_bytes(array) as usize;
+        let bytes = self.path.split_at(size_of::<u32>());
+        let array: [u8; 4] = bytes.0.try_into().unwrap();
+        let mid = u32::from_be_bytes(array) as usize;
 
         let deconstructed_bytes = bytes.1.split_at(mid);
 
