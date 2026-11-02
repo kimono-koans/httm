@@ -162,7 +162,7 @@ impl SkimItem for SelectionCandidate {
             _ => REGULAR_TIME_OUT,
         };
 
-        let pathdata: PathData = self.path().into();
+        let pathdata: PathData = PathData::without_styling(self.path(), None);
 
         if let Ok(mut locked) = CACHE.lock() {
             if locked.retries_not_exceeded(&pathdata) {
@@ -208,13 +208,15 @@ impl SkimItem for SelectionCandidate {
     }
 }
 
-impl From<&[PathData]> for Config {
-    fn from(slice: &[PathData]) -> Config {
+impl From<&SelectionCandidate> for Config {
+    fn from(selection_candidate: &SelectionCandidate) -> Config {
+        let paths = [PathData::from(selection_candidate)];
+
         let config = &GLOBAL_CONFIG;
 
         // generate a config for a preview display only
         Self {
-            paths: slice.to_vec(),
+            paths: paths.to_vec(),
             opt_recursive: false,
             opt_exact: false,
             opt_no_filter: false,
@@ -242,14 +244,6 @@ impl From<&[PathData]> for Config {
     }
 }
 
-impl From<&SelectionCandidate> for Config {
-    fn from(selection_candidate: &SelectionCandidate) -> Config {
-        let vec = [PathData::from(selection_candidate)];
-
-        Config::from(vec.as_slice())
-    }
-}
-
 struct DelayCache {
     inner: HashMap<Arc<Path>, usize>,
     is_empty: bool,
@@ -260,7 +254,7 @@ impl DelayCache {
         let opt_prox = GLOBAL_CONFIG
             .opt_requested_dir
             .as_ref()
-            .map(|requested_dir| PathData::from(&requested_dir))
+            .map(|requested_dir| PathData::without_styling(&requested_dir, None))
             .and_then(|pd| pd.proximate_dataset().ok().map(|path| path.to_path_buf()));
 
         let map: HashMap<Arc<Path>, usize> = GLOBAL_CONFIG

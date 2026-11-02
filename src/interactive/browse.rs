@@ -28,7 +28,6 @@ use crate::library::results::{
     HttmResult,
 };
 use crate::{
-    Config,
     DisplayWrapper,
     GLOBAL_CONFIG,
     HttmProcess,
@@ -37,7 +36,6 @@ use crate::{
 };
 use skim::prelude::*;
 use skim::tui::options::PreviewLayout;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
@@ -206,13 +204,16 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
             InteractiveSelect::last_snap(&versions_map)
         } else {
             // same stuff we do at fn exec, snooze...
-            let display_config = Config::from(self.selected_path_data.as_slice());
+            let display_config = &GLOBAL_CONFIG;
+
+            let versions_map =
+                VersionsMap::new(&display_config, self.selected_path_data.as_slice())?;
 
             let display_map = DisplayWrapper::from(&display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
 
-            display_map.deref().iter().try_for_each(|(live, snaps)| {
+            display_map.iter().try_for_each(|(live, snaps)| {
                 if snaps.is_empty() {
                     let description = format!("Path {:?} has no snapshots available.", live.path());
                     return HttmError::from(description).into();

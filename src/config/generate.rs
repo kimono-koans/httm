@@ -190,7 +190,7 @@ fn parse_args() -> ArgMatches {
                 .short_alias('i')
                 .long("browse")
                 .visible_alias("interactive")
-                .help("interactive browse and search a specified directory to display unique file versions.")
+                .help("interactive browse and search a specified directory to display unique file versions (and all directory versions).")
                 .display_order(2)
                 .action(ArgAction::SetTrue)
         )
@@ -202,7 +202,7 @@ fn parse_args() -> ArgMatches {
                 .num_args(0..=1)
                 .default_missing_value("path")
                 .require_equals(true)
-                .help("interactive browse and search a specified directory to display unique file versions. \
+                .help("interactive browse and search a specified directory to display unique file versions (and all directory versions). \
                 Continue to another dialog to select a snapshot version to dump to stdout. This argument optionally takes a value. \
                 Default behavior/value is to simply print the path name, but, if the path is a file, the user can print the file's contents by giving the value \"contents\", \
                 or print any PREVIEW output by giving the value \"preview\".")
@@ -218,7 +218,7 @@ fn parse_args() -> ArgMatches {
                 .num_args(0..=1)
                 .default_missing_value("copy")
                 .require_equals(true)
-                .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to copy. \
+                .help("interactive browse and search a specified directory to display unique file versions (and all directory versions). Continue to another dialog to select a snapshot version to copy. \
                 This argument optionally takes a value. Default behavior/value is a non-destructive \"copy\" to the current working directory with a new name, \
                 so as not to overwrite any \"live\" file version. However, the user may specify the \"preserve\" value.  \
                 Preserve mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version.  \
@@ -235,7 +235,7 @@ fn parse_args() -> ArgMatches {
                 .num_args(0..=1)
                 .default_missing_value("overwrite")
                 .require_equals(true)
-                .help("interactive browse and search a specified directory to display unique file versions. Continue to another dialog to select a snapshot version to restore. \
+                .help("interactive browse and search a specified directory to display unique file versions (and all directory versions). Continue to another dialog to select a snapshot version to restore. \
                 This argument optionally takes a value. Default behavior/value is \"overwrite\" (or \"yolo\") to restore to the same file location. Note, \"overwrite\" can be a DESTRUCTIVE operation. \
                 Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version. \
                 User may also specify \"guard\".  Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs. \
