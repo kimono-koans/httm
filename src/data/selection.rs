@@ -267,12 +267,11 @@ impl DelayCache {
             .dataset_collection
             .map_of_datasets
             .keys()
-            .cloned()
-            .filter_map(|key| match &opt_prox {
-                Some(prox) if key.starts_with(prox) => Some(key),
-                Some(_) => None,
-                None => Some(key),
+            .filter(|key| {
+                opt_prox.as_ref().is_none()
+                    || opt_prox.as_ref().is_some_and(|prox| key.starts_with(prox))
             })
+            .cloned()
             .map(|key| (key, 0usize))
             .collect();
 
