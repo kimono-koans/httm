@@ -36,8 +36,8 @@ use crate::library::results::{
 use crate::library::utility::HttmIsDir;
 use crate::{
     GLOBAL_CONFIG,
+    HttmProcess,
     MAP_OF_SNAPS,
-    exit_error,
 };
 use hashbrown::HashMap;
 use rayon::iter::{
@@ -434,7 +434,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
                         \nDetails: {err}"
                         ));
-                        exit_error(error.into());
+                        HttmProcess::exit_error(error.into());
                     }
                     // if file metadata is not found, or is otherwise not available,
                     // continue, it simply means we do not have a snapshot of this file

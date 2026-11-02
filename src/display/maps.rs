@@ -31,10 +31,10 @@ use crate::display::versions::{
 use crate::library::utility::delimiter;
 use crate::{
     GLOBAL_CONFIG,
+    HttmProcess,
     MountsForFiles,
     SnapNameMap,
     VersionsMap,
-    exit_error,
 };
 use hashbrown::HashMap;
 use serde::ser::SerializeMap;
@@ -185,9 +185,7 @@ impl PrintAsMap {
                 let delimiter = delimiter();
                 format!("{s}{delimiter}")
             }
-            Err(error) => {
-                exit_error(error.into());
-            }
+            Err(error) => HttmProcess::exit_error(error.into()),
         }
     }
 

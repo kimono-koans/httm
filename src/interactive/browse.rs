@@ -31,9 +31,9 @@ use crate::{
     Config,
     DisplayWrapper,
     GLOBAL_CONFIG,
+    HttmProcess,
     InteractiveSelect,
     VersionsMap,
-    exit_success,
 };
 use skim::prelude::*;
 use skim::tui::options::PreviewLayout;
@@ -132,7 +132,7 @@ impl InteractiveBrowse {
         match skim::Skim::run_with(skim_opts, Some(rx_item)) {
             Ok(output) if output.is_abort => {
                 eprintln!("httm interactive file browse session was aborted.  Quitting.");
-                exit_success()
+                HttmProcess::exit_success()
             }
             Ok(output) => {
                 // hangup the channel so the background recursive search can gracefully cleanup and exit

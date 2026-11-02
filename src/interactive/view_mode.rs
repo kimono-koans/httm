@@ -19,8 +19,8 @@ use crate::interactive::preview::PreviewSelection;
 use crate::library::results::HttmError;
 use crate::{
     GLOBAL_CONFIG,
+    HttmProcess,
     HttmResult,
-    exit_success,
 };
 use skim::prelude::*;
 use std::io::Cursor;
@@ -107,7 +107,7 @@ impl ViewMode {
         let res = match skim::Skim::run_with(skim_opts, Some(items)) {
             Ok(output) if output.is_abort => {
                 eprintln!("httm select/restore/prune session was aborted.  Quitting.");
-                exit_success();
+                HttmProcess::exit_success();
             }
             Ok(output) => output
                 .selected_items

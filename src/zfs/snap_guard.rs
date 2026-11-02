@@ -29,7 +29,7 @@ use crate::zfs::run_command::{
 };
 use crate::{
     GLOBAL_CONFIG,
-    exit_error,
+    HttmProcess,
     print_output_buf,
 };
 use std::path::Path;
@@ -138,7 +138,7 @@ impl SnapGuard {
 
         match self.rollback() {
             Ok(_) => eprintln!("NOTICE: Rollback succeeded."),
-            Err(error) => exit_error(error),
+            Err(error) => HttmProcess::exit_error(error),
         }
 
         std::process::exit(1)

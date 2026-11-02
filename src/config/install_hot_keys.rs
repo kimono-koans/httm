@@ -15,7 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::exit_success;
+use crate::HttmProcess;
 use crate::library::file_ops::Rename;
 use crate::library::results::{
     HttmError,
@@ -125,5 +125,5 @@ pub fn install_hot_keys() -> HttmResult<()> {
         }
     }
 
-    exit_success()
+    HttmProcess::exit_success()
 }

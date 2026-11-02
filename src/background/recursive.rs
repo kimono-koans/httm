@@ -37,8 +37,8 @@ use crate::library::utility::{
 use crate::lookup::deleted::DeletedFiles;
 use crate::{
     GLOBAL_CONFIG,
+    HttmProcess,
     VersionsMap,
-    exit_error,
 };
 use hashbrown::HashSet;
 use rayon::{
@@ -93,12 +93,12 @@ impl<'a> RecursiveSearch<'a> {
 
                 pool.in_place_scope(|deleted_scope| {
                     self.run_loop(requested_dir, Some(deleted_scope))
-                        .unwrap_or_else(|err| exit_error(err));
+                        .unwrap_or_else(|err| HttmProcess::exit_error(err));
                 })
             }
             None => {
                 self.run_loop(requested_dir, None)
-                    .unwrap_or_else(|err| exit_error(err));
+                    .unwrap_or_else(|err| HttmProcess::exit_error(err));
             }
         }
     }

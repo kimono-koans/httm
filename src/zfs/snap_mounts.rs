@@ -37,7 +37,7 @@ use crate::zfs::run_command::{
 };
 use crate::{
     GLOBAL_CONFIG,
-    exit_error,
+    HttmProcess,
 };
 use hashbrown::HashMap;
 use std::time::SystemTime;
@@ -139,7 +139,7 @@ impl SnapshotMounts {
             .into_iter()
             .into_group_map_by(|snapshot_name| {
                 Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|error| {
-                    exit_error(error);
+                    HttmProcess::exit_error(error);
                 })
             })
             .iter_mut()

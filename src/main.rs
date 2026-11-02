@@ -117,30 +117,12 @@ pub const MAC_OS_HIDDEN_DIRS: [&str; 6] = [
     "/System/Volumes/Data/.TemporaryItems",
 ];
 
-fn main() {
-    match exec() {
-        Ok(_) => exit_success(),
-        Err(error) => {
-            exit_error(error);
-        }
-    }
-}
-
-pub fn exit_error(error: HttmGenericErrorWrapper) -> ! {
-    eprintln!("ERROR: {error}");
-    std::process::exit(1)
-}
-
-pub fn exit_success() -> ! {
-    std::process::exit(0)
-}
-
 // get our program args and generate a config for use
 // everywhere else
 static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
     Config::new()
         .map_err(|error| {
-            exit_error(error);
+            HttmProcess::exit_error(error);
         })
         .unwrap()
 });
@@ -153,7 +135,7 @@ static MAP_OF_SNAPS: LazyLock<MapOfSnaps> = LazyLock::new(|| {
         GLOBAL_CONFIG.opt_debug,
     )
     .map_err(|error| {
-        exit_error(error);
+        HttmProcess::exit_error(error);
     })
     .unwrap();
 
@@ -183,69 +165,92 @@ static OPT_COMMON_SNAP_DIR: LazyLock<Option<Box<Path>>> = LazyLock::new(|| {
     opt_common_snap_dir
 });
 
-fn exec() -> HttmResult<()> {
-    // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
-    match &GLOBAL_CONFIG.exec_mode {
-        // ExecMode::Interactive *may* return back to this function to be printed
-        ExecMode::Interactive(interactive_mode) => {
-            let browse_result = InteractiveBrowse::new()?;
+fn main() {
+    match HttmProcess::exec() {
+        Ok(_) => HttmProcess::exit_success(),
+        Err(error) => {
+            HttmProcess::exit_error(error);
+        }
+    }
+}
 
-            match interactive_mode {
-                InteractiveMode::Restore(_) => {
-                    let interactive_select: InteractiveSelect =
-                        InteractiveBrowse::try_into(browse_result)?;
+struct HttmProcess;
 
-                    let interactive_restore = InteractiveRestore::new(interactive_select);
+impl HttmProcess {
+    pub fn exit_error(error: HttmGenericErrorWrapper) -> ! {
+        eprintln!("ERROR: {error}");
+        std::process::exit(1)
+    }
 
-                    interactive_restore.restore()
-                }
-                InteractiveMode::Select(select_mode) => {
-                    let interactive_select: InteractiveSelect =
-                        InteractiveBrowse::try_into(browse_result)?;
+    pub fn exit_success() -> ! {
+        std::process::exit(0)
+    }
 
-                    interactive_select.print_selections(&select_mode)
-                }
-                // InteractiveMode::Browse executes back through fn exec() in main.rs
-                InteractiveMode::Browse => {
-                    let versions_map =
-                        VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_path_data())?;
+    fn exec() -> HttmResult<()> {
+        // fn exec() handles the basic display cases, and sends other cases to be processed elsewhere
+        match &GLOBAL_CONFIG.exec_mode {
+            // ExecMode::Interactive *may* return back to this function to be printed
+            ExecMode::Interactive(interactive_mode) => {
+                let browse_result = InteractiveBrowse::new()?;
 
-                    let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+                match interactive_mode {
+                    InteractiveMode::Restore(_) => {
+                        let interactive_select: InteractiveSelect =
+                            InteractiveBrowse::try_into(browse_result)?;
 
-                    print_output_buf(&output_buf)
+                        let interactive_restore = InteractiveRestore::new(interactive_select);
+
+                        interactive_restore.restore()
+                    }
+                    InteractiveMode::Select(select_mode) => {
+                        let interactive_select: InteractiveSelect =
+                            InteractiveBrowse::try_into(browse_result)?;
+
+                        interactive_select.print_selections(&select_mode)
+                    }
+                    // InteractiveMode::Browse executes back through fn exec() in main.rs
+                    InteractiveMode::Browse => {
+                        let versions_map =
+                            VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_path_data())?;
+
+                        let output_buf =
+                            DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+
+                        print_output_buf(&output_buf)
+                    }
                 }
             }
-        }
-        // ExecMode::BasicDisplay will be just printed, we already know the paths
-        ExecMode::BasicDisplay | ExecMode::Preview | ExecMode::NumVersions(_) => {
-            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
+            // ExecMode::BasicDisplay will be just printed, we already know the paths
+            ExecMode::BasicDisplay | ExecMode::Preview | ExecMode::NumVersions(_) => {
+                let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
+                let output_buf = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();
 
-            print_output_buf(&output_buf)
-        }
-        // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
-        // output elsewhere
-        ExecMode::NonInteractiveRecursive(_) => NonInteractiveRecursiveWrapper::exec(),
-        ExecMode::SnapFileMount(snapshot_suffix) => SnapshotMounts::exec(snapshot_suffix),
-        ExecMode::SnapsForFiles(opt_filters) => {
-            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            let snap_name_map = SnapNameMap::new(versions_map, opt_filters)?;
-            let printable_map = PrintAsMap::from(&snap_name_map);
-            let output_buf = printable_map.to_string();
+                print_output_buf(&output_buf)
+            }
+            // ExecMode::NonInteractiveRecursive, ExecMode::SnapFileMount, and ExecMode::MountsForFiles will print their
+            // output elsewhere
+            ExecMode::NonInteractiveRecursive(_) => NonInteractiveRecursiveWrapper::exec(),
+            ExecMode::SnapFileMount(snapshot_suffix) => SnapshotMounts::exec(snapshot_suffix),
+            ExecMode::SnapsForFiles(opt_filters) => {
+                let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
+                let snap_name_map = SnapNameMap::new(versions_map, opt_filters)?;
+                let printable_map = PrintAsMap::from(&snap_name_map);
+                let output_buf = printable_map.to_string();
 
-            print_output_buf(&output_buf)
-        }
-        ExecMode::Prune(opt_filters) => {
-            let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-            PruneSnaps::exec(versions_map, opt_filters)
-        }
-        ExecMode::MountsForFiles(mount_display) => {
-            let mounts_map = &MountsForFiles::new(mount_display)?;
-            let printable_map: PrintAsMap = mounts_map.into();
-            let output_buf = printable_map.to_string();
+                print_output_buf(&output_buf)
+            }
+            ExecMode::Prune(opt_filters) => {
+                let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
+                PruneSnaps::exec(versions_map, opt_filters)
+            }
+            ExecMode::MountsForFiles(mount_display) => {
+                let mounts_map = &MountsForFiles::new(mount_display)?;
+                let printable_map: PrintAsMap = mounts_map.into();
+                let output_buf = printable_map.to_string();
 
-            print_output_buf(&output_buf)
+                print_output_buf(&output_buf)
+            }
+            ExecMode::RollForward(full_snap_name) => RollForward::new(full_snap_name)?.exec(),
         }
-        ExecMode::RollForward(full_snap_name) => RollForward::new(full_snap_name)?.exec(),
     }
 }

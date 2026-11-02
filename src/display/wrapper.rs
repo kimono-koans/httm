@@ -38,7 +38,7 @@ use crate::lookup::versions::{
 };
 use crate::{
     GLOBAL_CONFIG,
-    exit_error,
+    HttmProcess,
 };
 use hashbrown::HashMap;
 use serde::ser::SerializeMap;
@@ -299,9 +299,7 @@ impl<'a> DisplayWrapper<'a> {
                 let delimiter = delimiter();
                 format!("{s}{delimiter}")
             }
-            Err(error) => {
-                exit_error(error.into());
-            }
+            Err(error) => HttmProcess::exit_error(error.into()),
         }
     }
 }
