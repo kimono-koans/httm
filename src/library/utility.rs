@@ -237,13 +237,20 @@ pub trait PaintPath<'a> {
             }
             Some(ft) if ft.is_symlink() => match std::fs::read_link(self.path()).ok() {
                 Some(link_target) => {
-                    let link_src = display_name;
-                    let res = format!("{} -> {}", link_src, link_target.to_string_lossy());
+                    let mut src = display_name.to_string();
+                    let mut target = link_target.to_string_lossy().to_string();
+
+                    if link_target.is_dir() && src != "/" {
+                        src.push('/');
+                        target.push('/');
+                    }
+                    let res = format!("\'{}\' -> \'{}\'", src, target);
+
                     Cow::Owned(res)
                 }
                 None => {
                     let link_src = display_name;
-                    let res = format!("{} -> ?", link_src);
+                    let res = format!("\'{}\' -> ?", link_src);
                     Cow::Owned(res)
                 }
             },
@@ -315,6 +322,7 @@ impl<'a> PaintPath<'a> for BasicDirEntryInfo {
         let display_name = match self.path().strip_prefix(*REQUESTED_DIR) {
             Ok(_stripped) if self.path() == ROOT_PATH.as_path() => Cow::Borrowed("/"),
             Ok(_) if self.path() == *REQUESTED_DIR => Cow::Borrowed("."),
+            Ok(_) if ROOT_PATH.as_path() == *REQUESTED_DIR => self.path().to_string_lossy(),
             Ok(stripped) => stripped.to_string_lossy(),
             Err(_) if Some(self.path()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path().to_string_lossy(),
