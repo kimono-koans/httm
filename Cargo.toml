@@ -35,7 +35,7 @@ licensing = ["lms"]
 [target.'cfg(unix)'.dependencies]
 libc = { version = "0.2.191", default-features = false, optional = true }
 exacl = { version = "0.13.0", default-features = false, optional = true }
-xattr = { version = "1.6.1", default-features = false, optional = true }
+xattr = { version = "1.7.0", default-features = false, optional = true }
 
 [dependencies]
 foldhash = { version = "0.2.0", default-features = false }
@@ -46,7 +46,7 @@ time = { version = "0.3.55", default-features = false, features = [
     "local-offset",
 ] }
 unit-prefix = { version = "0.5.2", default-features = false }
-skim = { version = "5.8.0", default-features = false }
+skim = { version = "5.9.0", default-features = false }
 nu-ansi-term = { version = "0.50.3", default-features = false }
 lscolors = { version = "0.21.0", default-features = false, features = [
     "nu-ansi-term",
