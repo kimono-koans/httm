@@ -310,13 +310,9 @@ impl DelayCache {
     }
 
     fn retries_not_exceeded(&mut self, pathdata: &PathData) -> bool {
-        let is_empty = self.is_empty || self.inner.is_empty();
+        self.is_empty = self.is_empty || self.inner.is_empty();
 
-        if is_empty {
-            if !self.is_empty {
-                self.is_empty = is_empty;
-            }
-
+        if self.is_empty {
             return false;
         }
 
