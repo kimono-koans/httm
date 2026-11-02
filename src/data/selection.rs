@@ -177,16 +177,18 @@ impl SkimItem for SelectionCandidate {
                     let _ = s.send(preview_output);
                 });
 
-                match r.recv_timeout(time_out) {
+                let preview_output = match r.recv_timeout(time_out) {
                     Ok(preview_output) => {
                         locked.remove_entry(&pathdata);
-
-                        return skim::ItemPreview::AnsiText(preview_output);
+                        preview_output
                     }
                     Err(_) => {
-                        return skim::ItemPreview::AnsiText(locked.retry_notice(&pathdata));
+                        let preview_output = locked.retry_notice(&pathdata);
+                        preview_output
                     }
-                }
+                };
+
+                return skim::ItemPreview::AnsiText(preview_output);
             }
 
             let preview_output = self
