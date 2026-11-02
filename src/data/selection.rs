@@ -278,7 +278,7 @@ impl DelayCache {
         Self { inner: map }
     }
 
-    fn get_count(&mut self, pathdata: &PathData) -> Option<usize> {
+    fn get_count(&self, pathdata: &PathData) -> Option<usize> {
         pathdata
             .proximate_dataset()
             .ok()
@@ -319,7 +319,7 @@ impl DelayCache {
         retry_count <= MAX_RETRIES
     }
 
-    fn retry_notice(&mut self, pathdata: &PathData) -> String {
+    fn retry_notice(&self, pathdata: &PathData) -> String {
         let count = self.get_count(pathdata);
         let retries_left = MAX_RETRIES - count.unwrap_or_else(|| MAX_RETRIES);
         format!("{}{}\n--", PREVIEW_RETRY_NOTICE, retries_left)
