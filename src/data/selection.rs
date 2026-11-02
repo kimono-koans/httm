@@ -68,6 +68,8 @@ pub struct SelectionCandidate {
 
 impl From<BasicDirEntryInfo> for SelectionCandidate {
     fn from(value: BasicDirEntryInfo) -> Self {
+        // LAYOUT: 4 big endian bytes for split_at "mid" point,
+        // then a boxed &[u8] which contains both the path and the painted string
         let path_bytes = value.path().as_os_str().as_encoded_bytes();
         let mid = path_bytes.len() as u32;
         let mid_be_bytes = mid.to_be_bytes();
