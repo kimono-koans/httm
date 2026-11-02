@@ -237,14 +237,13 @@ pub trait PaintPath<'a> {
             }
             Some(ft) if ft.is_symlink() => match std::fs::read_link(self.path()).ok() {
                 Some(link_target) => {
-                    let link_name = format!(" -> {}", link_target.to_string_lossy());
-                    let mut res = display_name.to_string();
-                    res.push_str(&link_name);
+                    let link_src = display_name;
+                    let res = format!("{} -> {}", link_src, link_target.to_string_lossy());
                     Cow::Owned(res)
                 }
                 None => {
-                    let mut res = display_name.to_string();
-                    res.push_str(" -> ?");
+                    let link_src = display_name;
+                    let res = format!("{} -> ?", link_src);
                     Cow::Owned(res)
                 }
             },
