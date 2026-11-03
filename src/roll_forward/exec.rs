@@ -51,6 +51,7 @@ use crate::{
     ZFS_SNAPSHOT_DIRECTORY,
 };
 use indicatif::ProgressBar;
+use std::fmt::Write;
 use std::fs::{
     Permissions,
     read_dir,
@@ -255,7 +256,10 @@ impl RollForward {
         }
 
         if !parse_errors.is_empty() {
-            let description: String = parse_errors.into_iter().map(|e| format!("{e}\n")).collect();
+            let description: String = parse_errors.into_iter().fold(String::new(), |mut acc, e| {
+                let _ = writeln!(acc, "{e}");
+                acc
+            });
             return HttmError::from(description).into();
         }
 

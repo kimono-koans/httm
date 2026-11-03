@@ -181,7 +181,7 @@ impl<'a> DisplaySet<'a> {
                                 if warning_len > border_len {
                                     let diff = warning_len - border_len;
                                     let mut new_border = border.trim_end().to_string();
-                                    let _ = write!(new_border, "{:─<diff$}\n", "");
+                                    let _ = writeln!(new_border, "{:─<diff$}", "");
                                     border = new_border.into();
                                 }
 

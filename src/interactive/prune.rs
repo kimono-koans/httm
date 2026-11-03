@@ -27,6 +27,7 @@ use crate::library::results::{
 use crate::lookup::snap_names::SnapNameMap;
 use crate::lookup::versions::VersionsMap;
 use crate::zfs::run_command::RunZFSCommand;
+use std::fmt::Write;
 
 pub struct PruneSnaps;
 
@@ -60,7 +61,7 @@ impl InteractivePrune {
     fn exec(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
         let file_names_string: String =
             snap_name_map.keys().fold(String::new(), |mut buffer, key| {
-                buffer += format!("{:?}\n", key.path()).as_str();
+                let _ = writeln!(buffer, "{:?}", key.path());
                 buffer
             });
 
