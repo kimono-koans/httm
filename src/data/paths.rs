@@ -278,7 +278,7 @@ pub struct PathData {
 
 impl Hash for PathData {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.path().hash(state)
+        self.path().hash(state);
     }
 }
 
