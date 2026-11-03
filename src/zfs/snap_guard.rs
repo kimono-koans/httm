@@ -46,7 +46,7 @@ impl TryFrom<&Path> for SnapGuard {
 
     fn try_from(path: &Path) -> HttmResult<Self> {
         // guards the ZFS action, returns source dataset
-        let allowed_source = ZfsAllowPriv::Snapshot.from_path(path)?;
+        let allowed_source = ZfsAllowPriv::Snapshot.with_path(path)?;
 
         SnapGuard::new(
             &allowed_source.to_string_lossy(),
@@ -71,9 +71,8 @@ impl SnapGuard {
         let new_snap_name = match &snap_type {
             PrecautionarySnapType::PreRollForward => {
                 // all snapshots should have the same timestamp
-                let new_snap_name = format!(
-                    "{dataset_name}@snap_pre_{timestamp}_httmSnapRollForward"
-                );
+                let new_snap_name =
+                    format!("{dataset_name}@snap_pre_{timestamp}_httmSnapRollForward");
 
                 new_snap_name
             }
@@ -86,8 +85,7 @@ impl SnapGuard {
             }
             PrecautionarySnapType::PreRestore => {
                 // all snapshots should have the same timestamp
-                let new_snap_name =
-                    format!("{dataset_name}@snap_pre_{timestamp}_httmSnapRestore");
+                let new_snap_name = format!("{dataset_name}@snap_pre_{timestamp}_httmSnapRestore");
 
                 new_snap_name
             }
@@ -99,14 +97,10 @@ impl SnapGuard {
 
         let output_buf = match &snap_type {
             PrecautionarySnapType::PreRollForward | PrecautionarySnapType::PreRestore => {
-                format!(
-                    "httm took a pre-execution snapshot named: {new_snap_name}\n"
-                )
+                format!("httm took a pre-execution snapshot named: {new_snap_name}\n")
             }
             PrecautionarySnapType::PostRollForward(_) => {
-                format!(
-                    "httm took a post-execution snapshot named: {new_snap_name}\n"
-                )
+                format!("httm took a post-execution snapshot named: {new_snap_name}\n")
             }
         };
 
@@ -119,7 +113,7 @@ impl SnapGuard {
     }
 
     fn rollback(&self) -> HttmResult<()> {
-        ZfsAllowPriv::Rollback.from_fs_name(&self.dataset_name)?;
+        ZfsAllowPriv::Rollback.with_fs_name(&self.dataset_name)?;
 
         let run_zfs = RunZFSCommand::new()?;
         run_zfs.rollback(std::slice::from_ref(&self.new_snap_name))?;

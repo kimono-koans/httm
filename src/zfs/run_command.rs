@@ -15,13 +15,26 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::data::paths::{PathData, PathDeconstruction};
+use crate::data::paths::{
+    PathData,
+    PathDeconstruction,
+};
 use crate::filesystem::mounts::FilesystemType;
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::library::utility::user_has_effective_root;
 use crate::roll_forward::exec::RollForward;
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command as ExecProcess, Stdio};
+use std::path::{
+    Path,
+    PathBuf,
+};
+use std::process::{
+    Child,
+    Command as ExecProcess,
+    Stdio,
+};
 use which::which;
 
 pub struct RunZFSCommand {
@@ -183,13 +196,13 @@ pub enum ZfsAllowPriv {
 }
 
 impl ZfsAllowPriv {
-    pub fn from_path(&self, path: &Path) -> HttmResult<Box<Path>> {
+    pub fn with_path(&self, path: &Path) -> HttmResult<Box<Path>> {
         let path_data = PathData::from(path);
 
-        ZfsAllowPriv::from_opt_proximate_dataset(self, &path_data, None)
+        ZfsAllowPriv::with_opt_proximate_dataset(self, &path_data, None)
     }
 
-    pub fn from_opt_proximate_dataset(
+    pub fn with_opt_proximate_dataset(
         &self,
         path_data: &PathData,
         opt_proximate_dataset: Option<&Path>,
@@ -202,7 +215,8 @@ impl ZfsAllowPriv {
             return HttmError::from(description).into();
         };
 
-        if let Some(FilesystemType::Zfs) = path_data.fs_type(opt_proximate_dataset) {} else {
+        if let Some(FilesystemType::Zfs) = path_data.fs_type(opt_proximate_dataset) {
+        } else {
             let description = format!(
                 "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
                 path_data.path()
@@ -210,21 +224,22 @@ impl ZfsAllowPriv {
             return HttmError::from(description).into();
         }
 
-        Self::from_fs_name(self, &fs_name.to_string_lossy())?;
+        Self::with_fs_name(self, &fs_name.to_string_lossy())?;
 
         Ok(fs_name)
     }
 
-    pub fn from_fs_name(&self, fs_name: &str) -> HttmResult<()> {
+    pub fn with_fs_name(&self, fs_name: &str) -> HttmResult<()> {
         let description = match self {
             ZfsAllowPriv::Rollback => "A rollback after a restore action",
             ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
         };
 
         if let Err(root_error) = user_has_effective_root(description)
-            && let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name) {
-                return Err(root_error);
-            }
+            && let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name)
+        {
+            return Err(root_error);
+        }
 
         Ok(())
     }

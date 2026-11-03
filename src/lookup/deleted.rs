@@ -90,9 +90,7 @@ impl DeletedFiles {
     }
 
     #[inline(always)]
-    fn unique_filenames_from_snapshots(
-        requested_dir: &Path,
-    ) -> Option<HashSet<BasicDirEntryInfo>> {
+    fn unique_filenames_from_snapshots(requested_dir: &Path) -> Option<HashSet<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::without_styling(requested_dir, None);
@@ -104,7 +102,7 @@ impl DeletedFiles {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data).ok()?;
 
         let pseudo_live_versions: HashSet<BasicDirEntryInfo> = prox_opt_alts
-            .into_search_bundles()
+            .as_search_bundles()
             .fold(HashSet::new(), |mut acc, search_bundle| {
                 let iter = Self::unique_filenames_from_snap_mount(requested_dir, &search_bundle);
 
@@ -147,7 +145,6 @@ impl DeletedFiles {
             })
             .map(|(dir_entry, file_type)| {
                 let file_name = dir_entry.file_name();
-                
 
                 Self::into_pseudo_live_version(&file_name, pseudo_live_dir, Some(file_type))
             })

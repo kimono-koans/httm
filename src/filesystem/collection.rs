@@ -79,7 +79,7 @@ impl FilesystemInfo {
 
         match opt_alt_store {
             Some(ref repo_type) => {
-                base_fs_info.from_blob_repo(repo_type)?;
+                base_fs_info.append_from_blob_repo(repo_type)?;
             }
             None // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
                 if cfg!(target_os = "macos")
@@ -94,7 +94,7 @@ impl FilesystemInfo {
                     && opt_map_of_aliases.is_none())
                 {
                     opt_alt_store.replace(FilesystemType::Apfs);
-                    base_fs_info.from_blob_repo(&FilesystemType::Apfs)?;
+                    base_fs_info.append_from_blob_repo(&FilesystemType::Apfs)?;
                 } else {
                     return HttmError::new("httm could not find any valid datasets on the system.")
                         .into();

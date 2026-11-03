@@ -108,7 +108,7 @@ impl SnapshotMounts {
                 let path_data = prox.path_data();
 
                 let fs_name = ZfsAllowPriv::Snapshot
-                    .from_opt_proximate_dataset(path_data, Some(prox.proximate_dataset()))
+                    .with_opt_proximate_dataset(path_data, Some(prox.proximate_dataset()))
                     .map_err(HttmError::from)?;
 
                 let snapshot_name = format!(

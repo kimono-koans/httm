@@ -155,13 +155,12 @@ impl<'a> HttmCopy<'a> {
                 }
                 Err(err) => {
                     IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug
-                        && GLOBAL_CONFIG.opt_debug {
-                            eprintln!(
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!(
                                 "DEBUG: copy_file_range call unsuccessful for the following reason: \"{err:?}\".\n
                                 DEBUG: Retrying a conventional diff copy."
                             );
-                        }
+                    }
                 }
             }
         }
@@ -266,6 +265,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
             .write(true)
             .read(true)
             .create(true)
+            .truncate(true)
             .open(value.dst_path)?;
 
         dst_file.set_len(value.src_len)?;
@@ -379,6 +379,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for DiffCopy<'a> {
             .write(true)
             .read(true)
             .create(true)
+            .truncate(true)
             .open(value.dst_path)?;
 
         dst_file.set_len(value.src_len)?;

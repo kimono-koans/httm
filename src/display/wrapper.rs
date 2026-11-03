@@ -208,9 +208,7 @@ impl DisplayWrapper<'_> {
                     PrintMode::Raw(_) if total_num_paths == 1 => {
                         Some(format!("{num_versions}{delimiter}"))
                     }
-                    PrintMode::Formatted(FormattedMode::NotPretty) | _ => {
-                        Some(format!("{display_path}\t{num_versions}{delimiter}"))
-                    }
+                    _ => Some(format!("{display_path}\t{num_versions}{delimiter}")),
                 }
             }
             NumVersionsMode::Multiple => {
@@ -247,6 +245,7 @@ impl DisplayWrapper<'_> {
     }
 }
 
+#[allow(clippy::to_string_trait_impl)]
 impl std::string::ToString for DisplayWrapper<'_> {
     fn to_string(&self) -> String {
         if let ExecMode::NumVersions(num_versions_mode) = &self.config.exec_mode {

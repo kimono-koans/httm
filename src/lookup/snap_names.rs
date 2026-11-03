@@ -24,7 +24,7 @@ use hashbrown::HashMap;
 use std::ops::Deref;
 use std::path::Path;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct SnapNameMap {
     inner: HashMap<PathData, Vec<String>>,
 }

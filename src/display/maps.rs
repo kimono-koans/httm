@@ -128,6 +128,7 @@ impl From<&SnapNameMap> for PrintAsMap {
     }
 }
 
+#[allow(clippy::to_string_trait_impl)]
 impl std::string::ToString for PrintAsMap {
     fn to_string(&self) -> String {
         if GLOBAL_CONFIG.opt_json {
@@ -150,10 +151,11 @@ impl std::string::ToString for PrintAsMap {
                         buffer.push_str(value);
 
                         if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode
-                            && last == idx {
-                                buffer.push('\n');
-                                return buffer;
-                            }
+                            && last == idx
+                        {
+                            buffer.push('\n');
+                            return buffer;
+                        }
 
                         buffer.push(delimiter);
                         buffer
@@ -191,10 +193,7 @@ impl PrintAsMap {
     pub fn format(&self) -> String {
         let padding = self.map_padding();
 
-        
-
-        self
-            .iter()
+        self.iter()
             .filter(|(_key, values)| {
                 if GLOBAL_CONFIG.opt_last_snap.is_some() {
                     !values.is_empty()
@@ -222,9 +221,7 @@ impl PrintAsMap {
                         ) {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
                         } else if idx == 0 {
-                            format!(
-                                "{display_path:<padding$} : \"{value}\"\n"
-                            )
+                            format!("{display_path:<padding$} : \"{value}\"\n")
                         } else {
                             format!("{:<padding$} : \"{value}\"\n", "")
                         }

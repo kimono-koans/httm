@@ -273,9 +273,7 @@ impl PathData {
             _ => unreachable!(),
         };
 
-        format!(
-            "{display_date}{display_padding}{display_size}{display_padding}{display_path}\n"
-        )
+        format!("{display_date}{display_padding}{display_size}{display_padding}{display_path}\n")
     }
 
     fn warn_on_empty_snaps(&self, config: &Config) -> &str {
@@ -288,7 +286,7 @@ impl PathData {
             Some(prox_opt_alts)
                 if config.opt_omit_ditto
                     && prox_opt_alts
-                        .into_search_bundles()
+                        .as_search_bundles()
                         .flat_map(|relative_path_and_snap_mounts| {
                             relative_path_and_snap_mounts.version_search(&Some(DedupBy::Disable))
                         })

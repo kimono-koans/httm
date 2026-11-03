@@ -208,6 +208,7 @@ impl RollForward {
         Ok(())
     }
 
+    #[allow(clippy::type_complexity)]
     fn roll_forward(&self) -> HttmResult<()> {
         let spawn_res = SpawnPreserveLinks::new(self);
 
@@ -247,18 +248,16 @@ impl RollForward {
         // "Unable to determine path or stats for object 99694 in ...: File exists"
         // Here, we print only as NOTICE
         if let Ok(buf) = Self::zfs_diff_std_err(opt_stderr)
-            && !buf.is_empty() {
-                eprintln!(
-                    "NOTICE: 'zfs diff' reported an error.  At this point of execution, these are usually inconsequential: {}",
-                    buf.trim()
-                );
-            }
+            && !buf.is_empty()
+        {
+            eprintln!(
+                "NOTICE: 'zfs diff' reported an error.  At this point of execution, these are usually inconsequential: {}",
+                buf.trim()
+            );
+        }
 
         if !parse_errors.is_empty() {
-            let description: String = parse_errors
-                .into_iter()
-                .map(|e| format!("{e}\n"))
-                .collect();
+            let description: String = parse_errors.into_iter().map(|e| format!("{e}\n")).collect();
             return HttmError::from(description).into();
         }
 

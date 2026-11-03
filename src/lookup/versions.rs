@@ -56,7 +56,7 @@ use std::path::{
     PathBuf,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct VersionsMap {
     inner: HashMap<PathData, Vec<PathData>>,
 }
@@ -108,7 +108,10 @@ impl VersionsMap {
                 .keys()
                 .all(|path_data| path_data.opt_path_metadata().is_none())
         {
-            let paths: Vec<&Path> = path_set.iter().map(super::super::data::paths::PathData::path).collect();
+            let paths: Vec<&Path> = path_set
+                .iter()
+                .map(super::super::data::paths::PathData::path)
+                .collect();
 
             let description = format!(
                 "Requested paths do not currently exist, and httm could not find any deleted versions in snapshots:\n{paths:?}\nSo, umm, 🤷, please check that you typed the correct path, and/or try again with a different path."
@@ -169,7 +172,7 @@ impl Versions {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(config, path_data)?;
         let path_data_key = prox_opt_alts.path_data.clone();
         let snap_versions: Vec<PathData> = prox_opt_alts
-            .into_search_bundles()
+            .as_search_bundles()
             .flat_map(|relative_path_snap_mounts| {
                 // run preheat cache
                 {
@@ -317,7 +320,11 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
     #[inline(always)]
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
-        let alts = self.opt_alts.into_iter().flatten().map(std::convert::AsRef::as_ref);
+        let alts = self
+            .opt_alts
+            .into_iter()
+            .flatten()
+            .map(std::convert::AsRef::as_ref);
 
         let base = Some(self.proximate_dataset).into_iter();
 
@@ -325,15 +332,16 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
     }
 
     #[inline(always)]
-    pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
-        self.datasets_of_interest().filter_map(|dataset_of_interest| {
-            RelativePathAndSnapMounts::new(
-                self.config,
-                self.path_data,
-                self.relative_path,
-                dataset_of_interest,
-            )
-        })
+    pub fn as_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
+        self.datasets_of_interest()
+            .filter_map(|dataset_of_interest| {
+                RelativePathAndSnapMounts::new(
+                    self.config,
+                    self.path_data,
+                    self.relative_path,
+                    dataset_of_interest,
+                )
+            })
     }
 }
 
@@ -455,7 +463,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
             }
             _ if (self.path_data.httm_is_dir::<PathData>()
-                || versions.iter().all(super::super::library::utility::HttmIsDir::httm_is_dir::<PathData>)) =>
+                || versions
+                    .iter()
+                    .all(super::super::library::utility::HttmIsDir::httm_is_dir::<PathData>)) =>
             {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
             }

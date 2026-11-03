@@ -43,7 +43,7 @@ impl PruneSnaps {
             false
         };
 
-        InteractivePrune::new(&snap_name_map, select_mode)
+        InteractivePrune::exec(&snap_name_map, select_mode)
     }
 
     fn prune(snap_name_map: &SnapNameMap) -> HttmResult<()> {
@@ -57,7 +57,7 @@ impl PruneSnaps {
 struct InteractivePrune;
 
 impl InteractivePrune {
-    fn new(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
+    fn exec(snap_name_map: &SnapNameMap, select_mode: bool) -> HttmResult<()> {
         let file_names_string: String =
             snap_name_map.keys().fold(String::new(), |mut buffer, key| {
                 buffer += format!("{:?}\n", key.path()).as_str();
@@ -69,10 +69,7 @@ impl InteractivePrune {
             let view_mode = ViewMode::Select(None);
             view_mode.view_buffer(&buffer, MultiSelect::On)?
         } else {
-            snap_name_map
-                .values()
-                .flatten().cloned()
-                .collect()
+            snap_name_map.values().flatten().cloned().collect()
         };
 
         let snap_names_string: String = snap_names
@@ -95,7 +92,8 @@ impl InteractivePrune {
 
             let selection = view_mode.view_buffer(&prune_buffer, MultiSelect::Off)?;
 
-            let user_consent = selection.first()
+            let user_consent = selection
+                .first()
                 .ok_or_else(|| HttmError::new("Could not obtain the first match selected"))?;
 
             match user_consent.to_ascii_uppercase().as_ref() {

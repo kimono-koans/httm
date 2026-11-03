@@ -764,10 +764,11 @@ impl TryFrom<&ArgMatches> for Config {
         };
 
         if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion
-            && let PrintMode::Formatted(FormattedMode::Default) = print_mode {
-                return HttmError::new("NO_SNAP is only available if RAW or ZEROS are specified.")
-                    .into();
-            }
+            && let PrintMode::Formatted(FormattedMode::Default) = print_mode
+        {
+            return HttmError::new("NO_SNAP is only available if RAW or ZEROS are specified.")
+                .into();
+        }
 
         // force a raw mode if one is not set for no_snap mode
         let opt_one_filesystem = matches.get_flag("ONE_FILESYSTEM");
@@ -1072,8 +1073,9 @@ impl Config {
                     // but what about snapshot paths?
                     // here we strip the additional snapshot VFS bits and make them look like live versions
                     match ZfsSnapPathGuard::new(&pd) {
-                        Some(spd) if !matches!(exec_mode, ExecMode::MountsForFiles(_)) => spd
-                            .live_path().map_or_else(|| pd, std::convert::Into::into),
+                        Some(spd) if !matches!(exec_mode, ExecMode::MountsForFiles(_)) => {
+                            spd.live_path().map_or_else(|| pd, std::convert::Into::into)
+                        }
                         _ => pd,
                     }
                 })
@@ -1260,7 +1262,9 @@ impl ListSnapsFilters {
         let mut rest: Vec<&str> = raw.collect();
 
         let omit_num_snaps = if let Some(value) = opt_number {
-            if let Ok(number) = value.parse::<usize>() { number } else {
+            if let Ok(number) = value.parse::<usize>() {
+                number
+            } else {
                 rest = config_string.trim_end().split(',').collect();
                 0usize
             }
@@ -1268,9 +1272,7 @@ impl ListSnapsFilters {
             0usize
         };
 
-        let name_filters = if rest.is_empty() {
-            None
-        } else if rest.len() == 1usize && rest.index(0) == &"none" {
+        let name_filters = if rest.is_empty() || rest.len() == 1usize && rest.index(0) == &"none" {
             None
         } else if rest.len() == 1usize && rest.index(0) == &"native" {
             Some(

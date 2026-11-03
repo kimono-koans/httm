@@ -15,23 +15,49 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed wth this source code.
 
-use crate::library::results::{HttmError, HttmResult};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use crate::library::utility::get_mount_command;
 use crate::{
-    BACKUPS_OF, BTRFS_SNAPPER_HIDDEN_DIRECTORY, GLOBAL_CONFIG, NILFS2_SNAPSHOT_ID_KEY,
-    RESTIC_LATEST_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL, TM_DIR_REMOTE, ZFS_HIDDEN_DIRECTORY,
+    BACKUPS_OF,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    GLOBAL_CONFIG,
+    NILFS2_SNAPSHOT_ID_KEY,
+    RESTIC_LATEST_SNAPSHOT_DIRECTORY,
+    TM_DIR_LOCAL,
+    TM_DIR_REMOTE,
+    ZFS_HIDDEN_DIRECTORY,
     ZFS_SNAPSHOT_DIRECTORY,
 };
-use hashbrown::{HashMap, HashSet};
-use itertools::Either;
-use itertools::Itertools;
+use hashbrown::{
+    HashMap,
+    HashSet,
+};
+use itertools::{
+    Either,
+    Itertools,
+};
 use proc_mounts::MountIter;
-use realpath_ext::{RealpathFlags, realpath};
-use std::ops::Deref;
-use std::ops::DerefMut;
-use std::path::{Path, PathBuf};
+use realpath_ext::{
+    RealpathFlags,
+    realpath,
+};
+use std::ops::{
+    Deref,
+    DerefMut,
+};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::process::Command as ExecProcess;
-use std::sync::{Arc, LazyLock, OnceLock};
+use std::sync::{
+    Arc,
+    LazyLock,
+    OnceLock,
+};
 
 pub const ZFS_FSTYPE: &str = "zfs";
 pub const NILFS2_FSTYPE: &str = "nilfs2";
@@ -98,6 +124,12 @@ pub struct DatasetMetadata {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDirs {
     inner: HashSet<Arc<Path>>,
+}
+
+impl From<HashSet<Arc<Path>>> for FilterDirs {
+    fn from(value: HashSet<Arc<Path>>) -> Self {
+        Self { inner: value }
+    }
 }
 
 impl Deref for FilterDirs {
@@ -205,24 +237,12 @@ impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
     pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
-        let (raw_datasets, filter_dirs_set) = if PROC_MOUNTS.exists() {
+        let (map_of_datasets, filter_dirs) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNT_TAB.exists() {
             Self::from_file(&ETC_MNT_TAB, opt_alt_store)?
         } else {
             Self::from_mount_cmd(opt_alt_store)?
-        };
-
-        let map_of_datasets = {
-            MapOfDatasets {
-                inner: raw_datasets,
-            }
-        };
-
-        let filter_dirs = {
-            FilterDirs {
-                inner: filter_dirs_set,
-            }
         };
 
         Ok(BaseFilesystemInfo {
@@ -236,7 +256,7 @@ impl BaseFilesystemInfo {
     fn from_file(
         path: &Path,
         opt_alt_store: &Option<FilesystemType>,
-    ) -> HttmResult<(HashMap<Arc<Path>, DatasetMetadata>, HashSet<Arc<Path>>)> {
+    ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
         let (map_of_datasets, filter_dirs): (
@@ -349,14 +369,14 @@ impl BaseFilesystemInfo {
                 _ => Either::Right(dest_path),
             });
 
-        Ok((map_of_datasets, filter_dirs))
+        Ok((map_of_datasets.into(), filter_dirs.into()))
     }
 
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
     fn from_mount_cmd(
         opt_alt_store: &Option<FilesystemType>,
-    ) -> HttmResult<(HashMap<Arc<Path>, DatasetMetadata>, HashSet<Arc<Path>>)> {
+    ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors
         let mount_command = get_mount_command()?;
@@ -458,10 +478,10 @@ impl BaseFilesystemInfo {
                 },
             );
 
-        Ok((map_of_datasets, filter_dirs))
+        Ok((map_of_datasets.into(), filter_dirs.into()))
     }
 
-    pub fn from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
+    pub fn append_from_blob_repo(&mut self, repo_type: &FilesystemType) -> HttmResult<()> {
         let metadata = match repo_type {
             FilesystemType::Restic(_) => {
                 let retained_keys: Vec<Box<Path>> = self

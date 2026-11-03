@@ -158,7 +158,7 @@ impl Ord for BasicDirEntryInfo {
 
 impl PartialOrd for BasicDirEntryInfo {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.path.cmp(&other.path))
+        Some(self.cmp(other))
     }
 }
 
@@ -210,9 +210,10 @@ impl BasicDirEntryInfo {
         }
 
         if let Some(file_type) = self.opt_filetype()
-            && file_type.is_dir() {
-                return !self.is_path_excluded();
-            }
+            && file_type.is_dir()
+        {
+            return !self.is_path_excluded();
+        }
 
         true
     }
@@ -231,15 +232,17 @@ impl BasicDirEntryInfo {
 
         // is a common btrfs snapshot dir?
         if let Some(common_snap_dir) = OPT_COMMON_SNAP_DIR.as_deref()
-            && path == common_snap_dir {
-                return true;
-            }
+            && path == common_snap_dir
+        {
+            return true;
+        }
 
         // check whether user requested this dir specifically, then we will show
         if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref()
-            && user_requested_dir.as_ref() == path {
-                return false;
-            }
+            && user_requested_dir.as_ref() == path
+        {
+            return false;
+        }
 
         #[cfg(target_os = "macos")]
         {
@@ -266,11 +269,17 @@ pub trait PathDeconstruction<'a> {
 }
 
 // detailed info required to differentiate and display file versions
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 pub struct PathData {
     path_buf: Box<Path>,
     opt_path_metadata: Option<Box<PathMetadata>>,
     opt_filetype: Option<FileType>,
+}
+
+impl Hash for PathData {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.path().hash(state)
+    }
 }
 
 impl PartialEq for PathData {
@@ -284,7 +293,7 @@ impl Eq for PathData {}
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
-        Some(self.path().cmp(other.path()))
+        Some(self.cmp(other))
     }
 }
 
@@ -349,9 +358,7 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
 
-        let opt_path_metadata = opt_metadata
-            .and_then(PathMetadata::new)
-            .map(Box::from);
+        let opt_path_metadata = opt_metadata.and_then(PathMetadata::new).map(Box::from);
 
         Self {
             path_buf: path.into(),
@@ -674,7 +681,7 @@ impl Serialize for PathMetadata {
     }
 }
 
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug)]
 pub struct PathMetadata {
     size: u64,
     inode: u64,
@@ -733,11 +740,18 @@ impl PathMetadata {
     }
 }
 
+impl Hash for PathMetadata {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.size.hash(state);
+        self.modify_time.hash(state);
+    }
+}
+
 impl Eq for PathMetadata {}
 
 impl PartialEq for PathMetadata {
     fn eq(&self, other: &Self) -> bool {
-        self.modify_time == other.modify_time && self.size == other.size
+        self.size == other.size && self.modify_time == other.modify_time
     }
 }
 
