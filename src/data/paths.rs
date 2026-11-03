@@ -272,7 +272,7 @@ pub trait PathDeconstruction<'a> {
 #[derive(Clone, Debug, Hash)]
 pub struct PathData {
     path_buf: Box<Path>,
-    opt_path_metadata: Box<Option<PathMetadata>>,
+    opt_path_metadata: Option<Box<PathMetadata>>,
     opt_filetype: Option<FileType>,
 }
 
@@ -321,11 +321,13 @@ impl From<&SelectionCandidate> for PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let opt_metadata = selection_candidate.path().symlink_metadata().ok();
         let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
-        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
+        let opt_path_metadata = opt_metadata
+            .and_then(|md| PathMetadata::new(&md))
+            .map(|inner| Box::from(inner));
 
         PathData {
             path_buf: selection_candidate.path().into(),
-            opt_path_metadata: opt_path_metadata.into(),
+            opt_path_metadata: opt_path_metadata,
             opt_filetype,
         }
     }
@@ -350,11 +352,13 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
 
-        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
+        let opt_path_metadata = opt_metadata
+            .and_then(|md| PathMetadata::new(&md))
+            .map(|inner| Box::from(inner));
 
         Self {
             path_buf: path.into(),
-            opt_path_metadata: opt_path_metadata.into(),
+            opt_path_metadata,
             opt_filetype,
         }
     }
@@ -363,11 +367,12 @@ impl PathData {
     pub fn without_styling(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let opt_path_metadata = opt_metadata
             .or_else(|| path.symlink_metadata().ok())
-            .and_then(|md| PathMetadata::new(&md));
+            .and_then(|md| PathMetadata::new(&md))
+            .map(|inner| Box::from(inner));
 
         Self {
             path_buf: path.into(),
-            opt_path_metadata: opt_path_metadata.into(),
+            opt_path_metadata: opt_path_metadata,
             opt_filetype: None,
         }
     }
@@ -381,8 +386,8 @@ impl PathData {
         ENV_LS_COLORS.style_for_path_with_metadata(&path, path.symlink_metadata().ok().as_ref())
     }
 
-    pub fn opt_path_metadata(&self) -> Option<PathMetadata> {
-        *self.opt_path_metadata
+    pub fn opt_path_metadata(&self) -> Option<&PathMetadata> {
+        self.opt_path_metadata.as_deref()
     }
 
     pub fn opt_filetype(&self) -> Option<FileType> {
@@ -392,8 +397,10 @@ impl PathData {
 
     #[inline(always)]
     pub fn metadata_infallible(&self) -> PathMetadata {
-        self.opt_path_metadata
-            .unwrap_or_else(|| PHANTOM_PATH_METADATA)
+        *self
+            .opt_path_metadata
+            .as_deref()
+            .unwrap_or_else(|| &PHANTOM_PATH_METADATA)
     }
 }
 
