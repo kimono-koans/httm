@@ -189,7 +189,7 @@ impl RollForward {
         user_has_effective_root("Roll forward to a snapshot.")?;
 
         let snap_guard: SnapGuard =
-            SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
+            SnapGuard::new(&self.dataset, &PrecautionarySnapType::PreRollForward)?;
 
         match self.directory_lock.wrap_function(|| self.roll_forward()) {
             Ok(()) => {
@@ -202,7 +202,7 @@ impl RollForward {
 
         SnapGuard::new(
             &self.dataset,
-            PrecautionarySnapType::PostRollForward(self.snap.clone()),
+            &PrecautionarySnapType::PostRollForward(self.snap.clone()),
         )?;
 
         Ok(())

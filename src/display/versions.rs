@@ -69,7 +69,7 @@ static PHANTOM_DATE_PAD_STR: LazyLock<String> = LazyLock::new(|| {
         width = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
             &PHANTOM_DATE,
-            DateFormat::Display
+            &DateFormat::Display
         )
         .chars()
         .count()
@@ -221,7 +221,7 @@ impl PathData {
                 let display_date = Cow::Owned(date_string(
                     config.requested_utc_offset,
                     &metadata.mtime(),
-                    DateFormat::Display,
+                    &DateFormat::Display,
                 ));
 
                 (size, display_date)
@@ -318,7 +318,7 @@ impl PathData {
             RawMode::Csv => match self.opt_path_metadata() {
                 Some(md) => {
                     let date =
-                        date_string(requested_utc_offset, &md.mtime(), DateFormat::Timestamp);
+                        date_string(requested_utc_offset, &md.mtime(), &DateFormat::Timestamp);
 
                     let size = md.size();
 
@@ -359,7 +359,7 @@ impl PaddingCollection {
                     let date = date_string(
                         config.requested_utc_offset,
                         &metadata.mtime(),
-                        DateFormat::Display,
+                        &DateFormat::Display,
                     );
                     let size = format!(
                         "{:>width$}",

@@ -99,7 +99,7 @@ impl SnapshotMounts {
         let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
             &SystemTime::now(),
-            DateFormat::Timestamp,
+            &DateFormat::Timestamp,
         );
 
         let vec_snapshot_names: Vec<String> = mounts_for_files

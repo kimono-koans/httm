@@ -473,8 +473,8 @@ impl<'a> PathDeconstruction<'a> for PathData {
             })
             .ok_or_else(|| {
                 let description = format!(
-                    "httm could not identify any proximate dataset for path: {}",
-                    self.path().display()
+                    "httm could not identify any proximate dataset for path: {:?}",
+                    self.path()
                 );
                 HttmError::from(description).into()
             })
@@ -590,8 +590,8 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             .and_then(|snapshot_name| snapshot_stripped_set.strip_prefix(snapshot_name).ok())
             .ok_or_else(|| {
                 let description = format!(
-                    "httm could not identify any relative path for path: {}",
-                    self.path().display()
+                    "httm could not identify any relative path for path: {:?}",
+                    self.path()
                 );
                 HttmError::from(description).into()
             })
@@ -618,15 +618,15 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             }
             Some(_md) => {
                 eprintln!(
-                    "WARN: {} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.",
-                    self.inner.path().display()
+                    "WARN: {:?} is located on a non-ZFS dataset.  httm can only list snapshot names for ZFS datasets.",
+                    self.inner.path()
                 );
                 None
             }
             _ => {
                 eprintln!(
-                    "WARN: {} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.",
-                    self.inner.path().display()
+                    "WARN: {:?} is not located on a discoverable dataset.  httm can only list snapshot names for ZFS datasets.",
+                    self.inner.path()
                 );
                 None
             }
@@ -670,7 +670,7 @@ impl Serialize for PathMetadata {
             let date = date_string(
                 GLOBAL_CONFIG.requested_utc_offset,
                 &self.modify_time,
-                DateFormat::Display,
+                &DateFormat::Display,
             );
 
             state.serialize_field("size", &size)?;

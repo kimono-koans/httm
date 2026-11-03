@@ -175,16 +175,16 @@ impl Copy {
         } else if is_socket {
             let description = format!(
                 "WARN: Source path could not be copied.  Source path is a socket, and sockets are not considered within the scope of httm.  \
-            Traditionally, sockets could not be copied, and they should always be recreated by the generating daemon, when deleted: \"{}\"",
-                src.display()
+            Traditionally, sockets could not be copied, and they should always be recreated by the generating daemon, when deleted: \"{:?}\"",
+                src
             );
             eprintln!("{description}");
         } else {
             let description = format!(
                 "httm could not determine the source path's file type, and therefore it could not be copied.  \
             The source path was not recognized as a directory, regular file, device, fifo, socket, or symlink.  \
-            Other special file types (like doors and event ports) are unsupported: \"{}\"",
-                src.display()
+            Other special file types (like doors and event ports) are unsupported: \"{:?}\"",
+                src
             );
             return HttmError::from(description).into();
         }

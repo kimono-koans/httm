@@ -213,9 +213,8 @@ impl<'a> HttmCopy<'a> {
         }
 
         let description = format!(
-            "Copy failed.  File contents of {} and {} are NOT the same.",
-            src.display(),
-            dst.display()
+            "Copy failed.  File contents of {:?} and {:?} are NOT the same.",
+            src, dst
         );
 
         HttmError::from(description).into()

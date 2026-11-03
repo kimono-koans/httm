@@ -309,52 +309,49 @@ impl MapOfSnaps {
                 joined
             });
 
-        match opt_snap_mount {
-            // here we check if the path actually exists because of course this is inexact!
-            Some(snap_mount) => {
-                if snap_mount.exists() {
-                    Some(snap_mount)
-                } else {
-                    eprintln!(
-                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
-                    );
-                    None
-                }
+        if let Some(snap_mount) = opt_snap_mount
+        // here we check if the path actually exists because of course this is inexact!
+        {
+            if snap_mount.exists() {
+                Some(snap_mount)
+            } else {
+                eprintln!(
+                    "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
+                );
+                None
             }
-            None => {
-                // btrfs root is different for each device, here, we check to see they have the same device
-                // and when we parse mounts we check to see that they have a subvolid of "5", then we replace
-                // whatever subvol name with a special id: <FS_TREE>
-                let btrfs_root = map_of_datasets
-                    .iter()
-                    .find(|(_mount, metadata)| match &metadata.fs_type {
-                        FilesystemType::Btrfs(Some(additional_data)) => {
-                            metadata.source.as_ref() == base_mount_source
-                                && additional_data.base_subvol.as_ref()
-                                    == BTRFS_ROOT_SUBVOL.as_path()
-                        }
-                        _ => false,
-                    })
-                    .map_or_else(
-                        || Arc::from(ROOT_PATH.as_ref()),
-                        |(mount, _metadata)| mount.to_owned(),
-                    );
+        } else {
+            // btrfs root is different for each device, here, we check to see they have the same device
+            // and when we parse mounts we check to see that they have a subvolid of "5", then we replace
+            // whatever subvol name with a special id: <FS_TREE>
+            let btrfs_root = map_of_datasets
+                .iter()
+                .find(|(_mount, metadata)| match &metadata.fs_type {
+                    FilesystemType::Btrfs(Some(additional_data)) => {
+                        metadata.source.as_ref() == base_mount_source
+                            && additional_data.base_subvol.as_ref() == BTRFS_ROOT_SUBVOL.as_path()
+                    }
+                    _ => false,
+                })
+                .map_or_else(
+                    || Arc::from(ROOT_PATH.as_ref()),
+                    |(mount, _metadata)| mount.to_owned(),
+                );
 
-                let snap_mount = btrfs_root.join(snap_relative);
+            let snap_mount = btrfs_root.join(snap_relative);
 
-                if opt_debug {
-                    eprintln!("DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}");
-                }
+            if opt_debug {
+                eprintln!("DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}");
+            }
 
-                // here we check if the path actually exists because of course this is inexact!
-                if snap_mount.exists() {
-                    Some(snap_mount)
-                } else {
-                    eprintln!(
-                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
-                    );
-                    None
-                }
+            // here we check if the path actually exists because of course this is inexact!
+            if snap_mount.exists() {
+                Some(snap_mount)
+            } else {
+                eprintln!(
+                    "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
+                );
+                None
             }
         }
     }

@@ -337,7 +337,7 @@ static DATE_FORMAT_TIMESTAMP: &str = "[year]-[month]-[day]-[hour]:[minute]:[seco
 pub fn date_string(
     utc_offset: UtcOffset,
     system_time: &SystemTime,
-    date_format: DateFormat,
+    date_format: &DateFormat,
 ) -> String {
     let date_time: OffsetDateTime = (*system_time).into();
 

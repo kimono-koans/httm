@@ -50,7 +50,7 @@ impl TryFrom<&Path> for SnapGuard {
 
         SnapGuard::new(
             &allowed_source.to_string_lossy(),
-            PrecautionarySnapType::PreRestore,
+            &PrecautionarySnapType::PreRestore,
         )
     }
 }
@@ -61,11 +61,11 @@ pub struct SnapGuard {
 }
 
 impl SnapGuard {
-    pub fn new(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
+    pub fn new(dataset_name: &str, snap_type: &PrecautionarySnapType) -> HttmResult<Self> {
         let timestamp = date_string(
             GLOBAL_CONFIG.requested_utc_offset,
             &SystemTime::now(),
-            DateFormat::Timestamp,
+            &DateFormat::Timestamp,
         );
 
         let new_snap_name = match &snap_type {

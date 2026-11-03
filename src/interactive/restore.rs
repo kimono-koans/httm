@@ -93,13 +93,13 @@ impl InteractiveRestore {
         // tell the user what we're up to, and get consent
         let restore_buffer = format!(
             "httm will perform a copy from snapshot:\n\n\
-            \tsource:\t{}\n\
+            \tsource:\t{:?}\n\
             \ttarget:\t{new_file_path_buf:?}\n\n\
             Before httm performs a restore, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO\n",
-            snap_path_data.path().display()
+            snap_path_data.path()
         );
 
         // loop until user consents or doesn't
@@ -140,10 +140,10 @@ impl InteractiveRestore {
 
                     let result_buffer = format!(
                         "httm copied from snapshot:\n\n\
-                            \tsource:\t{}\n\
+                            \tsource:\t{:?}\n\
                             \ttarget:\t{new_file_path_buf:?}\n\n\
                             Restore completed successfully.",
-                        snap_path_data.path().display()
+                        snap_path_data.path()
                     );
 
                     let summary_string = LightYellow.paint(Self::summary_string());
@@ -247,9 +247,10 @@ impl InteractiveRestore {
 
         let Some(snap_metadata) = snap_path_data.opt_path_metadata() else {
             let description = format!(
-                "Source location: {} does not exist on disk Quitting.",
-                snap_path_data.path().display()
+                "Source location: {:?} does not exist on disk Quitting.",
+                snap_path_data.path()
             );
+
             return HttmError::from(description).into();
         };
 
@@ -262,7 +263,7 @@ impl InteractiveRestore {
             + &date_string(
                 GLOBAL_CONFIG.requested_utc_offset,
                 &snap_metadata.mtime(),
-                DateFormat::Timestamp,
+                &DateFormat::Timestamp,
             );
         let new_file_dir = GLOBAL_CONFIG.pwd.as_ref();
         let new_file_path_buf: PathBuf = new_file_dir.join(new_filename);
