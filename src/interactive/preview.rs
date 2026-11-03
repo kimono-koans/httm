@@ -30,7 +30,7 @@ pub struct PreviewSelection {
 }
 
 impl PreviewSelection {
-    pub fn opt_preview_window(&self) -> PreviewLayout {
+    pub fn opt_preview_window() -> PreviewLayout {
         PreviewLayout {
             direction: skim::tui::Direction::Up,
             size: skim::tui::Size::Percent(50),

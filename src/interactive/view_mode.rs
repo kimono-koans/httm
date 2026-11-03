@@ -80,7 +80,7 @@ impl ViewMode {
 
         // build our browse view - less to do than before - no previews, looking through one 'lil buffer
         if let Some(command) = preview_selection.opt_preview_command() {
-            opts.preview_window(preview_selection.opt_preview_window())
+            opts.preview_window(PreviewSelection::opt_preview_window())
                 .preview(command);
         }
 

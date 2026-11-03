@@ -157,9 +157,7 @@ pub struct RollForward {
 
 impl RollForward {
     pub fn new(full_snap_name: &str) -> HttmResult<Self> {
-        let (dataset, snap) = if let Some(res) = full_snap_name.split_once('@') {
-            res
-        } else {
+        let Some((dataset, snap)) = full_snap_name.split_once('@') else {
             let description = format!(
                 "\"{full_snap_name}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name."
             );

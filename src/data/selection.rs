@@ -127,7 +127,7 @@ impl SelectionCandidate {
         Ok(output_buf)
     }
 
-    fn fail_notice(err: HttmGenericErrorWrapper) -> String {
+    fn fail_notice(err: &HttmGenericErrorWrapper) -> String {
         format!("{PREVIEW_FAILURE_NOTICE}\nERROR: {err}\n--")
     }
 }
@@ -177,7 +177,7 @@ impl SkimItem for SelectionCandidate {
                 rayon::spawn(move || {
                     let preview_output = cloned
                         .preview_view()
-                        .unwrap_or_else(SelectionCandidate::fail_notice);
+                        .unwrap_or_else(|err| SelectionCandidate::fail_notice(&err));
                     let _ = s.send(preview_output);
                 });
 
@@ -197,14 +197,14 @@ impl SkimItem for SelectionCandidate {
                 .inspect(|_res| {
                     let _ = locked.remove_entry(&pathdata);
                 })
-                .unwrap_or_else(SelectionCandidate::fail_notice);
+                .unwrap_or_else(|err| SelectionCandidate::fail_notice(&err));
 
             return skim::ItemPreview::AnsiText(preview_output);
         }
 
         let preview_output = self
             .preview_view()
-            .unwrap_or_else(SelectionCandidate::fail_notice);
+            .unwrap_or_else(|err| SelectionCandidate::fail_notice(&err));
 
         skim::ItemPreview::AnsiText(preview_output)
     }

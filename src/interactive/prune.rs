@@ -72,10 +72,11 @@ impl InteractivePrune {
             snap_name_map.values().flatten().cloned().collect()
         };
 
-        let snap_names_string: String = snap_names
-            .into_iter()
-            .map(|name| format!("{name}\n"))
-            .collect();
+        let snap_names_string: String =
+            snap_names.into_iter().fold(String::new(), |mut acc, name| {
+                acc.push_str(&name);
+                acc
+            });
 
         let prune_buffer = format!(
             "User has requested snapshots related to the following file/s be pruned:\n\n{file_names_string}\n\

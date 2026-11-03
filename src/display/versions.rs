@@ -43,7 +43,10 @@ use crate::{
 };
 use nu_ansi_term::AnsiGenericString;
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{
+    Debug,
+    Write,
+};
 use std::ops::Deref;
 use std::sync::LazyLock;
 use terminal_size::{
@@ -178,7 +181,7 @@ impl<'a> DisplaySet<'a> {
                                 if warning_len > border_len {
                                     let diff = warning_len - border_len;
                                     let mut new_border = border.trim_end().to_string();
-                                    new_border += &format!("{:─<diff$}\n", "");
+                                    let _ = write!(new_border, "{:─<diff$}\n", "");
                                     border = new_border.into();
                                 }
 

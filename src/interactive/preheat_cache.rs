@@ -54,23 +54,20 @@ impl PreheatCache {
 
         let inner = self.clone();
 
-        rayon::spawn(move || {
-            match inner.set.write() {
-                Ok(mut map) => map.clear(),
-                Err(_err) => {
-                    inner.set.clear_poison();
-                }
+        rayon::spawn(move || match inner.set.write() {
+            Ok(mut map) => map.clear(),
+            Err(_err) => {
+                inner.set.clear_poison();
             }
         });
     }
 
     #[inline]
     pub fn exec(self: &Arc<Self>, bundle: &RelativePathAndSnapMounts) {
-        if self
-            .set
-            .try_read()
-            .ok().map_or_else(|| true, |cached_result| cached_result.contains(bundle.dataset_of_interest()))
-        {
+        if self.set.try_read().ok().map_or_else(
+            || true,
+            |cached_result| cached_result.contains(bundle.dataset_of_interest()),
+        ) {
             return;
         }
 
@@ -110,7 +107,6 @@ impl PreheatCache {
                         }
                         std::thread::sleep(Duration::from_millis(backoff));
                         backoff *= 2;
-                        continue;
                     }
                 }
             };
@@ -158,7 +154,8 @@ impl PreheatCache {
                     .ok()
                     .map(std::borrow::ToOwned::to_owned)
             })
-            .filter(|parent_dataset| parent_dataset != proximate_dataset) {
+            .filter(|parent_dataset| parent_dataset != proximate_dataset)
+        {
             res.push(parent_dataset);
         }
 
@@ -175,7 +172,11 @@ impl PreheatCache {
                     .map(|path| PathData::without_styling(&path, None)),
                 _ => None,
             })
-            .filter_map(|pd| pd.proximate_dataset().ok().map(std::borrow::ToOwned::to_owned))
+            .filter_map(|pd| {
+                pd.proximate_dataset()
+                    .ok()
+                    .map(std::borrow::ToOwned::to_owned)
+            })
             .filter(|parent_dataset| parent_dataset != proximate_dataset);
 
         res.extend(dir_iter);
