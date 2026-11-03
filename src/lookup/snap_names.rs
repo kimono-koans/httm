@@ -46,7 +46,7 @@ impl Deref for SnapNameMap {
 impl SnapNameMap {
     pub fn new(
         versions_map: VersionsMap,
-        opt_filters: &Option<ListSnapsFilters>,
+        opt_filters: Option<&ListSnapsFilters>,
     ) -> HttmResult<Self> {
         let inner: HashMap<PathData, Vec<String>> = versions_map
             .iter()

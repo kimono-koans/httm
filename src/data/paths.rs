@@ -340,7 +340,7 @@ impl From<&SelectionCandidate> for PathData {
 }
 
 impl PathData {
-    #[inline(always)]
+    #[inline]
     pub fn new(path: &Path) -> Self {
         let canonical_path =
             realpath(path, RealpathFlags::ALLOW_MISSING).unwrap_or_else(|_| path.to_path_buf());
@@ -350,7 +350,7 @@ impl PathData {
         Self::with_metadata(&canonical_path, opt_metadata.as_ref())
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn with_metadata(path: &Path, opt_metadata: Option<&Metadata>) -> Self {
         // canonicalize() on any path that DNE will throw an error
         //
@@ -367,7 +367,7 @@ impl PathData {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn without_styling(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let opt_path_metadata = opt_metadata
             .or_else(|| path.symlink_metadata().ok())
@@ -399,7 +399,7 @@ impl PathData {
             .or_else(|| self.path().symlink_metadata().ok().map(|md| md.file_type()))
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn metadata_infallible(&self) -> PathMetadata {
         *self
             .opt_path_metadata
@@ -432,7 +432,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
         Some(self.path().into())
     }
 
-    #[inline(always)]
+    #[inline]
     fn relative_path(&'a self, proximate_dataset_mount: &Path) -> HttmResult<&'a Path> {
         // path strip, if aliased
         // fallback if unable to find an alias or strip a prefix
@@ -457,7 +457,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
             .map(|md| md.source.clone())
     }
 
-    #[inline(always)]
+    #[inline]
     fn proximate_dataset(&'a self) -> HttmResult<&'a Path> {
         // for /usr/bin, we prefer the most proximate: /usr/bin to /usr and /
         // ancestors() iterates in this top-down order, when a value: dataset/fstype is available
@@ -692,7 +692,7 @@ pub struct PathMetadata {
 
 impl PathMetadata {
     // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    #[inline(always)]
+    #[inline]
     pub fn new(md: &Metadata) -> Option<Self> {
         // may fail on systems that don't collect a modify time
         let modify_time = md.modified().ok()?;
@@ -711,30 +711,30 @@ impl PathMetadata {
 
     // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
     // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
-    #[inline(always)]
+    #[inline]
     pub fn mtime(&self) -> SystemTime {
         self.modify_time
     }
 
     #[allow(dead_code)]
-    #[inline(always)]
+    #[inline]
     pub fn btime(&self) -> SystemTime {
         self.birth_time
     }
 
     #[allow(dead_code)]
-    #[inline(always)]
+    #[inline]
     pub fn inode(&self) -> u64 {
         self.inode
     }
 
     #[allow(dead_code)]
-    #[inline(always)]
+    #[inline]
     pub fn dev(&self) -> u64 {
         self.dev
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn size(&self) -> u64 {
         self.size
     }
@@ -756,14 +756,14 @@ impl PartialEq for PathMetadata {
 }
 
 impl PartialOrd for PathMetadata {
-    #[inline(always)]
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for PathMetadata {
-    #[inline(always)]
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         let time_order: Ordering = self.mtime().cmp(&other.mtime());
 
@@ -805,14 +805,14 @@ impl PartialEq for CompareContentsContainer {
 }
 
 impl PartialOrd for CompareContentsContainer {
-    #[inline(always)]
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for CompareContentsContainer {
-    #[inline(always)]
+    #[inline]
     // reverse normal ordering because comparisons should be size first here
     fn cmp(&self, other: &Self) -> Ordering {
         let size_order: Ordering = self.size().cmp(&other.size());
@@ -846,14 +846,14 @@ impl Ord for CompareContentsContainer {
 }
 
 impl From<CompareContentsContainer> for PathData {
-    #[inline(always)]
+    #[inline]
     fn from(value: CompareContentsContainer) -> Self {
         value.path_data
     }
 }
 
 impl From<PathData> for CompareContentsContainer {
-    #[inline(always)]
+    #[inline]
     fn from(path_data: PathData) -> Self {
         Self {
             path_data,
@@ -864,37 +864,37 @@ impl From<PathData> for CompareContentsContainer {
 
 impl CompareContentsContainer {
     #[allow(unused)]
-    #[inline(always)]
+    #[inline]
     pub fn mtime(&self) -> SystemTime {
         self.path_data.metadata_infallible().modify_time
     }
 
     #[allow(unused)]
-    #[inline(always)]
+    #[inline]
     pub fn btime(&self) -> SystemTime {
         self.path_data.metadata_infallible().birth_time
     }
 
     #[allow(unused)]
-    #[inline(always)]
+    #[inline]
     pub fn inode(&self) -> u64 {
         self.path_data.metadata_infallible().inode
     }
 
     #[allow(unused)]
-    #[inline(always)]
+    #[inline]
     pub fn dev(&self) -> u64 {
         self.path_data.metadata_infallible().dev
     }
 
     #[allow(unused)]
-    #[inline(always)]
+    #[inline]
     pub fn size(&self) -> u64 {
         self.path_data.metadata_infallible().size
     }
 
     #[allow(unused)]
-    #[inline(always)]
+    #[inline]
     pub fn metadata_infallible(&self) -> PathMetadata {
         self.path_data.metadata_infallible()
     }

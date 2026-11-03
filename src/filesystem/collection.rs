@@ -56,10 +56,10 @@ impl FilesystemInfo {
         opt_remote_dir: Option<&String>,
         opt_local_dir: Option<&String>,
         opt_raw_aliases: Option<Vec<Cow<str>>>,
-        opt_alt_store: Option<FilesystemType>,
+        opt_alt_store: Option<&FilesystemType>,
         pwd: &Path,
     ) -> HttmResult<FilesystemInfo> {
-        let mut base_fs_info = BaseFilesystemInfo::new(&opt_alt_store)?;
+        let mut base_fs_info = BaseFilesystemInfo::new(opt_alt_store)?;
 
         // only create a map of aliases if necessary (aliases conflicts with alt stores)
         let opt_map_of_aliases = if opt_raw_aliases.is_none() && opt_remote_dir.is_none() {
@@ -78,7 +78,7 @@ impl FilesystemInfo {
         let mut opt_alt_store = opt_alt_store;
 
         match opt_alt_store {
-            Some(ref repo_type) => {
+            Some(repo_type) => {
                 base_fs_info.append_from_blob_repo(repo_type)?;
             }
             None // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
@@ -93,7 +93,7 @@ impl FilesystemInfo {
                     .all(|(_k, md)| md.link_type == LinkType::Network)
                     && opt_map_of_aliases.is_none())
                 {
-                    opt_alt_store.replace(FilesystemType::Apfs);
+                    opt_alt_store.replace(&FilesystemType::Apfs);
                     base_fs_info.append_from_blob_repo(&FilesystemType::Apfs)?;
                 } else {
                     return HttmError::new("httm could not find any valid datasets on the system.")
@@ -115,7 +115,7 @@ impl FilesystemInfo {
             filter_dirs: base_fs_info.filter_dirs,
             opt_map_of_alts,
             opt_map_of_aliases,
-            opt_alt_store,
+            opt_alt_store: opt_alt_store.cloned(),
         })
     }
 

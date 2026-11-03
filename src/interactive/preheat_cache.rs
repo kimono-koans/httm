@@ -64,7 +64,7 @@ impl PreheatCache {
         });
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn exec(self: &Arc<Self>, bundle: &RelativePathAndSnapMounts) {
         if self
             .set
@@ -138,7 +138,7 @@ impl PreheatCache {
         });
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn proximate_plus_parent_and_top_level(
         pathdata: &PathData,
         proximate_dataset: &Path,

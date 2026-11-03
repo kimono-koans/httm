@@ -67,12 +67,12 @@ impl DeletedFiles {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn into_inner(self) -> HashSet<BasicDirEntryInfo> {
         self.inner
     }
 
-    #[inline(always)]
+    #[inline]
     fn prune_live_paths(deleted_files: &mut HashSet<BasicDirEntryInfo>, requested_dir: &Path) {
         if let Ok(read_dir) = std::fs::read_dir(requested_dir) {
             // SAFETY: Files in a single directory have unique file names
@@ -89,7 +89,7 @@ impl DeletedFiles {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn unique_filenames_from_snapshots(requested_dir: &Path) -> Option<HashSet<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
@@ -122,7 +122,7 @@ impl DeletedFiles {
         Some(pseudo_live_versions)
     }
 
-    #[inline(always)]
+    #[inline]
     fn unique_filenames_from_snap_mount<'a>(
         pseudo_live_dir: &'a Path,
         search_bundle: &'a RelativePathAndSnapMounts<'a>,
@@ -153,7 +153,7 @@ impl DeletedFiles {
     // this function creates dummy "live versions" values to match deleted files
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
-    #[inline(always)]
+    #[inline]
     fn into_pseudo_live_version(
         file_name: &OsStr,
         pseudo_live_dir: &Path,

@@ -147,9 +147,10 @@ impl CommonSearch for RecursiveSearch<'_> {
     fn entry_is_dir(&mut self, entry: &BasicDirEntryInfo) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
         if GLOBAL_CONFIG.opt_no_traverse
-            && let Some(file_type) = entry.opt_filetype() {
-                return file_type.is_dir();
-            }
+            && let Some(file_type) = entry.opt_filetype()
+        {
+            return file_type.is_dir();
+        }
 
         entry.httm_is_dir::<BasicDirEntryInfo>() && self.entry_not_previously_displayed(entry)
     }
@@ -220,7 +221,7 @@ pub trait CommonSearch {
     fn path_provenance(&self) -> PathProvenance;
 
     // deleted file search for all modes
-    #[inline(always)]
+    #[inline]
     fn enter_directory(
         &mut self,
         requested_dir: &Path,
@@ -375,7 +376,10 @@ pub struct UniqueInode {
 
 impl UniqueInode {
     fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
-        if entry.opt_filetype().is_some_and(std::fs::FileType::is_symlink) {
+        if entry
+            .opt_filetype()
+            .is_some_and(std::fs::FileType::is_symlink)
+        {
             return entry.path().metadata().ok().map(|md| Self {
                 ino: md.ino(),
                 dev: md.dev(),

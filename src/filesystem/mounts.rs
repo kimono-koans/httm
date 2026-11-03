@@ -236,7 +236,7 @@ pub struct BaseFilesystemInfo {
 impl BaseFilesystemInfo {
     // divide by the type of system we are on
     // Linux allows us the read proc mounts
-    pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
+    pub fn new(opt_alt_store: Option<&FilesystemType>) -> HttmResult<Self> {
         let (map_of_datasets, filter_dirs) = if PROC_MOUNTS.exists() {
             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
         } else if ETC_MNT_TAB.exists() {
@@ -255,7 +255,7 @@ impl BaseFilesystemInfo {
     // for instance, allows us to read subvolumes mounts, like "/@" or "/@home"
     fn from_file(
         path: &Path,
-        opt_alt_store: &Option<FilesystemType>,
+        opt_alt_store: Option<&FilesystemType>,
     ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
@@ -375,7 +375,7 @@ impl BaseFilesystemInfo {
     // old fashioned parsing for non-Linux systems, nearly as fast, works everywhere with a mount command
     // both methods are much faster than using zfs command
     fn from_mount_cmd(
-        opt_alt_store: &Option<FilesystemType>,
+        opt_alt_store: Option<&FilesystemType>,
     ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
         // do we have the necessary commands for search if user has not defined a snap point?
         // if so run the mount search, if not print some errors

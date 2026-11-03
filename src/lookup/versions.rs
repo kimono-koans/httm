@@ -123,7 +123,7 @@ impl VersionsMap {
         Ok(versions_map)
     }
 
-    #[inline(always)]
+    #[inline]
     fn from_many_paths(config: &Config, path_set: &[PathData]) -> HashMap<PathData, Vec<PathData>> {
         path_set
             .par_iter()
@@ -132,7 +132,7 @@ impl VersionsMap {
             .collect()
     }
 
-    #[inline(always)]
+    #[inline]
     fn from_one_path(config: &Config, path_data: &PathData) -> Option<Versions> {
         match Versions::new(config, path_data) {
             Ok(versions) => Some(versions),
@@ -167,7 +167,7 @@ pub struct Versions {
 }
 
 impl Versions {
-    #[inline(always)]
+    #[inline]
     pub fn new(config: &Config, path_data: &PathData) -> HttmResult<Self> {
         let prox_opt_alts = ProximateDatasetAndOptAlts::new(config, path_data)?;
         let path_data_key = prox_opt_alts.path_data.clone();
@@ -204,12 +204,12 @@ impl Versions {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn into_inner(self) -> (PathData, Vec<PathData>) {
         (self.path_data_key, self.snap_versions)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn is_live_version_redundant(&self) -> bool {
         if let Some(last_snap) = self.snap_versions.last() {
             return last_snap.metadata_infallible() == self.path_data_key.metadata_infallible();
@@ -218,14 +218,14 @@ impl Versions {
         false
     }
 
-    #[inline(always)]
+    #[inline]
     fn omit_ditto(&mut self) {
         if self.is_live_version_redundant() {
             self.snap_versions.pop();
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn last_snap(&mut self, last_snap_mode: &LastSnapMode) {
         self.snap_versions = match self.snap_versions.last() {
             // if last() is some, then should be able to unwrap pop()
@@ -263,7 +263,7 @@ pub struct ProximateDatasetAndOptAlts<'a> {
 }
 
 impl<'a> ProximateDatasetAndOptAlts<'a> {
-    #[inline(always)]
+    #[inline]
     pub fn new(config: &'a Config, path_data: &'a PathData) -> HttmResult<Self> {
         // here, we take our file path and get back possibly multiple ZFS dataset mountpoints
         // and our most proximate dataset mount point (which is always the same) for
@@ -308,17 +308,17 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         })
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn path_data(&self) -> &PathData {
         self.path_data
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn proximate_dataset(&self) -> &Path {
         self.proximate_dataset
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
         let alts = self
             .opt_alts
@@ -331,7 +331,7 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
         alts.chain(base)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn as_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
         self.datasets_of_interest()
             .filter_map(|dataset_of_interest| {
@@ -355,7 +355,7 @@ pub struct RelativePathAndSnapMounts<'a> {
 }
 
 impl<'a> RelativePathAndSnapMounts<'a> {
-    #[inline(always)]
+    #[inline]
     pub fn new(
         config: &'a Config,
         path_data: &'a PathData,
@@ -398,32 +398,32 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .map(|snap_mounts| Cow::Borrowed(snap_mounts.as_slice()))
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn snap_mounts(&'a self) -> &'a [Box<Path>] {
         &self.snap_mounts
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn relative_path(&'a self) -> &'a Path {
         self.relative_path
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn dataset_of_interest(&'a self) -> &'a Path {
         self.dataset_of_interest
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn config(&'a self) -> &'a Config {
         self.config
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn path_data(&'a self) -> &'a PathData {
         self.path_data
     }
 
-    #[inline(always)]
+    #[inline]
     fn match_metadata(&self, joined_path: PathBuf) -> Option<PathData> {
         match joined_path.symlink_metadata() {
             Ok(md) => {
@@ -451,7 +451,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
         let mut versions = self.all_versions();
 
@@ -480,7 +480,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         versions
     }
 
-    #[inline(always)]
+    #[inline]
     fn all_versions(&'a self) -> Vec<PathData> {
         // get the DirEntry for our snapshot path which will have all our possible
         // snapshots, like so: .zfs/snapshots/<some snap name>/
@@ -498,7 +498,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .collect::<Vec<PathData>>()
     }
 
-    #[inline(always)]
+    #[inline]
     fn sort_dedup_versions(vec: &mut Vec<PathData>, dedup_by: &DedupBy) {
         match dedup_by {
             DedupBy::Disable => {

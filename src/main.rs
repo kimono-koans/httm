@@ -233,7 +233,7 @@ impl HttmProcess {
             ExecMode::SnapFileMount(snapshot_suffix) => SnapshotMounts::exec(snapshot_suffix),
             ExecMode::SnapsForFiles(opt_filters) => {
                 let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-                let snap_name_map = SnapNameMap::new(versions_map, opt_filters)?;
+                let snap_name_map = SnapNameMap::new(versions_map, opt_filters.as_ref())?;
                 let printable_map = PrintAsMap::from(&snap_name_map);
                 let output_buf = printable_map.to_string();
 
@@ -241,7 +241,7 @@ impl HttmProcess {
             }
             ExecMode::Prune(opt_filters) => {
                 let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-                PruneSnaps::exec(versions_map, opt_filters)
+                PruneSnaps::exec(versions_map, opt_filters.as_ref())
             }
             ExecMode::MountsForFiles(mount_display) => {
                 let mounts_map = &MountsForFiles::new(mount_display)?;

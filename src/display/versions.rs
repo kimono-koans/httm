@@ -90,7 +90,7 @@ pub struct DisplaySet<'a> {
 }
 
 impl<'a> From<(Vec<&'a PathData>, Vec<&'a PathData>)> for DisplaySet<'a> {
-    #[inline(always)]
+    #[inline]
     fn from((keys, values): (Vec<&'a PathData>, Vec<&'a PathData>)) -> Self {
         Self {
             inner: [values, keys],
@@ -124,7 +124,7 @@ impl From<usize> for DisplaySetType {
 }
 
 impl DisplaySetType {
-    #[inline(always)]
+    #[inline]
     pub fn filter_bulk_exclusions(&self, bulk_exclusion: &BulkExclusion) -> bool {
         match &self {
             DisplaySetType::IsLive if matches!(bulk_exclusion, BulkExclusion::NoLive) => false,
@@ -135,7 +135,7 @@ impl DisplaySetType {
 }
 
 impl<'a> DisplaySet<'a> {
-    #[inline(always)]
+    #[inline]
     pub fn format(&self, config: &Config, padding_collection: &PaddingCollection) -> String {
         let mut border: Cow<'_, str> = padding_collection.fancy_border_string().into();
 
@@ -206,7 +206,7 @@ impl<'a> DisplaySet<'a> {
 }
 
 impl PathData {
-    #[inline(always)]
+    #[inline]
     pub fn format(
         &self,
         config: &Config,
@@ -307,7 +307,7 @@ impl PathData {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn raw_format(
         &self,
         raw_mode: &RawMode,
@@ -347,7 +347,7 @@ pub struct PaddingCollection {
 }
 
 impl PaddingCollection {
-    #[inline(always)]
+    #[inline]
     pub fn new(config: &Config, display_set: &DisplaySet) -> PaddingCollection {
         // calculate padding and borders for display later
         let (size_padding_len, fancy_border_len) = display_set.iter().flatten().fold(
@@ -400,7 +400,7 @@ impl PaddingCollection {
         self.fancy_border_string.as_ref()
     }
 
-    #[inline(always)]
+    #[inline]
     fn get_fancy_border_string(fancy_border_len: usize) -> String {
         if let Some((Width(width), Height(_height))) = terminal_size() {
             let width_as_usize = width as usize;

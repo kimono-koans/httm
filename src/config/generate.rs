@@ -166,7 +166,7 @@ const NATIVE_SNAP_SUFFIXES: [&str; 4] = [
     "httmSnapRestore",
 ];
 
-#[inline(always)]
+#[inline]
 fn parse_args() -> ArgMatches {
     clap::command!(crate_name!())
         .about("httm prints the size, date and corresponding locations of available unique versions of files residing on snapshots. \
@@ -711,12 +711,12 @@ impl TryFrom<&ArgMatches> for Config {
             .get_raw("MAP_ALIASES")
             .map(|aliases| aliases.map(|os_str| os_str.to_string_lossy()).collect());
 
-        let opt_alt_store: Option<FilesystemType> = match matches
+        let opt_alt_store: Option<&FilesystemType> = match matches
             .get_one::<String>("ALT_STORE")
             .map(std::string::String::as_str)
         {
-            Some("timemachine") => Some(FilesystemType::Apfs),
-            Some("restic") => Some(FilesystemType::Restic(None)),
+            Some("timemachine") => Some(&FilesystemType::Apfs),
+            Some("restic") => Some(&FilesystemType::Restic(None)),
             _ => None,
         };
 
@@ -1057,7 +1057,7 @@ impl Config {
         Ok(config)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn paths(
         opt_os_values: Option<ValuesRef<'_, PathBuf>>,
         exec_mode: &ExecMode,
@@ -1150,7 +1150,7 @@ impl Config {
         Ok(broken_string)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn opt_requested_dir(
         exec_mode: &mut ExecMode,
         deleted_mode: &mut Option<DeletedMode>,

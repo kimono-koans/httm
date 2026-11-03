@@ -33,7 +33,7 @@ pub struct PruneSnaps;
 impl PruneSnaps {
     pub fn exec(
         versions_map: VersionsMap,
-        opt_filters: &Option<ListSnapsFilters>,
+        opt_filters: Option<&ListSnapsFilters>,
     ) -> HttmResult<()> {
         let snap_name_map: SnapNameMap = SnapNameMap::new(versions_map, opt_filters)?;
 

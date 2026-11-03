@@ -1,0 +1,1881 @@
+    Checking httm v0.51.1 (/Users/rswinford/Programming/httm)
+warning: binding's name is too similar to existing binding
+   --> src/roll_forward/exec.rs:105:13
+    |
+105 |         let root_gid = 0;
+    |             ^^^^^^^^
+    |
+note: existing binding defined here
+   --> src/roll_forward/exec.rs:104:13
+    |
+104 |         let root_uid = 0;
+    |             ^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#similar_names
+    = note: `-W clippy::similar-names` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::similar_names)]`
+
+warning: binding's name is too similar to existing binding
+   --> src/library/file_ops.rs:272:17
+    |
+272 |             let dst_gid = src_metadata.gid();
+    |                 ^^^^^^^
+    |
+note: existing binding defined here
+   --> src/library/file_ops.rs:271:17
+    |
+271 |             let dst_uid = src_metadata.uid();
+    |                 ^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#similar_names
+
+warning: you have declared `#[inline]` on `new`. This is usually a bad idea
+   --> src/data/paths.rs:343:5
+    |
+343 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+    = note: `-W clippy::inline-always` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::inline_always)]`
+
+warning: you have declared `#[inline]` on `with_metadata`. This is usually a bad idea
+   --> src/data/paths.rs:353:5
+    |
+353 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `without_styling`. This is usually a bad idea
+   --> src/data/paths.rs:370:5
+    |
+370 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `metadata_infallible`. This is usually a bad idea
+   --> src/data/paths.rs:402:5
+    |
+402 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `relative_path`. This is usually a bad idea
+   --> src/data/paths.rs:435:5
+    |
+435 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `proximate_dataset`. This is usually a bad idea
+   --> src/data/paths.rs:460:5
+    |
+460 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/data/paths.rs:477:21
+    |
+477 |                     self.path()
+    |                     ^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `self.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+    = note: `-W clippy::unnecessary-debug-formatting` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::unnecessary_debug_formatting)]`
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/data/paths.rs:594:21
+    |
+594 |                     self.path()
+    |                     ^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `self.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/data/paths.rs:622:21
+    |
+622 |                     self.inner.path()
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `self.inner.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/data/paths.rs:629:21
+    |
+629 |                     self.inner.path()
+    |                     ^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `self.inner.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you have declared `#[inline]` on `new`. This is usually a bad idea
+   --> src/data/paths.rs:695:5
+    |
+695 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `mtime`. This is usually a bad idea
+   --> src/data/paths.rs:714:5
+    |
+714 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `btime`. This is usually a bad idea
+   --> src/data/paths.rs:720:5
+    |
+720 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `inode`. This is usually a bad idea
+   --> src/data/paths.rs:726:5
+    |
+726 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `dev`. This is usually a bad idea
+   --> src/data/paths.rs:732:5
+    |
+732 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `size`. This is usually a bad idea
+   --> src/data/paths.rs:737:5
+    |
+737 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `partial_cmp`. This is usually a bad idea
+   --> src/data/paths.rs:759:5
+    |
+759 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `cmp`. This is usually a bad idea
+   --> src/data/paths.rs:766:5
+    |
+766 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `partial_cmp`. This is usually a bad idea
+   --> src/data/paths.rs:808:5
+    |
+808 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `cmp`. This is usually a bad idea
+   --> src/data/paths.rs:815:5
+    |
+815 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `from`. This is usually a bad idea
+   --> src/data/paths.rs:849:5
+    |
+849 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `from`. This is usually a bad idea
+   --> src/data/paths.rs:856:5
+    |
+856 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `mtime`. This is usually a bad idea
+   --> src/data/paths.rs:867:5
+    |
+867 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `btime`. This is usually a bad idea
+   --> src/data/paths.rs:873:5
+    |
+873 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `inode`. This is usually a bad idea
+   --> src/data/paths.rs:879:5
+    |
+879 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `dev`. This is usually a bad idea
+   --> src/data/paths.rs:885:5
+    |
+885 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `size`. This is usually a bad idea
+   --> src/data/paths.rs:891:5
+    |
+891 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `metadata_infallible`. This is usually a bad idea
+   --> src/data/paths.rs:897:5
+    |
+897 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: casting `usize` to `u32` may truncate the value on targets with 64-bit wide pointers
+  --> src/data/selection.rs:74:19
+   |
+74 |         let mid = path_bytes.len() as u32;
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#cast_possible_truncation
+   = note: `-W clippy::cast-possible-truncation` implied by `-W clippy::pedantic`
+   = help: to override `-W clippy::pedantic` add `#[allow(clippy::cast_possible_truncation)]`
+help: ... or use `try_from` and handle the error accordingly
+   |
+74 -         let mid = path_bytes.len() as u32;
+74 +         let mid = u32::try_from(path_bytes.len());
+   |
+
+warning: this argument is passed by value, but not consumed in the function body
+   --> src/data/selection.rs:131:25
+    |
+131 |     fn fail_notice(err: HttmGenericErrorWrapper) -> String {
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+    = note: `-W clippy::needless-pass-by-value` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::needless_pass_by_value)]`
+help: consider taking a reference instead
+    |
+131 |     fn fail_notice(err: &HttmGenericErrorWrapper) -> String {
+    |                         +
+
+warning: you have declared `#[inline]` on `from`. This is usually a bad idea
+  --> src/display/versions.rs:93:5
+   |
+93 |     #[inline]
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `filter_bulk_exclusions`. This is usually a bad idea
+   --> src/display/versions.rs:127:5
+    |
+127 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `format`. This is usually a bad idea
+   --> src/display/versions.rs:138:5
+    |
+138 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: `format!(..)` appended to existing `String`
+   --> src/display/versions.rs:181:37
+    |
+181 | ...                   new_border += &format!("{:─<diff$}\n", "");
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: you may need to import the `std::fmt::Write` trait
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#format_push_string
+    = note: `-W clippy::format-push-string` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::format_push_string)]`
+help: consider using `write!` to avoid the extra allocation
+    |
+181 -                                     new_border += &format!("{:─<diff$}\n", "");
+181 +                                     let _ = write!(new_border, "{:─<diff$}\n", "");
+    |
+
+warning: you have declared `#[inline]` on `format`. This is usually a bad idea
+   --> src/display/versions.rs:209:5
+    |
+209 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `raw_format`. This is usually a bad idea
+   --> src/display/versions.rs:310:5
+    |
+310 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `new`. This is usually a bad idea
+   --> src/display/versions.rs:350:5
+    |
+350 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `get_fancy_border_string`. This is usually a bad idea
+   --> src/display/versions.rs:403:5
+    |
+403 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `enter_directory`. This is usually a bad idea
+   --> src/background/recursive.rs:223:5
+    |
+223 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/browse.rs:217:88
+    |
+217 |                     let description = format!("Path {:?} has no snapshots available.", live.path());
+    |                                                                                        ^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `live.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you have declared `#[inline]` on `exec`. This is usually a bad idea
+  --> src/interactive/preheat_cache.rs:67:5
+   |
+67 |     #[inline]
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: this `continue` expression is redundant
+   --> src/interactive/preheat_cache.rs:113:25
+    |
+113 |                         continue;
+    |                         ^^^^^^^^
+    |
+    = help: consider dropping the `continue` expression
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_continue
+    = note: `-W clippy::needless-continue` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::needless_continue)]`
+
+warning: you have declared `#[inline]` on `proximate_plus_parent_and_top_level`. This is usually a bad idea
+   --> src/interactive/preheat_cache.rs:141:5
+    |
+141 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unused `self` argument
+  --> src/interactive/preview.rs:33:31
+   |
+33 |     pub fn opt_preview_window(&self) -> PreviewLayout {
+   |                               ^^^^^
+   |
+   = help: consider refactoring to an associated function
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unused_self
+   = note: `-W clippy::unused-self` implied by `-W clippy::pedantic`
+   = help: to override `-W clippy::pedantic` add `#[allow(clippy::unused_self)]`
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+   --> src/interactive/preview.rs:72:5
+    |
+ 72 | /     fn parse_preview_command(
+ 73 | |         defined_command: &str,
+ 74 | |         opt_live_version: &Option<String>,
+ 75 | |     ) -> HttmResult<String> {
+...   |
+153 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+    = note: `-W clippy::ref-option` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::ref_option)]`
+help: change this to
+    |
+ 74 -         opt_live_version: &Option<String>,
+ 74 +         opt_live_version: Option<&String>,
+    |
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+  --> src/interactive/prune.rs:34:5
+   |
+34 | /     pub fn exec(
+35 | |         versions_map: VersionsMap,
+36 | |         opt_filters: &Option<ListSnapsFilters>,
+37 | |     ) -> HttmResult<()> {
+...  |
+46 | |         InteractivePrune::exec(&snap_name_map, select_mode)
+47 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+help: change this to
+   |
+36 -         opt_filters: &Option<ListSnapsFilters>,
+36 +         opt_filters: Option<&ListSnapsFilters>,
+   |
+
+warning: unnecessary `Debug` formatting in `format!` args
+  --> src/interactive/prune.rs:63:45
+   |
+63 |                 buffer += format!("{:?}\n", key.path()).as_str();
+   |                                             ^^^^^^^^^^
+   |
+   = help: use `Display` formatting and change this to `key.path().display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: use of `format!` to build up a string from an iterator
+  --> src/interactive/prune.rs:75:41
+   |
+75 |           let snap_names_string: String = snap_names
+   |  _________________________________________^
+76 | |             .into_iter()
+77 | |             .map(|name| format!("{name}\n"))
+78 | |             .collect();
+   | |______________________^
+   |
+help: call `fold` instead
+  --> src/interactive/prune.rs:77:14
+   |
+77 |             .map(|name| format!("{name}\n"))
+   |              ^^^
+help: ... and use the `write!` macro here
+  --> src/interactive/prune.rs:77:25
+   |
+77 |             .map(|name| format!("{name}\n"))
+   |                         ^^^^^^^^^^^^^^^^^^^
+   = note: this can be written more efficiently by appending to a `String` directly
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#format_collect
+   = note: `-W clippy::format-collect` implied by `-W clippy::pedantic`
+   = help: to override `-W clippy::pedantic` add `#[allow(clippy::format_collect)]`
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/restore.rs:102:13
+    |
+102 |             snap_path_data.path()
+    |             ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path_data.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+  --> src/interactive/restore.rs:97:25
+   |
+97 |             \ttarget:\t{new_file_path_buf:?}\n\n\
+   |                         ^^^^^^^^^^^^^^^^^
+   |
+   = help: use `Display` formatting and change this to `new_file_path_buf.display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/restore.rs:145:25
+    |
+145 |                         snap_path_data.path()
+    |                         ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path_data.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/restore.rs:143:41
+    |
+143 | ...                   \ttarget:\t{new_file_path_buf:?}\n\n\
+    |                                   ^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `new_file_path_buf.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `println!` args
+   --> src/interactive/restore.rs:153:70
+    |
+153 |                     break println!("User declined restore of: {:?}", snap_path_data.path());
+    |                                                                      ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path_data.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: redundant else block
+   --> src/interactive/restore.rs:182:14
+    |
+182 |               } else {
+    |  ______________^
+183 | |                 let description = "httm restore failed for the following reason:".to_string();
+184 | |                 return HttmError::with_source(&description, err.as_ref()).into();
+185 | |             };
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#redundant_else
+    = note: `-W clippy::redundant-else` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::redundant_else)]`
+help: remove the `else` block and move the contents out
+    |
+182 ~             }
+183 +             let description = "httm restore failed for the following reason:".to_string();
+184 ~             return HttmError::with_source(&description, err.as_ref()).into();;
+    |
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/restore.rs:178:111
+    |
+178 |                     "httm restore failed because user lacks permission to restore to the following location: {dst:?}."
+    |                                                                                                               ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/interactive/restore.rs:188:64
+    |
+188 |         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
+    |                                                                ^^^
+    |
+    = help: use `Display` formatting and change this to `src.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/interactive/restore.rs:188:69
+    |
+188 |         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
+    |                                                                     ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/restore.rs:245:17
+    |
+245 |                 snap_path_data.path()
+    |                 ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path_data.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+  --> src/interactive/select.rs:67:25
+   |
+67 |                         key.path()
+   |                         ^^^^^^^^^^
+   |
+   = help: use `Display` formatting and change this to `key.path().display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/select.rs:103:69
+    |
+103 |                     let description = format!("Path is not a file: {snap_path:?}");
+    |                                                                     ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/select.rs:120:62
+    |
+120 |                     command.replace("$snap_file", &format!("{snap_path:?}"))
+    |                                                              ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/interactive/select.rs:151:74
+    |
+151 | ...                   "Preview command output was empty for path: {snap_path:?}"
+    |                                                                    ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: this argument is passed by value, but not consumed in the function body
+  --> src/interactive/view_mode.rs:69:56
+   |
+69 |     pub fn view_buffer(&self, buffer: &str, opt_multi: MultiSelect) -> HttmResult<Vec<String>> {
+   |                                                        ^^^^^^^^^^^
+   |
+help: or consider marking this type as `Copy`
+  --> src/interactive/view_mode.rs:35:1
+   |
+35 | pub enum MultiSelect {
+   | ^^^^^^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+   |
+69 |     pub fn view_buffer(&self, buffer: &str, opt_multi: &MultiSelect) -> HttmResult<Vec<String>> {
+   |                                                        +
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/diff_events.rs:161:39
+    |
+161 |                 "Could not overwrite {dst:?} with snapshot file version {src:?}"
+    |                                       ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/diff_events.rs:161:74
+    |
+161 |                 "Could not overwrite {dst:?} with snapshot file version {src:?}"
+    |                                                                          ^^^
+    |
+    = help: use `Display` formatting and change this to `src.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/diff_events.rs:168:64
+    |
+168 |         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
+    |                                                                ^^^
+    |
+    = help: use `Display` formatting and change this to `src.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/diff_events.rs:168:69
+    |
+168 |         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
+    |                                                                     ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/diff_events.rs:191:86
+    |
+191 |                     let description = format!("File should not exist after deletion {dst:?}");
+    |                                                                                      ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/diff_events.rs:197:67
+    |
+197 |                 let description = format!("Could not delete file {dst:?}");
+    |                                                                   ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/diff_events.rs:202:61
+    |
+202 |         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), dst);
+    |                                                            ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/exec.rs:107:44
+    |
+107 |         eprintln!("Locking dataset: {:?}", self.path);
+    |                                            ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `self.path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/exec.rs:123:46
+    |
+123 |         eprintln!("Unlocking dataset: {:?}", self.path);
+    |                                              ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `self.path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: this could be rewritten as `let...else`
+   --> src/roll_forward/exec.rs:160:9
+    |
+160 | /         let (dataset, snap) = if let Some(res) = full_snap_name.split_once('@') {
+161 | |             res
+162 | |         } else {
+163 | |             let description = format!(
+...   |
+166 | |             return HttmError::from(description).into();
+167 | |         };
+    | |__________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#manual_let_else
+    = note: `-W clippy::manual-let-else` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::manual_let_else)]`
+help: consider writing
+    |
+160 ~         let Some((dataset, snap)) = full_snap_name.split_once('@') else {
+161 +             let description = format!(
+162 +                 "\"{full_snap_name}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name."
+163 +             );
+164 +             return HttmError::from(description).into();
+165 +         };
+    |
+
+warning: use of `format!` to build up a string from an iterator
+   --> src/roll_forward/exec.rs:260:39
+    |
+260 |             let description: String = parse_errors.into_iter().map(|e| format!("{e}\n")).collect();
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: call `fold` instead
+   --> src/roll_forward/exec.rs:260:64
+    |
+260 |             let description: String = parse_errors.into_iter().map(|e| format!("{e}\n")).collect();
+    |                                                                ^^^
+help: ... and use the `write!` macro here
+   --> src/roll_forward/exec.rs:260:72
+    |
+260 |             let description: String = parse_errors.into_iter().map(|e| format!("{e}\n")).collect();
+    |                                                                        ^^^^^^^^^^^^^^^^
+    = note: this can be written more efficiently by appending to a `String` directly
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#format_collect
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/exec.rs:416:53
+    |
+416 |                 eprintln!("DEBUG: Cleanup required {snap_path:?} -> {live_path:?}");
+    |                                                     ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/exec.rs:416:70
+    |
+416 |                 eprintln!("DEBUG: Cleanup required {snap_path:?} -> {live_path:?}");
+    |                                                                      ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `live_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/preserve_hard_links.rs:367:70
+    |
+367 |                 "Cannot link because original path does not exists: {original:?}"
+    |                                                                      ^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `original.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/preserve_hard_links.rs:387:65
+    |
+387 |                 let description = format!("Could not link file {original:?} to {link:?}");
+    |                                                                 ^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `original.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/preserve_hard_links.rs:387:81
+    |
+387 |                 let description = format!("Could not link file {original:?} to {link:?}");
+    |                                                                                 ^^^^
+    |
+    = help: use `Display` formatting and change this to `link.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/preserve_hard_links.rs:397:65
+    |
+397 |         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
+    |                                                                 ^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `original.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/preserve_hard_links.rs:397:75
+    |
+397 |         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Linked  "), original, link);
+    |                                                                           ^^^^
+    |
+    = help: use `Display` formatting and change this to `link.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/preserve_hard_links.rs:407:78
+    |
+407 |                         format!("Target link should not exist after removal {link:?}");
+    |                                                                              ^^^^
+    |
+    = help: use `Display` formatting and change this to `link.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/roll_forward/preserve_hard_links.rs:414:71
+    |
+414 |                     let description = format!("Could not remove link {link:?}");
+    |                                                                       ^^^^
+    |
+    = help: use `Display` formatting and change this to `link.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/roll_forward/preserve_hard_links.rs:420:64
+    |
+420 |         eprintln!("{}: {:?} -> 🗑️", Green.paint("Unlinked  "), link);
+    |                                                               ^^^^
+    |
+    = help: use `Display` formatting and change this to `link.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you have declared `#[inline]` on `parse_args`. This is usually a bad idea
+   --> src/config/generate.rs:169:1
+    |
+169 | #[inline]
+    | ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: this function has too many lines (485/100)
+   --> src/config/generate.rs:170:1
+    |
+170 | fn parse_args() -> ArgMatches {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#too_many_lines
+    = note: `-W clippy::too-many-lines` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::too_many_lines)]`
+
+warning: more than 3 bools in a struct
+   --> src/config/generate.rs:659:1
+    |
+659 | / pub struct Config {
+660 | |     pub paths: Vec<PathData>,
+661 | |     pub opt_recursive: bool,
+662 | |     pub opt_exact: bool,
+...   |
+683 | |     pub pwd: Arc<Path>,
+684 | | }
+    | |_^
+    |
+    = help: consider using a state machine or refactoring bools into two-variant enums
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#struct_excessive_bools
+    = note: `-W clippy::struct-excessive-bools` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::struct_excessive_bools)]`
+
+warning: this function has too many lines (294/100)
+   --> src/config/generate.rs:689:5
+    |
+689 |     fn try_from(matches: &ArgMatches) -> HttmResult<Self> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#too_many_lines
+
+warning: you have declared `#[inline]` on `paths`. This is usually a bad idea
+    --> src/config/generate.rs:1060:5
+     |
+1060 |     #[inline]
+     |     ^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `opt_requested_dir`. This is usually a bad idea
+    --> src/config/generate.rs:1153:5
+     |
+1153 |     #[inline]
+     |     ^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: this function's return value is unnecessarily wrapped by `Result`
+    --> src/config/generate.rs:1245:5
+     |
+1245 | /     pub fn new(
+1246 | |         opt_config_string: Option<&String>,
+1247 | |         select_mode: bool,
+1248 | |     ) -> HttmResult<ListSnapsFilters> {
+     | |_____________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_wraps
+     = note: `-W clippy::unnecessary-wraps` implied by `-W clippy::pedantic`
+     = help: to override `-W clippy::pedantic` add `#[allow(clippy::unnecessary_wraps)]`
+help: remove `Result` from the return type...
+     |
+1248 -     ) -> HttmResult<ListSnapsFilters> {
+1248 +     ) -> config::generate::ListSnapsFilters {
+     |
+help: ...and then remove the surrounding `Ok()` from returning expressions
+     |
+1252 ~                 return ListSnapsFilters {
+1253 +                     select_mode,
+1254 +                     omit_num_snaps: 0usize,
+1255 +                     name_filters: None,
+1256 ~                 };
+1257 |             }
+ ...
+1287 |
+1288 ~         ListSnapsFilters {
+1289 +             select_mode,
+1290 +             omit_num_snaps,
+1291 +             name_filters,
+1292 +         }
+     |
+
+warning: unused `self` argument
+   --> src/library/diff_copy.rs:294:24
+    |
+294 |     fn copy_file_range(&self) -> HttmResult<()> {
+    |                        ^^^^^
+    |
+    = help: consider refactoring to an associated function
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unused_self
+
+warning: this `continue` expression is redundant
+   --> src/library/diff_copy.rs:463:47
+    |
+463 |                     ErrorKind::Interrupted => continue,
+    |                                               ^^^^^^^^
+    |
+    = help: consider dropping the `continue` expression
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_continue
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+  --> src/library/file_ops.rs:98:190
+   |
+98 | ...nfirms basic file metadata (size and mtime) are the same for transfer: {src:?} -> {dst:?}."
+   |                                                                            ^^^
+   |
+   = help: use `Display` formatting and change this to `src.display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+  --> src/library/file_ops.rs:98:201
+   |
+98 | ...c file metadata (size and mtime) are the same for transfer: {src:?} -> {dst:?}."
+   |                                                                            ^^^
+   |
+   = help: use `Display` formatting and change this to `dst.display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/file_ops.rs:116:89
+    |
+116 |             let description = format!("Could not detect a parent for destination file: {dst:?}");
+    |                                                                                         ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: casting `u32` to `u16` may truncate the value
+   --> src/library/file_ops.rs:156:65
+    |
+156 |         let dst_mode = nix::sys::stat::Mode::from_bits_truncate(src_mode_bits as u16);
+    |                                                                 ^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#cast_possible_truncation
+help: ... or use `try_from` and handle the error accordingly
+    |
+156 -         let dst_mode = nix::sys::stat::Mode::from_bits_truncate(src_mode_bits as u16);
+156 +         let dst_mode = nix::sys::stat::Mode::from_bits_truncate(u16::try_from(src_mode_bits));
+    |
+
+warning: casting `u64` to `i32` may truncate the value
+   --> src/library/file_ops.rs:169:56
+    |
+169 |             nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
+    |                                                        ^^^^^^^^^^
+    |
+    = help: if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#cast_possible_truncation
+help: ... or use `try_from` and handle the error accordingly
+    |
+169 -             nix::sys::stat::mknod(dst, kind, dst_mode, dev as i32)?;
+169 +             nix::sys::stat::mknod(dst, kind, dst_mode, i32::try_from(dev))?;
+    |
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/library/file_ops.rs:233:65
+    |
+233 |         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Renamed "), src, dst);
+    |                                                                 ^^^
+    |
+    = help: use `Display` formatting and change this to `src.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/library/file_ops.rs:233:70
+    |
+233 |         eprintln!("{}: {:?} -> {:?}", Yellow.paint("Renamed "), src, dst);
+    |                                                                      ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/file_ops.rs:310:92
+    |
+310 |             let description = format!("Could not determine relative path for destination: {dst:?}");
+    |                                                                                            ^^^
+    |
+    = help: use `Display` formatting and change this to `dst.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/library/file_ops.rs:331:61
+    |
+331 |         eprintln!("{}: {:?} -> 🗑️", Red.paint("Removed  "), src);
+    |                                                            ^^^
+    |
+    = help: use `Display` formatting and change this to `src.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: needless use of `for_each`
+   --> src/library/iter_extensions.rs:249:9
+    |
+249 | /         vec.into_iter().for_each(|(key, value)| {
+250 | |             unsafe {
+251 | |                 lookup.insert_unique_unchecked(key, value);
+252 | |             };
+253 | |         });
+    | |___________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_for_each
+    = note: `-W clippy::needless-for-each` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::needless_for_each)]`
+help: try
+    |
+249 ~         for (key, value) in vec.into_iter() {
+250 +             unsafe {
+251 +                 lookup.insert_unique_unchecked(key, value);
+252 +             };
+253 +         }
+    |
+
+warning: needless use of `for_each`
+   --> src/library/iter_extensions.rs:271:9
+    |
+271 | /         vec.into_iter().for_each(|key| {
+272 | |             unsafe {
+273 | |                 lookup.insert_unique_unchecked(key);
+274 | |             };
+275 | |         });
+    | |___________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_for_each
+help: try
+    |
+271 ~         for key in vec.into_iter() {
+272 +             unsafe {
+273 +                 lookup.insert_unique_unchecked(key);
+274 +             };
+275 +         }
+    |
+
+warning: this argument is passed by value, but not consumed in the function body
+   --> src/library/utility.rs:345:18
+    |
+345 |     date_format: DateFormat,
+    |                  ^^^^^^^^^^
+    |
+help: or consider marking this type as `Copy`
+   --> src/library/utility.rs:333:1
+    |
+333 | pub enum DateFormat {
+    | ^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+    |
+345 |     date_format: &DateFormat,
+    |                  +
+
+warning: casting `u64` to `f64` may cause a loss of precision (`u64` is 64 bits wide, but `f64`'s mantissa is only 52 bits wide)
+   --> src/library/utility.rs:375:16
+    |
+375 |     let size = size as f64;
+    |                ^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#cast_precision_loss
+    = note: `-W clippy::cast-precision-loss` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::cast_precision_loss)]`
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/utility.rs:391:63
+    |
+391 |         let description = format!("Metadata not found: {:?}", src.as_ref());
+    |                                                               ^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `src.as_ref().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/utility.rs:396:63
+    |
+396 |         let description = format!("Metadata not found: {:?}", dst.as_ref());
+    |                                                               ^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `dst.as_ref().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/utility.rs:404:13
+    |
+404 |             src.as_ref(),
+    |             ^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `src.as_ref().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/utility.rs:405:13
+    |
+405 |             dst.as_ref()
+    |             ^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `dst.as_ref().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/utility.rs:413:13
+    |
+413 |             src.path(),
+    |             ^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `src.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/library/utility.rs:415:13
+    |
+415 |             dst.path(),
+    |             ^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `dst.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you have declared `#[inline]` on `into_inner`. This is usually a bad idea
+  --> src/lookup/deleted.rs:70:5
+   |
+70 |     #[inline]
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `prune_live_paths`. This is usually a bad idea
+  --> src/lookup/deleted.rs:75:5
+   |
+75 |     #[inline]
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `unique_filenames_from_snapshots`. This is usually a bad idea
+  --> src/lookup/deleted.rs:92:5
+   |
+92 |     #[inline]
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `unique_filenames_from_snap_mount`. This is usually a bad idea
+   --> src/lookup/deleted.rs:125:5
+    |
+125 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `into_pseudo_live_version`. This is usually a bad idea
+   --> src/lookup/deleted.rs:156:5
+    |
+156 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+  --> src/lookup/file_mounts.rs:93:25
+   |
+93 |                         prox_opt_alts.path_data().path()
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: use `Display` formatting and change this to `prox_opt_alts.path_data().path().display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+   --> src/lookup/snap_names.rs:47:5
+    |
+ 47 | /     pub fn new(
+ 48 | |         versions_map: VersionsMap,
+ 49 | |         opt_filters: &Option<ListSnapsFilters>,
+ 50 | |     ) -> HttmResult<Self> {
+...   |
+135 | |         Ok(inner.into())
+136 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+help: change this to
+    |
+ 49 -         opt_filters: &Option<ListSnapsFilters>,
+ 49 +         opt_filters: Option<&ListSnapsFilters>,
+    |
+
+warning: this argument is passed by value, but not consumed in the function body
+  --> src/lookup/snap_names.rs:48:23
+   |
+48 |         versions_map: VersionsMap,
+   |                       ^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+   |
+48 |         versions_map: &VersionsMap,
+   |                       +
+
+warning: unnecessary `Debug` formatting in `format!` args
+  --> src/lookup/snap_names.rs:57:25
+   |
+57 |                         path_data.path()
+   |                         ^^^^^^^^^^^^^^^^
+   |
+   = help: use `Display` formatting and change this to `path_data.path().display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+  --> src/lookup/snap_names.rs:90:145
+   |
+90 | ...   eprintln!("ERROR: LIST_SNAPS is a ZFS and btrfs only option.  Path does not appear to be on a supported dataset: {:?}", path_data.path());
+   |                                                                                                                               ^^^^^^^^^^^^^^^^
+   |
+   = help: use `Display` formatting and change this to `path_data.path().display()`
+   = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you have declared `#[inline]` on `from_many_paths`. This is usually a bad idea
+   --> src/lookup/versions.rs:126:5
+    |
+126 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `from_one_path`. This is usually a bad idea
+   --> src/lookup/versions.rs:135:5
+    |
+135 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `new`. This is usually a bad idea
+   --> src/lookup/versions.rs:170:5
+    |
+170 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `into_inner`. This is usually a bad idea
+   --> src/lookup/versions.rs:207:5
+    |
+207 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `is_live_version_redundant`. This is usually a bad idea
+   --> src/lookup/versions.rs:212:5
+    |
+212 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `omit_ditto`. This is usually a bad idea
+   --> src/lookup/versions.rs:221:5
+    |
+221 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `last_snap`. This is usually a bad idea
+   --> src/lookup/versions.rs:228:5
+    |
+228 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `new`. This is usually a bad idea
+   --> src/lookup/versions.rs:266:5
+    |
+266 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `path_data`. This is usually a bad idea
+   --> src/lookup/versions.rs:311:5
+    |
+311 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `proximate_dataset`. This is usually a bad idea
+   --> src/lookup/versions.rs:316:5
+    |
+316 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `datasets_of_interest`. This is usually a bad idea
+   --> src/lookup/versions.rs:321:5
+    |
+321 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `as_search_bundles`. This is usually a bad idea
+   --> src/lookup/versions.rs:334:5
+    |
+334 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `new`. This is usually a bad idea
+   --> src/lookup/versions.rs:358:5
+    |
+358 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `snap_mounts`. This is usually a bad idea
+   --> src/lookup/versions.rs:401:5
+    |
+401 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `relative_path`. This is usually a bad idea
+   --> src/lookup/versions.rs:406:5
+    |
+406 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `dataset_of_interest`. This is usually a bad idea
+   --> src/lookup/versions.rs:411:5
+    |
+411 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `config`. This is usually a bad idea
+   --> src/lookup/versions.rs:416:5
+    |
+416 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `path_data`. This is usually a bad idea
+   --> src/lookup/versions.rs:421:5
+    |
+421 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: you have declared `#[inline]` on `match_metadata`. This is usually a bad idea
+   --> src/lookup/versions.rs:426:5
+    |
+426 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unused `self` argument
+   --> src/lookup/versions.rs:427:23
+    |
+427 |     fn match_metadata(&self, joined_path: PathBuf) -> Option<PathData> {
+    |                       ^^^^^
+    |
+    = help: consider refactoring to an associated function
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unused_self
+
+warning: this argument is passed by value, but not consumed in the function body
+   --> src/lookup/versions.rs:427:43
+    |
+427 |     fn match_metadata(&self, joined_path: PathBuf) -> Option<PathData> {
+    |                                           ^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+    |
+427 |     fn match_metadata(&self, joined_path: &PathBuf) -> Option<PathData> {
+    |                                           +
+
+warning: you have declared `#[inline]` on `version_search`. This is usually a bad idea
+   --> src/lookup/versions.rs:454:5
+    |
+454 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+   --> src/lookup/versions.rs:455:5
+    |
+455 | /     pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
+456 | |         let mut versions = self.all_versions();
+...   |
+480 | |         versions
+481 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+help: change this to
+    |
+455 -     pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
+455 +     pub fn version_search(&'a self, opt_dedup_by: Option<&DedupBy>) -> Vec<PathData> {
+    |
+
+warning: you have declared `#[inline]` on `sort_dedup_versions`. This is usually a bad idea
+   --> src/lookup/versions.rs:501:5
+    |
+501 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/aliases.rs:139:96
+    |
+139 | ...                   "WARN: An alias path specified does not exist, or is not mounted: {local_dir:?}"
+    |                                                                                          ^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `local_dir.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/aliases.rs:146:96
+    |
+146 | ...                   "WARN: An alias path specified does not exist, or is not mounted: {snap_dir:?}"
+    |                                                                                          ^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_dir.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+   --> src/filesystem/mounts.rs:239:5
+    |
+239 | /     pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
+240 | |         let (map_of_datasets, filter_dirs) = if PROC_MOUNTS.exists() {
+241 | |             Self::from_file(&PROC_MOUNTS, opt_alt_store)?
+242 | |         } else if ETC_MNT_TAB.exists() {
+...   |
+251 | |         })
+252 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+help: change this to
+    |
+239 -     pub fn new(opt_alt_store: &Option<FilesystemType>) -> HttmResult<Self> {
+239 +     pub fn new(opt_alt_store: Option<&FilesystemType>) -> HttmResult<Self> {
+    |
+
+warning: this function has too many lines (107/100)
+   --> src/filesystem/mounts.rs:256:5
+    |
+256 | /     fn from_file(
+257 | |         path: &Path,
+258 | |         opt_alt_store: &Option<FilesystemType>,
+259 | |     ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
+    | |________________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#too_many_lines
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+   --> src/filesystem/mounts.rs:256:5
+    |
+256 | /     fn from_file(
+257 | |         path: &Path,
+258 | |         opt_alt_store: &Option<FilesystemType>,
+259 | |     ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
+...   |
+372 | |         Ok((map_of_datasets.into(), filter_dirs.into()))
+373 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+help: change this to
+    |
+258 -         opt_alt_store: &Option<FilesystemType>,
+258 +         opt_alt_store: Option<&FilesystemType>,
+    |
+
+warning: it is more idiomatic to use `Option<&T>` instead of `&Option<T>`
+   --> src/filesystem/mounts.rs:377:5
+    |
+377 | /     fn from_mount_cmd(
+378 | |         opt_alt_store: &Option<FilesystemType>,
+379 | |     ) -> HttmResult<(MapOfDatasets, FilterDirs)> {
+...   |
+481 | |         Ok((map_of_datasets.into(), filter_dirs.into()))
+482 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#ref_option
+help: change this to
+    |
+378 -         opt_alt_store: &Option<FilesystemType>,
+378 +         opt_alt_store: Option<&FilesystemType>,
+    |
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:100:46
+    |
+100 |                     eprintln!("DEBUG: Mount {mount:?} appears to have no snapshots available.");
+    |                                              ^^^^^
+    |
+    = help: use `Display` formatting and change this to `mount.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you have declared `#[inline]` on `snaps_from_mount`. This is usually a bad idea
+   --> src/filesystem/snaps.rs:116:5
+    |
+116 |     #[inline]
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#inline_always
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:146:128
+    |
+146 | ...                   "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {mount:?}"
+    |                                                                                                                          ^^^^^
+    |
+    = help: use `Display` formatting and change this to `mount.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:266:38
+    |
+266 |                 "DEBUG: Base mount: {base_mount:?}, Base subvol: {base_subvol:?}, Snap Relative Path: {snap_relative:?}"
+    |                                      ^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `base_mount.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:266:67
+    |
+266 |                 "DEBUG: Base mount: {base_mount:?}, Base subvol: {base_subvol:?}, Snap Relative Path: {snap_relative:?}"
+    |                                                                   ^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `base_subvol.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:266:104
+    |
+266 |                 "DEBUG: Base mount: {base_mount:?}, Base subvol: {base_subvol:?}, Snap Relative Path: {snap_relative:?}"
+    |                                                                                                        ^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_relative.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:306:53
+    |
+306 |                     eprintln!("DEBUG: Joined path: {joined:?}");
+    |                                                     ^^^^^^
+    |
+    = help: use `Display` formatting and change this to `joined.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: you seem to be trying to use `match` for destructuring a single pattern. Consider using `if let`
+   --> src/filesystem/snaps.rs:312:9
+    |
+312 | /         match opt_snap_mount {
+313 | |             // here we check if the path actually exists because of course this is inexact!
+314 | |             Some(snap_mount) => {
+315 | |                 if snap_mount.exists() {
+...   |
+359 | |         }
+    | |_________^
+    |
+    = note: you might want to preserve the comments from inside the `match`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#single_match_else
+    = note: `-W clippy::single-match-else` implied by `-W clippy::pedantic`
+    = help: to override `-W clippy::pedantic` add `#[allow(clippy::single_match_else)]`
+help: try
+    |
+312 ~         if let Some(snap_mount) = opt_snap_mount {
+313 +             if snap_mount.exists() {
+314 +                 Some(snap_mount)
+315 +             } else {
+316 +                 eprintln!(
+317 +                     "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
+318 +                 );
+319 +                 None
+320 +             }
+321 +         } else {
+322 +             // btrfs root is different for each device, here, we check to see they have the same device
+323 +             // and when we parse mounts we check to see that they have a subvolid of "5", then we replace
+324 +             // whatever subvol name with a special id: <FS_TREE>
+325 +             let btrfs_root = map_of_datasets
+326 +                 .iter()
+327 +                 .find(|(_mount, metadata)| match &metadata.fs_type {
+328 +                     FilesystemType::Btrfs(Some(additional_data)) => {
+329 +                         metadata.source.as_ref() == base_mount_source
+330 +                             && additional_data.base_subvol.as_ref()
+331 +                                 == BTRFS_ROOT_SUBVOL.as_path()
+332 +                     }
+333 +                     _ => false,
+334 +                 })
+335 +                 .map_or_else(
+336 +                     || Arc::from(ROOT_PATH.as_ref()),
+337 +                     |(mount, _metadata)| mount.to_owned(),
+338 +                 );
+339 + 
+340 +             let snap_mount = btrfs_root.join(snap_relative);
+341 + 
+342 +             if opt_debug {
+343 +                 eprintln!("DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}");
+344 +             }
+345 + 
+346 +             // here we check if the path actually exists because of course this is inexact!
+347 +             if snap_mount.exists() {
+348 +                 Some(snap_mount)
+349 +             } else {
+350 +                 eprintln!(
+351 +                     "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
+352 +                 );
+353 +                 None
+354 +             }
+355 +         }
+    |
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:319:100
+    |
+319 |                         "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
+    |                                                                                                    ^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_relative.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:346:56
+    |
+346 |                     eprintln!("DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}");
+    |                                                        ^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `btrfs_root.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:346:84
+    |
+346 |                     eprintln!("DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}");
+    |                                                                                    ^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_mount.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:354:100
+    |
+354 |                         "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
+    |                                                                                                    ^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `snap_relative.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:464:107
+    |
+464 | ...                   "DEBUG: Permission denied to read snapshot locations from defined mount: {mount_point_path:?}"
+    |                                                                                                 ^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `mount_point_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `eprintln!` args
+   --> src/filesystem/snaps.rs:468:140
+    |
+468 | ...   "DEBUG: An error was encountered while attempting to read from snapshots locations for mount: {err:?}\nERROR: {mount_point_path:?}"
+    |                                                                                                                      ^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `mount_point_path.display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/zfs/run_command.rs:213:17
+    |
+213 |                 path_data.path()
+    |                 ^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `path_data.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: unnecessary `Debug` formatting in `format!` args
+   --> src/zfs/run_command.rs:222:17
+    |
+222 |                 path_data.path()
+    |                 ^^^^^^^^^^^^^^^^
+    |
+    = help: use `Display` formatting and change this to `path_data.path().display()`
+    = note: switching to `Display` formatting will change how the value is shown; escaped characters will no longer be escaped and surrounding quotes will be removed
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unnecessary_debug_formatting
+
+warning: this argument is passed by value, but not consumed in the function body
+  --> src/zfs/snap_guard.rs:64:47
+   |
+64 |     pub fn new(dataset_name: &str, snap_type: PrecautionarySnapType) -> HttmResult<Self> {
+   |                                               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+   |
+64 |     pub fn new(dataset_name: &str, snap_type: &PrecautionarySnapType) -> HttmResult<Self> {
+   |                                               +
+
+warning: this argument is passed by value, but not consumed in the function body
+   --> src/zfs/snap_guard.rs:124:53
+    |
+124 |     pub fn exit_and_rollback_with_error(&self, err: Box<dyn std::error::Error + Sync + Send>) -> ! {
+    |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+    |
+124 |     pub fn exit_and_rollback_with_error(&self, err: &Box<dyn std::error::Error + Sync + Send>) -> ! {
+    |                                                     +
+
+warning: this argument is passed by value, but not consumed in the function body
+   --> src/main.rs:180:30
+    |
+180 |     pub fn exit_error(error: HttmGenericErrorWrapper) -> ! {
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#needless_pass_by_value
+help: consider taking a reference instead
+    |
+180 |     pub fn exit_error(error: &HttmGenericErrorWrapper) -> ! {
+    |                              +
+
+warning: `httm` (bin "httm") generated 173 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.32s
+warning: the following packages contain code that will be rejected by a future version of Rust: nix v0.28.0, nix v0.31.3
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`

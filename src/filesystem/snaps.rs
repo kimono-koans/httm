@@ -16,21 +16,41 @@
 // that was distributed with this source code.
 
 use crate::filesystem::mounts::{
-    BTRFS_ROOT_SUBVOL, DatasetMetadata, FilesystemType, PROC_MOUNTS, ROOT_PATH,
+    BTRFS_ROOT_SUBVOL,
+    DatasetMetadata,
+    FilesystemType,
+    PROC_MOUNTS,
+    ROOT_PATH,
 };
-use crate::library::results::{HttmError, HttmResult};
-use crate::library::utility::{get_btrfs_command, user_has_effective_root};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
+use crate::library::utility::{
+    get_btrfs_command,
+    user_has_effective_root,
+};
 use crate::{
-    BTRFS_SNAPPER_HIDDEN_DIRECTORY, BTRFS_SNAPPER_SUFFIX, RESTIC_SNAPSHOT_DIRECTORY, TM_DIR_LOCAL,
-    TM_DIR_REMOTE, ZFS_SNAPSHOT_DIRECTORY,
+    BTRFS_SNAPPER_HIDDEN_DIRECTORY,
+    BTRFS_SNAPPER_SUFFIX,
+    RESTIC_SNAPSHOT_DIRECTORY,
+    TM_DIR_LOCAL,
+    TM_DIR_REMOTE,
+    ZFS_SNAPSHOT_DIRECTORY,
 };
 use hashbrown::HashMap;
 use proc_mounts::MountIter;
 use std::fs::read_dir;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use std::process::Command as ExecProcess;
-use std::sync::{Arc, Once};
+use std::sync::{
+    Arc,
+    Once,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MapOfSnaps {
@@ -66,23 +86,20 @@ impl MapOfSnaps {
             })
             .collect();
 
-        if opt_debug
-            && map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
-                eprintln!(
-                    "DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
+        if opt_debug && map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
+            eprintln!(
+                "DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
                 Make certain any snapshots the user may want to view are mounted, or are able to be mounted, \
                 and/or the user has the correct permissions to view."
-                );
+            );
 
-                map_of_snaps
-                    .iter()
-                    .filter(|(_mount, snaps)| snaps.is_empty())
-                    .for_each(|(mount, _snaps)| {
-                        eprintln!(
-                            "DEBUG: Mount {mount:?} appears to have no snapshots available."
-                        );
-                    });
-            }
+            map_of_snaps
+                .iter()
+                .filter(|(_mount, snaps)| snaps.is_empty())
+                .for_each(|(mount, _snaps)| {
+                    eprintln!("DEBUG: Mount {mount:?} appears to have no snapshots available.");
+                });
+        }
 
         if map_of_snaps.values().flatten().count() == 0 {
             return HttmError::new(
@@ -96,7 +113,7 @@ impl MapOfSnaps {
         })
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn snaps_from_mount(
         mount: &Path,
         dataset_info: &DatasetMetadata,
@@ -250,7 +267,7 @@ impl MapOfSnaps {
             );
         }
 
-        match opt_first_snap_component
+        let opt_snap_mount = opt_first_snap_component
             .and_then(|first_snap_component| {
                 // btrfs subvols usually look like /@subvol in mounts info, but are listed elsewhere
                 // such as the first snap component, as @subvol, so here we remove the leading "/"
@@ -290,7 +307,9 @@ impl MapOfSnaps {
                 }
 
                 joined
-            }) {
+            });
+
+        match opt_snap_mount {
             // here we check if the path actually exists because of course this is inexact!
             Some(snap_mount) => {
                 if snap_mount.exists() {
@@ -315,14 +334,16 @@ impl MapOfSnaps {
                                     == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
-                    }).map_or_else(|| Arc::from(ROOT_PATH.as_ref()), |(mount, _metadata)| mount.to_owned());
+                    })
+                    .map_or_else(
+                        || Arc::from(ROOT_PATH.as_ref()),
+                        |(mount, _metadata)| mount.to_owned(),
+                    );
 
                 let snap_mount = btrfs_root.join(snap_relative);
 
                 if opt_debug {
-                    eprintln!(
-                        "DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}"
-                    );
+                    eprintln!("DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}");
                 }
 
                 // here we check if the path actually exists because of course this is inexact!
@@ -338,7 +359,7 @@ impl MapOfSnaps {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn from_defined_mounts<'a>(
         mount_point_path: &'a Path,
         dataset_metadata: &'a DatasetMetadata,

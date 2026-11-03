@@ -54,7 +54,7 @@ impl PreviewSelection {
 
                 let opt_preview_command = Some(Self::parse_preview_command(
                     defined_command,
-                    opt_live_version,
+                    opt_live_version.as_ref(),
                 )?);
 
                 PreviewSelection {
@@ -71,7 +71,7 @@ impl PreviewSelection {
 
     fn parse_preview_command(
         defined_command: &str,
-        opt_live_version: &Option<String>,
+        opt_live_version: Option<&String>,
     ) -> HttmResult<String> {
         let command = if defined_command == "default" {
             match opt_live_version {
