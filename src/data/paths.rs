@@ -98,7 +98,7 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
-    opt_metadata: Option<Box<OnceLock<Metadata>>>,
+    opt_metadata: Box<OnceLock<Option<Metadata>>>,
 }
 
 impl Clone for BasicDirEntryInfo {
@@ -130,7 +130,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok().into(),
-            opt_metadata: None,
+            opt_metadata: OnceLock::new().into(),
         }
     }
 }
@@ -167,7 +167,7 @@ impl BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype: opt_filetype.into(),
-            opt_metadata: None,
+            opt_metadata: OnceLock::new().into(),
         }
     }
 
@@ -184,14 +184,9 @@ impl BasicDirEntryInfo {
     }
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
-        self.opt_metadata.as_deref().and_then(|inner| {
-            inner.get().or_else(|| {
-                self.path()
-                    .symlink_metadata()
-                    .ok()
-                    .map(|md| inner.get_or_init(|| md))
-            })
-        })
+        self.opt_metadata
+            .get_or_init(|| self.path.symlink_metadata().ok().into())
+            .as_ref()
     }
 
     pub fn recursive_search_filter(&self) -> bool {
