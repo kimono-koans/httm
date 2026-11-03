@@ -67,7 +67,7 @@ impl ViewMode {
     }
 
     pub fn view_buffer(&self, buffer: &str, opt_multi: MultiSelect) -> HttmResult<Vec<String>> {
-        let preview_selection = PreviewSelection::new(&self)?;
+        let preview_selection = PreviewSelection::new(self)?;
 
         let header = self.print_header();
 
@@ -82,7 +82,7 @@ impl ViewMode {
         if let Some(command) = preview_selection.opt_preview_command() {
             opts.preview_window(preview_selection.opt_preview_window())
                 .preview(command);
-        };
+        }
 
         let skim_opts = opts
             .disabled(true)
@@ -119,11 +119,10 @@ impl ViewMode {
             }
         };
 
-        if GLOBAL_CONFIG.opt_debug {
-            if let Some(preview_command) = preview_selection.opt_preview_command() {
-                eprintln!("DEBUG: Preview command executed: {}", preview_command)
+        if GLOBAL_CONFIG.opt_debug
+            && let Some(preview_command) = preview_selection.opt_preview_command() {
+                eprintln!("DEBUG: Preview command executed: {preview_command}");
             }
-        }
 
         Ok(res)
     }

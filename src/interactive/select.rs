@@ -100,7 +100,7 @@ impl InteractiveSelect {
             }
             SelectMode::Contents => {
                 if !snap_path.is_file() {
-                    let description = format!("Path is not a file: {:?}", snap_path);
+                    let description = format!("Path is not a file: {snap_path:?}");
                     return HttmError::from(description).into();
                 }
                 let mut f = std::fs::OpenOptions::new().read(true).open(snap_path)?;
@@ -114,10 +114,10 @@ impl InteractiveSelect {
             SelectMode::Preview => {
                 let view_mode = &self.view_mode;
 
-                let preview_selection = PreviewSelection::new(&view_mode)?;
+                let preview_selection = PreviewSelection::new(view_mode)?;
 
                 let cmd = if let Some(command) = preview_selection.opt_preview_command() {
-                    command.replace("$snap_file", &format!("{:?}", snap_path))
+                    command.replace("$snap_file", &format!("{snap_path:?}"))
                 } else {
                     return HttmError::new("Could not parse preview command").into();
                 };
@@ -139,22 +139,18 @@ impl InteractiveSelect {
                         stdout.read_to_string(&mut output_buf)?;
                         print_output_buf(&output_buf)
                     }
-                    None => match spawned.stderr {
-                        Some(mut stderr) => {
-                            let mut output_buf = String::new();
-                            stderr.read_to_string(&mut output_buf)?;
-                            if !output_buf.is_empty() {
-                                eprintln!("{}", &output_buf)
-                            }
-                            Ok(())
+                    None => if let Some(mut stderr) = spawned.stderr {
+                        let mut output_buf = String::new();
+                        stderr.read_to_string(&mut output_buf)?;
+                        if !output_buf.is_empty() {
+                            eprintln!("{output_buf}");
                         }
-                        None => {
-                            let description = format!(
-                                "Preview command output was empty for path: {:?}",
-                                snap_path
-                            );
-                            HttmError::from(description).into()
-                        }
+                        Ok(())
+                    } else {
+                        let description = format!(
+                            "Preview command output was empty for path: {snap_path:?}"
+                        );
+                        HttmError::from(description).into()
                     },
                 }
             }

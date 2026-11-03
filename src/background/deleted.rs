@@ -50,7 +50,7 @@ impl DeletedSearch {
 
         deleted_scope.spawn(move |_| {
             let _ = self.run_loop(&deleted_dir, None);
-        })
+        });
     }
 }
 
@@ -71,7 +71,7 @@ impl CommonSearch for DeletedSearch {
         // check to see whether we need to continue
         if self.hangup() {
             return Ok(());
-        };
+        }
 
         let mut queue = Vec::new();
 
@@ -91,7 +91,7 @@ impl CommonSearch for DeletedSearch {
                     return Ok(());
                 }
 
-                let _ = self.enter_directory(&item.path(), &mut queue);
+                let _ = self.enter_directory(item.path(), &mut queue);
             }
         }
 

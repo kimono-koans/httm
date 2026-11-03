@@ -91,10 +91,10 @@ impl DiffEvent {
             }
             [time_str, diff_type, path, new_file_name] => DiffEvent::from_parts(
                 path,
-                Self::parse_diff_type(diff_type, Some(&new_file_name))?,
+                Self::parse_diff_type(diff_type, Some(new_file_name))?,
                 time_str,
             ),
-            _ => HttmError::new(format!("Could not parse diff event from line: {}", line)).into(),
+            _ => HttmError::new(format!("Could not parse diff event from line: {line}")).into(),
         }
     }
 
@@ -113,8 +113,7 @@ impl DiffEvent {
             },
             _ => {
                 return Err(HttmError::new(format!(
-                    "Could not parse diff type from line: {}",
-                    diff_type
+                    "Could not parse diff type from line: {diff_type}"
                 ))
                 .into());
             }
@@ -136,7 +135,7 @@ impl DiffEvent {
     pub fn reverse_action(&self, roll_forward: &RollForward) -> HttmResult<()> {
         let live_file_path = self.path_buf.as_ref();
         let snap_file_path = roll_forward
-            .snap_path(&live_file_path)
+            .snap_path(live_file_path)
             .ok_or_else(|| HttmError::new("Could not obtain snap file path for live version."))?;
 
         // zfs-diff can return multiple file actions for a single inode
@@ -157,10 +156,9 @@ impl DiffEvent {
 
     pub fn copy(src: &Path, dst: &Path) -> HttmResult<()> {
         if let Err(err) = Copy::direct_quiet(src, dst, true) {
-            eprintln!("Error: {}", err);
+            eprintln!("Error: {err}");
             let description = format!(
-                "Could not overwrite {:?} with snapshot file version {:?}",
-                dst, src
+                "Could not overwrite {dst:?} with snapshot file version {src:?}"
             );
             return HttmError::from(description).into();
         }
@@ -188,15 +186,15 @@ impl DiffEvent {
         }
 
         match Remove::recursive_quiet(dst) {
-            Ok(_) => {
+            Ok(()) => {
                 if dst.exists() {
-                    let description = format!("File should not exist after deletion {:?}", dst);
+                    let description = format!("File should not exist after deletion {dst:?}");
                     return HttmError::from(description).into();
                 }
             }
             Err(err) => {
-                eprintln!("Error: {}", err);
-                let description = format!("Could not delete file {:?}", dst);
+                eprintln!("Error: {err}");
+                let description = format!("Could not delete file {dst:?}");
                 return HttmError::from(description).into();
             }
         }

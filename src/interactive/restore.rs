@@ -108,8 +108,7 @@ impl InteractiveRestore {
                 .view_mode
                 .view_buffer(&restore_buffer, MultiSelect::Off)?;
 
-            let user_consent = selection
-                .get(0)
+            let user_consent = selection.first()
                 .ok_or_else(|| HttmError::new("Could not obtain the first match selected."))?;
 
             match user_consent.to_ascii_uppercase().as_ref() {
@@ -122,8 +121,8 @@ impl InteractiveRestore {
                                 SnapGuard::try_from(new_file_path_buf.as_ref())?;
 
                             if let Err(err) = Self::restore_action(
-                                &snap_path_data.path(),
-                                &new_file_path_buf.as_ref(),
+                                snap_path_data.path(),
+                                new_file_path_buf.as_ref(),
                                 Some(&snap_guard),
                                 should_preserve,
                             ) {
@@ -131,8 +130,8 @@ impl InteractiveRestore {
                             }
                         }
                         _ => Self::restore_action(
-                            &snap_path_data.path(),
-                            &new_file_path_buf.as_ref(),
+                            snap_path_data.path(),
+                            new_file_path_buf.as_ref(),
                             None,
                             should_preserve,
                         )?,
@@ -167,29 +166,22 @@ impl InteractiveRestore {
         guarded: Option<&SnapGuard>,
         should_preserve: bool,
     ) -> HttmResult<()> {
-        let copy_res = match guarded {
-            Some(_) => Copy::recursive_quiet(src, dst, should_preserve),
-            None => {
-                let dst_tmp_path: PathBuf = make_tmp_path(&dst);
+        let copy_res = if guarded.is_some() { Copy::recursive_quiet(src, dst, should_preserve) } else {
+            let dst_tmp_path: PathBuf = make_tmp_path(dst);
 
-                Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve)
-            }
+            Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve)
         };
 
         if let Err(err) = copy_res {
-            match err.downcast_ref::<std::io::Error>().map(|err| err.kind()) {
-                Some(ErrorKind::PermissionDenied) => {
-                    let description = format!(
-                        "httm restore failed because user lacks permission to restore to the following location: {:?}.",
-                        dst
-                    );
+            if let Some(ErrorKind::PermissionDenied) = err.downcast_ref::<std::io::Error>().map(std::io::Error::kind) {
+                let description = format!(
+                    "httm restore failed because user lacks permission to restore to the following location: {dst:?}."
+                );
 
-                    return HttmError::from(description).into();
-                }
-                _ => {
-                    let description = format!("httm restore failed for the following reason:");
-                    return HttmError::with_source(&description, err.as_ref()).into();
-                }
+                return HttmError::from(description).into();
+            } else {
+                let description = "httm restore failed for the following reason:".to_string();
+                return HttmError::with_source(&description, err.as_ref()).into();
             };
         }
 

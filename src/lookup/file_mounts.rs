@@ -35,12 +35,12 @@ impl MountDisplay {
         T: PathDeconstruction<'a> + ?Sized,
     {
         match self {
-            MountDisplay::Target => path.target(&mount.path()),
-            MountDisplay::Source => path.source(Some(&mount.path())),
+            MountDisplay::Target => path.target(mount.path()),
+            MountDisplay::Source => path.source(Some(mount.path())),
             MountDisplay::RelativePath => path
-                .relative_path(&mount.path())
+                .relative_path(mount.path())
                 .ok()
-                .map(|path| path.into()),
+                .map(std::convert::Into::into),
         }
     }
 }
@@ -77,13 +77,13 @@ impl<'a> MountsForFiles<'a> {
                     Ok(prox_opt_alts) => Some(prox_opt_alts),
                     Err(err) => {
                         if !is_interactive_mode {
-                            eprintln!("WARN: {:?}", err.to_string())
+                            eprintln!("WARN: {:?}", err.to_string());
                         }
                         None
                     }
                 },
             )
-            .map(|prox_opt_alts| {
+            .inspect(|prox_opt_alts| {
                 if !is_interactive_mode
                     && prox_opt_alts.path_data().opt_path_metadata().is_none()
                     && prox_opt_alts.datasets_of_interest().count() == 0
@@ -93,8 +93,6 @@ impl<'a> MountsForFiles<'a> {
                         prox_opt_alts.path_data().path()
                     );
                 }
-
-                prox_opt_alts
             })
             .collect();
 

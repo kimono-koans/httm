@@ -66,7 +66,7 @@ impl Copy {
         if src.is_dir() {
             Self::direct_quiet(src, dst, should_preserve)?;
 
-            for entry in read_dir(&src)?.flatten() {
+            for entry in read_dir(src)?.flatten() {
                 let file_type = entry.file_type()?;
                 let entry_src = entry.path();
                 let entry_dst = dst.join(entry.file_name());
@@ -80,13 +80,13 @@ impl Copy {
                 }
             }
         } else {
-            Self::direct_quiet(&src, dst, should_preserve)?;
+            Self::direct_quiet(src, dst, should_preserve)?;
         }
 
         if should_preserve {
             // macos likes to fail on the metadata copy
             match Preserve::recursive(src, dst) {
-                Ok(_) => {}
+                Ok(()) => {}
                 Err(err) => {
                     if is_metadata_same(src, dst).is_ok() {
                         if GLOBAL_CONFIG.opt_debug {
@@ -95,9 +95,8 @@ impl Copy {
                                 err.to_string().trim_end()
                             );
                             eprintln!(
-                                "NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {:?} -> {:?}.",
-                                src, dst
-                            )
+                                "NOTICE: This is most likely because such feature is unsupported by this OS.  httm confirms basic file metadata (size and mtime) are the same for transfer: {src:?} -> {dst:?}."
+                            );
                         }
                     } else {
                         return Err(err);
@@ -114,26 +113,26 @@ impl Copy {
             create_dir_all(dst_parent)?;
             Ok(())
         } else {
-            let description = format!("Could not detect a parent for destination file: {:?}", dst);
+            let description = format!("Could not detect a parent for destination file: {dst:?}");
             HttmError::from(description).into()
         }
     }
 
     pub fn direct_quiet(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         if src.is_dir() {
-            create_dir_all(&dst)?;
+            create_dir_all(dst)?;
         } else {
-            Self::generate_dst_parent(&dst)?;
+            Self::generate_dst_parent(dst)?;
 
             if src.is_file() {
-                HttmCopy::new(&src, &dst).exec()?;
+                HttmCopy::new(src, dst).exec()?;
             } else {
                 if dst.exists() {
                     Remove::recursive_quiet(dst)?;
                 }
                 if src.is_symlink() {
-                    let link_target = std::fs::read_link(&src)?;
-                    std::os::unix::fs::symlink(&link_target, &dst)?;
+                    let link_target = std::fs::read_link(src)?;
+                    std::os::unix::fs::symlink(&link_target, dst)?;
                 } else {
                     Self::special_file(src, dst)?;
                 }
@@ -141,7 +140,7 @@ impl Copy {
         }
 
         if should_preserve {
-            Preserve::direct(src, dst)?
+            Preserve::direct(src, dst)?;
         }
 
         Ok(())
@@ -179,7 +178,7 @@ impl Copy {
             Traditionally, sockets could not be copied, and they should always be recreated by the generating daemon, when deleted: \"{}\"",
                 src.display()
             );
-            eprintln!("{}", description)
+            eprintln!("{description}");
         } else {
             let description = format!(
                 "httm could not determine the source path's file type, and therefore it could not be copied.  \
@@ -207,17 +206,17 @@ impl Copy {
         ) -> HttmResult<()> {
             Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
             Remove::recursive_quiet(dst)?;
-            Rename::direct_quiet(dst_tmp_path, &dst)?;
+            Rename::direct_quiet(dst_tmp_path, dst)?;
 
             Ok(())
         }
 
         if let Err(err) = swap(src, dst, dst_tmp_path, should_preserve) {
             if dst_tmp_path.exists() {
-                let _ = Remove::recursive_quiet(&dst_tmp_path);
+                let _ = Remove::recursive_quiet(dst_tmp_path);
             }
 
-            return Err(err.into());
+            return Err(err);
         }
 
         Ok(())
@@ -252,11 +251,11 @@ impl Preserve {
             .create(false)
             .read(true)
             .write(false)
-            .open(&dst)?;
+            .open(dst)?;
 
         // Mode
         {
-            set_permissions(dst, src_metadata.permissions())?
+            set_permissions(dst, src_metadata.permissions())?;
         }
 
         // ACLs - requires libacl1-dev to build
@@ -272,7 +271,7 @@ impl Preserve {
             let dst_uid = src_metadata.uid();
             let dst_gid = src_metadata.gid();
 
-            chown(dst, Some(dst_uid), Some(dst_gid))?
+            chown(dst, Some(dst_uid), Some(dst_gid))?;
         }
 
         // XAttrs
@@ -284,7 +283,7 @@ impl Preserve {
                         xattr::get(src, attr.clone()).map(|opt_value| (attr, opt_value))
                     })
                     .filter_map(|(attr, opt_value)| opt_value.map(|value| (attr, value)))
-                    .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()))?
+                    .try_for_each(|(attr, value)| xattr::set(dst, attr, value.as_slice()))?;
             }
         }
 
@@ -308,10 +307,7 @@ impl Preserve {
         let proximate_dataset_mount = dst_path_data.proximate_dataset()?;
 
         let Ok(relative_path) = dst_path_data.relative_path(proximate_dataset_mount) else {
-            let description = format!(
-                "Could not determine relative path for destination: {:?}",
-                dst
-            );
+            let description = format!("Could not determine relative path for destination: {dst:?}");
             return HttmError::from(description).into();
         };
 
@@ -339,7 +335,7 @@ impl Remove {
 
     pub fn recursive_quiet(src: &Path) -> HttmResult<()> {
         if src.is_dir() {
-            for entry in read_dir(&src)?.flatten() {
+            for entry in read_dir(src)?.flatten() {
                 let file_type = entry.file_type()?;
                 let path = entry.path();
 
@@ -347,16 +343,16 @@ impl Remove {
                     if file_type.is_dir() {
                         Self::recursive(&path)?;
                     } else {
-                        std::fs::remove_file(path)?
+                        std::fs::remove_file(path)?;
                     }
                 }
             }
 
             if src.exists() {
-                std::fs::remove_dir_all(&src)?
+                std::fs::remove_dir_all(src)?;
             }
         } else if src.exists() {
-            std::fs::remove_file(&src)?
+            std::fs::remove_file(src)?;
         }
 
         Ok(())
@@ -367,20 +363,14 @@ pub struct ChecksumFileContents<'a> {
     inner: &'a Path,
 }
 
-impl<'a> ChecksumFileContents<'a> {
+impl ChecksumFileContents<'_> {
     pub fn checksum(&self) -> u64 {
         use foldhash::quality::FixedState;
-        use std::hash::{
-            BuildHasher,
-            Hasher,
-        };
+        use std::hash::BuildHasher;
 
         let s = FixedState::default();
-        let mut hash = s.build_hasher();
 
-        self.hash(&mut hash);
-
-        hash.finish()
+        s.hash_one(self)
     }
 }
 
@@ -390,13 +380,9 @@ impl<'a> From<&'a Path> for ChecksumFileContents<'a> {
     }
 }
 
-impl<'a> Hash for ChecksumFileContents<'a> {
+impl Hash for ChecksumFileContents<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let Some(self_file) = std::fs::OpenOptions::new()
-            .read(true)
-            .open(&self.inner)
-            .ok()
-        else {
+        let Some(self_file) = std::fs::OpenOptions::new().read(true).open(self.inner).ok() else {
             return;
         };
 
@@ -426,9 +412,9 @@ impl<'a> Hash for ChecksumFileContents<'a> {
     }
 }
 
-impl<'a> Eq for ChecksumFileContents<'a> {}
+impl Eq for ChecksumFileContents<'_> {}
 
-impl<'a> PartialEq for ChecksumFileContents<'a> {
+impl PartialEq for ChecksumFileContents<'_> {
     fn eq(&self, other: &Self) -> bool {
         let (self_hash, other_hash): (u64, u64) =
             rayon::join(|| self.checksum(), || other.checksum());
@@ -437,7 +423,7 @@ impl<'a> PartialEq for ChecksumFileContents<'a> {
     }
 }
 
-impl<'a> Ord for ChecksumFileContents<'a> {
+impl Ord for ChecksumFileContents<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let (self_hash, other_hash): (u64, u64) =
             rayon::join(|| self.checksum(), || other.checksum());
@@ -446,7 +432,7 @@ impl<'a> Ord for ChecksumFileContents<'a> {
     }
 }
 
-impl<'a> PartialOrd for ChecksumFileContents<'a> {
+impl PartialOrd for ChecksumFileContents<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }

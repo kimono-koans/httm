@@ -78,12 +78,11 @@ impl SnapNameMap {
                         Some((path_data, snap_names))
                     }
                     Some(FilesystemType::Btrfs(opt_additional_btrfs_data)) => {
-                        if let Some(additional_btrfs_data) = opt_additional_btrfs_data {
-                            if let Some(new_map) = additional_btrfs_data.snap_names.get() {
+                        if let Some(additional_btrfs_data) = opt_additional_btrfs_data
+                            && let Some(new_map) = additional_btrfs_data.snap_names.get() {
                                 let values: Vec<Box<Path>> = new_map.values().cloned().collect();
                                 return Some((path_data, values))
-                            }                             
-                        }
+                            }
                         
                         None
                     },
@@ -98,32 +97,27 @@ impl SnapNameMap {
                 (mount, vec_snaps)
             })
             .filter(|(_path_data, snaps)| {
-                if let Some(filters) = opt_filters {
-                    if let Some(names) = filters.name_filters() {
+                if let Some(filters) = opt_filters
+                    && let Some(names) = filters.name_filters() {
                         return names.iter().any(|pattern| snaps.iter().any(|snap| snap.contains(pattern)));
                     }
-                }
                 true
             })
             .filter_map(|(path_data, mut vec_snaps)| {
-                if let Some(mode_filter) = opt_filters {
-                    if mode_filter.omit_num_snaps() != 0 {
+                if let Some(mode_filter) = opt_filters
+                    && mode_filter.omit_num_snaps() != 0 {
                         let opt_amt_less = vec_snaps.len().checked_sub(mode_filter.omit_num_snaps());
 
-                        match opt_amt_less {
-                            Some(amt_less) => {
-                                let _ = vec_snaps.split_off(amt_less);
-                            }
-                            None => {
-                                eprintln!(
-                                    "Number of snapshots requested to omit larger than number of snapshots.",
-                                );
-                                return None
-                                
-                            }
+                        if let Some(amt_less) = opt_amt_less {
+                            let _ = vec_snaps.split_off(amt_less);
+                        } else {
+                            eprintln!(
+                                "Number of snapshots requested to omit larger than number of snapshots.",
+                            );
+                            return None
+                            
                         }
                     }
-                }
 
                 Some((path_data.to_owned(), vec_snaps))
             })

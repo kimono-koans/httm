@@ -76,7 +76,7 @@ impl Serialize for PrintAsMap {
     }
 }
 
-impl<'a> From<&MountsForFiles<'a>> for PrintAsMap {
+impl From<&MountsForFiles<'_>> for PrintAsMap {
     fn from(mounts_for_files: &MountsForFiles) -> Self {
         let mount_display = mounts_for_files.mount_display();
 
@@ -149,12 +149,11 @@ impl std::string::ToString for PrintAsMap {
                     |mut buffer, (idx, value)| {
                         buffer.push_str(value);
 
-                        if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode {
-                            if last == idx {
+                        if let PrintMode::Raw(RawMode::Csv) = GLOBAL_CONFIG.print_mode
+                            && last == idx {
                                 buffer.push('\n');
                                 return buffer;
                             }
-                        }
 
                         buffer.push(delimiter);
                         buffer
@@ -192,7 +191,9 @@ impl PrintAsMap {
     pub fn format(&self) -> String {
         let padding = self.map_padding();
 
-        let write_out_buffer = self
+        
+
+        self
             .iter()
             .filter(|(_key, values)| {
                 if GLOBAL_CONFIG.opt_last_snap.is_some() {
@@ -222,10 +223,7 @@ impl PrintAsMap {
                             format!("{NOT_SO_PRETTY_FIXED_WIDTH_PADDING}{value}")
                         } else if idx == 0 {
                             format!(
-                                "{:<width$} : \"{}\"\n",
-                                display_path,
-                                value,
-                                width = padding
+                                "{display_path:<padding$} : \"{value}\"\n"
                             )
                         } else {
                             format!("{:<padding$} : \"{value}\"\n", "")
@@ -242,8 +240,6 @@ impl PrintAsMap {
                     values_string
                 }
             })
-            .collect();
-
-        write_out_buffer
+            .collect()
     }
 }

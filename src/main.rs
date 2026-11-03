@@ -159,7 +159,7 @@ static OPT_COMMON_SNAP_DIR: LazyLock<Option<Box<Path>>> = LazyLock::new(|| {
         .common_snap_dir(&MAP_OF_SNAPS);
 
     if GLOBAL_CONFIG.opt_debug && opt_common_snap_dir.is_some() {
-        eprintln!("{opt_common_snap_dir:#?}")
+        eprintln!("{opt_common_snap_dir:#?}");
     }
 
     opt_common_snap_dir
@@ -167,7 +167,7 @@ static OPT_COMMON_SNAP_DIR: LazyLock<Option<Box<Path>>> = LazyLock::new(|| {
 
 fn main() {
     match HttmProcess::exec() {
-        Ok(_) => HttmProcess::exit_success(),
+        Ok(()) => HttmProcess::exit_success(),
         Err(error) => {
             HttmProcess::exit_error(error);
         }
@@ -206,12 +206,12 @@ impl HttmProcess {
                         let interactive_select: InteractiveSelect =
                             InteractiveBrowse::try_into(browse_result)?;
 
-                        interactive_select.print_selections(&select_mode)
+                        interactive_select.print_selections(select_mode)
                     }
                     // InteractiveMode::Browse executes back through fn exec() in main.rs
                     InteractiveMode::Browse => {
                         let versions_map =
-                            VersionsMap::new(&GLOBAL_CONFIG, &browse_result.selected_path_data())?;
+                            VersionsMap::new(&GLOBAL_CONFIG, browse_result.selected_path_data())?;
 
                         let output_buf =
                             DisplayWrapper::from(&GLOBAL_CONFIG, versions_map).to_string();

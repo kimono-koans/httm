@@ -223,7 +223,7 @@ fn parse_args() -> ArgMatches {
                 so as not to overwrite any \"live\" file version. However, the user may specify the \"preserve\" value.  \
                 Preserve mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version.  \
                 User may also set the copy/restore mode via the HTTM_RESTORE_MODE environment variable.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
+                .conflicts_with_all(["BROWSE", "SELECT", "RESTORE"])
                 .display_order(4)
                 .action(ArgAction::Append)
         )
@@ -240,7 +240,7 @@ fn parse_args() -> ArgMatches {
                 Overwrite mode will attempt to preserve attributes, like the permissions/mode, timestamps, xattrs and ownership of the selected snapshot file version. \
                 User may also specify \"guard\".  Guard mode has the same semantics as \"overwrite\" but will attempt to take a precautionary snapshot before any overwrite action occurs. \
                 Note: Guard mode is a ZFS only option. User may also set the copy/restore mode via the HTTM_RESTORE_MODE environment variable.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "COPY"])
+                .conflicts_with_all(["BROWSE", "SELECT", "COPY"])
                 .display_order(5)
                 .action(ArgAction::Append)
         )
@@ -263,7 +263,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("RECURSIVE")
                 .short('R')
                 .long("recursive")
-                .conflicts_with_all(&["SNAPSHOT"])
+                .conflicts_with_all(["SNAPSHOT"])
                 .help("recurse into the selected directory to find more files and directories. Only available in interactive (BROWSE, SELECT and RESTORE) and DELETED file modes.")
                 .display_order(7)
                 .action(ArgAction::SetTrue)
@@ -276,7 +276,7 @@ fn parse_args() -> ArgMatches {
                 .help("automatically discover locally replicated datasets and list their snapshots as well. \
                 NOTE: Be certain such replicated datasets are mounted before use. \
                 httm will silently ignore unmounted datasets in the interactive modes.")
-                .conflicts_with_all(&["REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(["REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(8)
                 .action(ArgAction::SetTrue)
         )
@@ -301,7 +301,7 @@ fn parse_args() -> ArgMatches {
                 .long("dedup-by")
                 .value_parser(["disable", "all", "no-filter", "metadata", "contents", "suspect"])
                 .num_args(0..=1)
-                .visible_aliases(&["unique", "uniqueness"])
+                .visible_aliases(["unique", "uniqueness"])
                 .default_missing_value("contents")
                 .require_equals(true)
                 .help("comparing file versions solely on the basis of size and modify time (the default \"metadata\" behavior) may return what appear to be \"false positives and negatives\".  \
@@ -333,14 +333,14 @@ fn parse_args() -> ArgMatches {
                 .help("snapshot a file/s most immediate mount. \
                 This argument optionally takes a value for a snapshot suffix. The default suffix is 'httmSnapFileMount'. \
                 Note: This is a ZFS only option which requires either superuser or 'zfs allow' privileges.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(["BROWSE", "SELECT", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(12)
                 .action(ArgAction::Append)
         )
         .arg(
             Arg::new("LIST_SNAPS")
                 .long("list-snaps")
-                .aliases(&["snap-names", "snaps-for-file", "ls-snaps", "list-snapshots"])
+                .aliases(["snap-names", "snaps-for-file", "ls-snaps", "list-snapshots"])
                 .value_parser(clap::value_parser!(String))
                 .num_args(0..=1)
                 .require_equals(true)
@@ -353,14 +353,14 @@ fn parse_args() -> ArgMatches {
                 A value of \"5,prep_Apt\" would return the snapshot names of only the last 5 (at most) of all snapshot versions which contain \"prep_Apt\". \
                 The value \"native\" will restrict selection to only 'httm' native snapshot suffix values, like \"httmSnapFileMount\" and \"ounceSnapFileMount\". \
                 Note: This is a ZFS and btrfs only option.")
-                .conflicts_with_all(&["BROWSE", "RESTORE"])
+                .conflicts_with_all(["BROWSE", "RESTORE"])
                 .display_order(13)
                 .action(ArgAction::Append)
         )
         .arg(
             Arg::new("ROLL_FORWARD")
                 .long("roll-forward")
-                .aliases(&["roll", "spring", "spring-forward"])
+                .aliases(["roll", "spring", "spring-forward"])
                 .value_parser(clap::value_parser!(String))
                 .num_args(1)
                 .require_equals(true)
@@ -373,21 +373,21 @@ fn parse_args() -> ArgMatches {
                 CAVEATS: This is a ZFS only option which requires super user privileges.  \
                 Not all filesystem features are supported (for instance, Unix sockets on the snapshot will need to be recreated) and may cause a roll forward to fail.  \
                 Moreover, certain special objects/files will be copied or recreated, but are not guaranteed to be in the same state as the snapshot (for instance, FIFO buffers).")
-                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
+                .conflicts_with_all(["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])
                 .display_order(14)
                 .action(ArgAction::Append)
         )
         .arg(
             Arg::new("PRUNE")
                 .long("prune")
-                .aliases(&["purge"])
+                .aliases(["purge"])
                 .help("prune all snapshot/s which contain the input file/s on that file's most immediate mount via \"zfs destroy\". \
                 \"zfs destroy\" is a DESTRUCTIVE operation which DOES NOT ONLY APPLY to the file in question, but the entire snapshot upon which it resides. \
                 Careless use may cause you to lose snapshot data you care about. \
                 This argument requires and will be filtered according to any values specified at LIST_SNAPS. \
                 User may also enable SELECT mode to make a more granular selection of specific snapshots to prune. \
                 Note: This is a ZFS only option.")
-                .conflicts_with_all(&["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])                
+                .conflicts_with_all(["BROWSE", "RESTORE", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR"])                
                 .display_order(15)
                 .action(ArgAction::SetTrue)
         )
@@ -406,7 +406,7 @@ fn parse_args() -> ArgMatches {
                 \"mount\" or \"target\" or \"directory\", the default value, returns the mount/directory of a file's underlying dataset, \
                 \"source\" or \"device\" or \"dataset\", returns a file's underlying dataset/device, and, \
                 \"relative-path\" or \"relative\", returns a file's relative path from the underlying mount.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE"])
+                .conflicts_with_all(["BROWSE", "SELECT", "RESTORE"])
                 .display_order(16)
                 .action(ArgAction::Append)
         )
@@ -415,7 +415,7 @@ fn parse_args() -> ArgMatches {
                 .short('l')
                 .long("last-snap")
                 .default_missing_value("any")
-                .visible_aliases(&["last", "latest"])
+                .visible_aliases(["last", "latest"])
                 .value_parser(["any", "ditto", "no-ditto", "no-ditto-exclusive", "no-ditto-inclusive", "none", "without"])
                 .num_args(0..=1)
                 .require_equals(true)
@@ -426,7 +426,7 @@ fn parse_args() -> ArgMatches {
                 \"no-ditto-exclusive\", return only a last snap which is not the same as the live version (argument \"--no-ditto\" is an alias for this option), \
                 \"no-ditto-inclusive\", return a last snap which is not the same as the live version, or should none exist, return the live file, and, \
                 \"none\" or \"without\", return the live file only for those files without a last snapshot.")
-                .conflicts_with_all(&["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
+                .conflicts_with_all(["NUM_VERSIONS", "SNAPSHOT", "FILE_MOUNT", "ALT_REPLICATED", "REMOTE_DIR", "LOCAL_DIR", "PREVIEW"])
                 .display_order(17)
                 .action(ArgAction::Append)
         )
@@ -436,7 +436,7 @@ fn parse_args() -> ArgMatches {
                 .long("raw")
                 .visible_alias("newline")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NEWLINE character.")
-                .conflicts_with_all(&["ZEROS", "CSV", "NOT_SO_PRETTY"])
+                .conflicts_with_all(["ZEROS", "CSV", "NOT_SO_PRETTY"])
                 .display_order(18)
                 .action(ArgAction::SetTrue)
         )
@@ -446,7 +446,7 @@ fn parse_args() -> ArgMatches {
                 .long("zero")
                 .visible_alias("null")
                 .help("display the snapshot locations only, without extraneous information, delimited by a NULL character.")
-                .conflicts_with_all(&["RAW", "CSV", "NOT_SO_PRETTY"])
+                .conflicts_with_all(["RAW", "CSV", "NOT_SO_PRETTY"])
                 .display_order(19)
                 .action(ArgAction::SetTrue)
         )
@@ -454,16 +454,16 @@ fn parse_args() -> ArgMatches {
             Arg::new("CSV")
                 .long("csv")
                 .help("display all information, delimited by a comma.")
-                .conflicts_with_all(&["RAW", "ZEROS", "NOT_SO_PRETTY", "JSON"])
+                .conflicts_with_all(["RAW", "ZEROS", "NOT_SO_PRETTY", "JSON"])
                 .display_order(20)
                 .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NOT_SO_PRETTY")
                 .long("not-so-pretty")
-                .visible_aliases(&["tabs", "plain-jane", "not-pretty"])
+                .visible_aliases(["tabs", "plain-jane", "not-pretty"])
                 .help("display the ordinary output, but tab delimited, without any pretty border lines.")
-                .conflicts_with_all(&["RAW", "ZEROS", "CSV"])
+                .conflicts_with_all(["RAW", "ZEROS", "CSV"])
                 .display_order(21)
                 .action(ArgAction::SetTrue)
         )
@@ -471,16 +471,16 @@ fn parse_args() -> ArgMatches {
             Arg::new("JSON")
                 .long("json")
                 .help("display the ordinary output, but as formatted JSON.")
-                .conflicts_with_all(&["SELECT", "RESTORE"])
+                .conflicts_with_all(["SELECT", "RESTORE"])
                 .display_order(22)
-                .conflicts_with_all(&["CSV"])
+                .conflicts_with_all(["CSV"])
                 .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("OMIT_DITTO")
                 .long("omit-ditto")
                 .help("omit display of the snapshot version which may be identical to any live version. By default, `httm` displays all snapshot versions and the live version).")
-                .conflicts_with_all(&["NUM_VERSIONS"])
+                .conflicts_with_all(["NUM_VERSIONS"])
                 .display_order(23)
                 .action(ArgAction::SetTrue)
         )
@@ -495,7 +495,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("FILTER_HIDDEN")
                 .long("no-hidden")
-                .aliases(&["no-hide", "nohide", "filter-hidden"])
+                .aliases(["no-hide", "nohide", "filter-hidden"])
                 .help("do not show information regarding hidden files and directories (those that start with a \'.\') in the recursive or interactive modes.")
                 .display_order(25)
                 .action(ArgAction::SetTrue)
@@ -503,7 +503,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("ONE_FILESYSTEM")
                 .long("one-filesystem")
-                .aliases(&["same-filesystem", "single-filesystem", "one-fs", "onefs"])
+                .aliases(["same-filesystem", "single-filesystem", "one-fs", "onefs"])
                 .requires("RECURSIVE")
                 .help("limit recursive search to file and directories on the same filesystem/device as the target directory.")
                 .display_order(26)
@@ -520,19 +520,19 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("NO_LIVE")
                 .long("no-live")
-                .visible_aliases(&["dead", "disco"])
+                .visible_aliases(["dead", "disco"])
                 .help("only display information concerning snapshot versions (display no information regarding live versions of files or directories) in any Display Recursive mode (when DELETED and RECURSIVE are specified, but not an interactive mode).")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .conflicts_with_all(["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(28)
                 .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("NO_SNAP")
                 .long("no-snap")
-                .visible_aliases(&["undead", "zombie"])
+                .visible_aliases(["undead", "zombie"])
                 .help("only display information concerning 'pseudo-live' versions in any Display Recursive mode (when DELETED and RECURSIVE are specified, but not an interactive mode). \
                 Useful for finding the \"files that once were\" and displaying only those pseudo-live/zombie files.")
-                .conflicts_with_all(&["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
+                .conflicts_with_all(["BROWSE", "SELECT", "RESTORE", "SNAPSHOT", "LAST_SNAP", "NOT_SO_PRETTY"])
                 .display_order(29)
                 .action(ArgAction::SetTrue)
         )
@@ -554,7 +554,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new("MAP_ALIASES")
                 .long("map-aliases")
-                .visible_aliases(&["aliases"])
+                .visible_aliases(["aliases"])
                 .help("manually map a local directory (eg. \"/Users/<User Name>\") as an alias of a mount point for ZFS or btrfs, \
                 such as the local mount point for a backup on a remote share (eg. \"/Volumes/Home\"). \
                 This option is useful if you wish to view snapshot versions from within the local directory you back up to a remote network share. \
@@ -581,7 +581,7 @@ fn parse_args() -> ArgMatches {
                 \"single\" will print only filenames which only have one version, \
                 (and \"single-no-snap\" will print those without a snap taken, and \"single-with-snap\" will print those with a snap taken), \
                 and \"multiple\" will print only filenames which only have multiple versions.")
-                .conflicts_with_all(&["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
+                .conflicts_with_all(["LAST_SNAP", "BROWSE", "SELECT", "RESTORE", "RECURSIVE", "SNAPSHOT", "NO_LIVE", "NO_SNAP", "OMIT_DITTO"])
                 .display_order(32)
                 .action(ArgAction::Append)
         )
@@ -589,7 +589,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("REMOTE_DIR")
                 .long("remote-dir")
                 .hide(true)
-                .visible_aliases(&["remote", "snap-point"])
+                .visible_aliases(["remote", "snap-point"])
                 .help("DEPRECATED. Use MAP_ALIASES. Manually specify that mount point for ZFS (directory which contains a \".zfs\" directory) or btrfs-snapper \
                 (directory which contains a \".snapshots\" directory), such as the local mount point for a remote share. You may also set via the HTTM_REMOTE_DIR environment variable.")
                 .value_parser(clap::builder::ValueParser::os_string())
@@ -629,7 +629,7 @@ fn parse_args() -> ArgMatches {
             Arg::new("LAZY_SNAP_EVAL")
                 .long("lazy")
                 .short('L')
-                .aliases(&["realtime", "lazy-snap"])
+                .aliases(["realtime", "lazy-snap"])
                 .help("by default, all snapshot locations are discovered at initial program execution, however, here, \
                 a user may request that the program lazily wait until a search is executed before resolving any path's snapshot locations.  \
                 This provides the most accurate snapshot versions possible, but, given the additional metadata IO, may feel slower on older systems, with only marginal benefit.  \
@@ -688,7 +688,7 @@ impl TryFrom<&ArgMatches> for Config {
 
     fn try_from(matches: &ArgMatches) -> HttmResult<Self> {
         if matches.get_flag("ZSH_HOT_KEYS") {
-            install_hot_keys()?
+            install_hot_keys()?;
         }
 
         let requested_utc_offset = if matches.get_flag("UTC") {
@@ -713,7 +713,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let opt_alt_store: Option<FilesystemType> = match matches
             .get_one::<String>("ALT_STORE")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             Some("timemachine") => Some(FilesystemType::Apfs),
             Some("restic") => Some(FilesystemType::Restic(None)),
@@ -763,12 +763,11 @@ impl TryFrom<&ArgMatches> for Config {
             None
         };
 
-        if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion {
-            if let PrintMode::Formatted(FormattedMode::Default) = print_mode {
+        if let Some(BulkExclusion::NoSnap) = opt_bulk_exclusion
+            && let PrintMode::Formatted(FormattedMode::Default) = print_mode {
                 return HttmError::new("NO_SNAP is only available if RAW or ZEROS are specified.")
                     .into();
             }
-        }
 
         // force a raw mode if one is not set for no_snap mode
         let opt_one_filesystem = matches.get_flag("ONE_FILESYSTEM");
@@ -782,7 +781,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let opt_last_snap = match matches
             .get_one::<String>("LAST_SNAP")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             Some("" | "any") => Some(LastSnapMode::Any),
             Some("none" | "without") => Some(LastSnapMode::Without),
@@ -794,7 +793,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let opt_num_versions = match matches
             .get_one::<String>("NUM_VERSIONS")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             Some("" | "all") => Some(NumVersionsMode::AllNumerals),
             Some("graph") => Some(NumVersionsMode::AllGraph),
@@ -813,7 +812,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let opt_mount_display = match matches
             .get_one::<String>("FILE_MOUNT")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             Some("" | "mount" | "target" | "directory") => Some(MountDisplay::Target),
             Some("source" | "device" | "dataset") => Some(MountDisplay::Source),
@@ -823,7 +822,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let opt_preview = match matches
             .get_one::<String>("PREVIEW")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             Some("" | "default") => Some("default".to_owned()),
             Some(user_defined) => Some(user_defined.to_string()),
@@ -832,7 +831,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let mut opt_deleted_mode = match matches
             .get_one::<String>("DELETED")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             Some("" | "all") => Some(DeletedMode::All),
             Some("single" | "one") => Some(DeletedMode::DepthOfOne),
@@ -846,7 +845,7 @@ impl TryFrom<&ArgMatches> for Config {
             .or_else(|| matches.get_one::<String>("COPY"));
 
         let opt_interactive_mode = if let Some(var_restore_mode) = opt_restore_mode {
-            let mut restore_mode = var_restore_mode.to_string();
+            let mut restore_mode = var_restore_mode.clone();
 
             if let Ok(env_restore_mode) = std::env::var("HTTM_RESTORE_MODE") {
                 restore_mode = env_restore_mode;
@@ -865,7 +864,7 @@ impl TryFrom<&ArgMatches> for Config {
                 _ => Some(InteractiveMode::Restore(RestoreMode::CopyOnly)),
             }
         } else if opt_select_mode.is_some() || opt_preview.is_some() {
-            match opt_select_mode.map(|inner| inner.as_str()) {
+            match opt_select_mode.map(std::string::String::as_str) {
                 Some("contents") => Some(InteractiveMode::Select(SelectMode::Contents)),
                 Some("preview") => Some(InteractiveMode::Select(SelectMode::Preview)),
                 Some(_) | None => Some(InteractiveMode::Select(SelectMode::Path)),
@@ -880,7 +879,7 @@ impl TryFrom<&ArgMatches> for Config {
 
         let opt_dedup_by = match matches
             .get_one::<String>("DEDUP_BY")
-            .map(|inner| inner.as_str())
+            .map(std::string::String::as_str)
         {
             _ if matches.get_flag("PRUNE") => Some(DedupBy::Disable),
             _ if matches.contains_id("LIST_SNAPS") => Some(DedupBy::Disable),
@@ -903,12 +902,12 @@ impl TryFrom<&ArgMatches> for Config {
         if opt_last_snap.is_some()
             && matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)))
         {
-            print_mode = PrintMode::Raw(RawMode::Newline)
+            print_mode = PrintMode::Raw(RawMode::Newline);
         }
 
         let opt_snap_file_mount =
             if let Some(requested_snapshot_suffix) = matches.get_one::<String>("SNAPSHOT") {
-                if requested_snapshot_suffix == &"httmSnapFileMount" {
+                if requested_snapshot_suffix == "httmSnapFileMount" {
                     Some(requested_snapshot_suffix.to_owned())
                 } else if requested_snapshot_suffix.contains(char::is_whitespace) {
                     return HttmError::new(
@@ -927,7 +926,7 @@ impl TryFrom<&ArgMatches> for Config {
             let select_mode = matches!(opt_interactive_mode, Some(InteractiveMode::Select(_)));
 
             if !matches.get_flag("PRUNE") && select_mode {
-                eprintln!("Select mode for listed snapshots only available in PRUNE mode.")
+                eprintln!("Select mode for listed snapshots only available in PRUNE mode.");
             }
 
             Some(ListSnapsFilters::new(
@@ -950,7 +949,7 @@ impl TryFrom<&ArgMatches> for Config {
         } else if opt_snap_mode_filters.is_some() {
             ExecMode::SnapsForFiles(opt_snap_mode_filters)
         } else if let Some(requested_snapshot_suffix) = opt_snap_file_mount {
-            ExecMode::SnapFileMount(requested_snapshot_suffix.to_string())
+            ExecMode::SnapFileMount(requested_snapshot_suffix.clone())
         } else if let Some(interactive_mode) = opt_interactive_mode {
             ExecMode::Interactive(interactive_mode)
         } else if opt_deleted_mode.is_some() {
@@ -976,7 +975,7 @@ impl TryFrom<&ArgMatches> for Config {
         // for exec_modes in which we can only take a single directory, process how we handle those here
         let opt_requested_dir: Option<Arc<Path>> =
             Self::opt_requested_dir(&mut exec_mode, &mut opt_deleted_mode, &paths, &pwd)?
-                .map(|inner| inner.into());
+                .map(std::convert::Into::into);
 
         if opt_one_filesystem && opt_requested_dir.is_none() {
             return HttmError::new("ONE_FILESYSTEM requires a requested path for RECURSIVE search")
@@ -1018,29 +1017,29 @@ impl TryFrom<&ArgMatches> for Config {
 
         let config = Config {
             paths,
-            opt_bulk_exclusion,
             opt_recursive,
             opt_exact,
+            opt_no_filter,
             opt_debug,
             opt_no_traverse,
             opt_omit_ditto,
             opt_no_hidden,
-            opt_no_filter,
-            opt_last_snap,
-            opt_preview,
             opt_json,
             opt_one_filesystem,
             opt_no_clones,
             opt_lazy,
             opt_dedup_by,
+            opt_bulk_exclusion,
+            opt_last_snap,
+            opt_preview,
+            opt_deleted_mode,
+            opt_requested_dir,
+            opt_preheat_cache,
             requested_utc_offset,
             exec_mode,
             print_mode,
-            opt_deleted_mode,
             dataset_collection,
             pwd,
-            opt_requested_dir,
-            opt_preheat_cache,
         };
 
         Ok(config)
@@ -1074,9 +1073,7 @@ impl Config {
                     // here we strip the additional snapshot VFS bits and make them look like live versions
                     match ZfsSnapPathGuard::new(&pd) {
                         Some(spd) if !matches!(exec_mode, ExecMode::MountsForFiles(_)) => spd
-                            .live_path()
-                            .map(|path| path.into())
-                            .unwrap_or_else(|| pd),
+                            .live_path().map_or_else(|| pd, std::convert::Into::into),
                         _ => pd,
                     }
                 })
@@ -1263,32 +1260,27 @@ impl ListSnapsFilters {
         let mut rest: Vec<&str> = raw.collect();
 
         let omit_num_snaps = if let Some(value) = opt_number {
-            match value.parse::<usize>() {
-                Ok(number) => number,
-                Err(_) => {
-                    rest = config_string.trim_end().split(',').collect();
-                    0usize
-                }
+            if let Ok(number) = value.parse::<usize>() { number } else {
+                rest = config_string.trim_end().split(',').collect();
+                0usize
             }
         } else {
             0usize
         };
 
-        let name_filters = if !rest.is_empty() {
-            if rest.len() == 1usize && rest.index(0) == &"none" {
-                None
-            } else if rest.len() == 1usize && rest.index(0) == &"native" {
-                Some(
-                    NATIVE_SNAP_SUFFIXES
-                        .into_iter()
-                        .map(|name| name.to_owned())
-                        .collect(),
-                )
-            } else {
-                Some(rest.iter().map(|item| item.to_string()).collect())
-            }
-        } else {
+        let name_filters = if rest.is_empty() {
             None
+        } else if rest.len() == 1usize && rest.index(0) == &"none" {
+            None
+        } else if rest.len() == 1usize && rest.index(0) == &"native" {
+            Some(
+                NATIVE_SNAP_SUFFIXES
+                    .into_iter()
+                    .map(std::borrow::ToOwned::to_owned)
+                    .collect(),
+            )
+        } else {
+            Some(rest.iter().map(std::string::ToString::to_string).collect())
         };
 
         Ok(ListSnapsFilters {

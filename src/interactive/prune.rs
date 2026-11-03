@@ -71,8 +71,7 @@ impl InteractivePrune {
         } else {
             snap_name_map
                 .values()
-                .flatten()
-                .map(|name| format!("{name}"))
+                .flatten().cloned()
                 .collect()
         };
 
@@ -82,13 +81,12 @@ impl InteractivePrune {
             .collect();
 
         let prune_buffer = format!(
-            "User has requested snapshots related to the following file/s be pruned:\n\n{}\n\
-            httm will destroy the following snapshot/s:\n\n{}\n\
+            "User has requested snapshots related to the following file/s be pruned:\n\n{file_names_string}\n\
+            httm will destroy the following snapshot/s:\n\n{snap_names_string}\n\
             Before httm destroys these snapshot/s, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
-            NO\n",
-            file_names_string, snap_names_string
+            NO\n"
         );
 
         // loop until user consents or doesn't
@@ -97,8 +95,7 @@ impl InteractivePrune {
 
             let selection = view_mode.view_buffer(&prune_buffer, MultiSelect::Off)?;
 
-            let user_consent = selection
-                .get(0)
+            let user_consent = selection.first()
                 .ok_or_else(|| HttmError::new("Could not obtain the first match selected"))?;
 
             match user_consent.to_ascii_uppercase().as_ref() {
@@ -106,10 +103,9 @@ impl InteractivePrune {
                     PruneSnaps::prune(snap_name_map)?;
 
                     let result_buffer = format!(
-                        "httm pruned snapshots related to the following file/s:\n\n{}\n\
-                        By destroying the following snapshot/s:\n\n{}\n\
-                        Prune completed successfully.",
-                        file_names_string, snap_names_string
+                        "httm pruned snapshots related to the following file/s:\n\n{file_names_string}\n\
+                        By destroying the following snapshot/s:\n\n{snap_names_string}\n\
+                        Prune completed successfully."
                     );
 
                     break eprintln!("{result_buffer}");

@@ -263,7 +263,7 @@ pub mod collect_no_update {
     {
         let mut vec: Vec<K> = iter.collect();
 
-        vec.sort_by(|a, b| a.cmp(&b));
+        vec.sort();
         vec.dedup_by(|a, b| a.eq(&b));
 
         let mut lookup: HashSet<K> = HashSet::with_capacity(vec.len());

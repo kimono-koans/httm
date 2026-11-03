@@ -274,8 +274,7 @@ impl PathData {
         };
 
         format!(
-            "{}{}{}{}{}\n",
-            display_date, display_padding, display_size, display_padding, display_path
+            "{display_date}{display_padding}{display_size}{display_padding}{display_path}\n"
         )
     }
 
@@ -302,7 +301,7 @@ impl PathData {
                 .proximate_dataset()
                 .ok()
                 .and_then(|dataset| MAP_OF_SNAPS.get(dataset))
-                .is_some_and(|vec| vec.is_empty()) =>
+                .is_some_and(std::vec::Vec::is_empty) =>
             {
                 "WARN: No snapshots exist for the specified file's most proximate mount.\n"
             }

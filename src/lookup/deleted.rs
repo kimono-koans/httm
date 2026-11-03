@@ -84,14 +84,14 @@ impl DeletedFiles {
             };
 
             if !live_paths.is_empty() {
-                deleted_files.retain(|v| !live_paths.contains(v.filename()))
+                deleted_files.retain(|v| !live_paths.contains(v.filename()));
             }
         }
     }
 
     #[inline(always)]
-    fn unique_filenames_from_snapshots<'a>(
-        requested_dir: &'a Path,
+    fn unique_filenames_from_snapshots(
+        requested_dir: &Path,
     ) -> Option<HashSet<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
@@ -106,7 +106,7 @@ impl DeletedFiles {
         let pseudo_live_versions: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .into_search_bundles()
             .fold(HashSet::new(), |mut acc, search_bundle| {
-                let iter = Self::unique_filenames_from_snap_mount(&requested_dir, &search_bundle);
+                let iter = Self::unique_filenames_from_snap_mount(requested_dir, &search_bundle);
 
                 if acc.is_empty() {
                     acc = iter.collect_set_no_update();
@@ -147,10 +147,9 @@ impl DeletedFiles {
             })
             .map(|(dir_entry, file_type)| {
                 let file_name = dir_entry.file_name();
-                let basic_info =
-                    Self::into_pseudo_live_version(&file_name, pseudo_live_dir, Some(file_type));
+                
 
-                basic_info
+                Self::into_pseudo_live_version(&file_name, pseudo_live_dir, Some(file_type))
             })
     }
 
@@ -158,9 +157,9 @@ impl DeletedFiles {
     // which have been found on snapshots, we return to the user "the path that
     // once was" in their browse panel
     #[inline(always)]
-    fn into_pseudo_live_version<'a>(
+    fn into_pseudo_live_version(
         file_name: &OsStr,
-        pseudo_live_dir: &'a Path,
+        pseudo_live_dir: &Path,
         opt_filetype: Option<FileType>,
     ) -> BasicDirEntryInfo {
         let path = pseudo_live_dir.join(file_name);

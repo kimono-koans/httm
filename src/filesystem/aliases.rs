@@ -123,7 +123,7 @@ impl MapOfAliases {
         });
 
         if let Some(value) = snap_point {
-            aliases_iter.push(value)
+            aliases_iter.push(value);
         }
 
         let map_of_aliases: HashMap<Box<Path>, RemotePathAndFsType> = aliases_iter
@@ -136,16 +136,14 @@ impl MapOfAliases {
                 {
                     Some(_snap_dir) if !local_dir.exists() => {
                         eprintln!(
-                            "WARN: An alias path specified does not exist, or is not mounted: {:?}",
-                            local_dir
+                            "WARN: An alias path specified does not exist, or is not mounted: {local_dir:?}"
                         );
-                        return None;
+                        None
                     }
                     Some(snap_dir) => Some((local_dir, snap_dir)),
                     None => {
                         eprintln!(
-                            "WARN: An alias path specified does not exist, or is not mounted: {:?}",
-                            snap_dir
+                            "WARN: An alias path specified does not exist, or is not mounted: {snap_dir:?}"
                         );
                         None
                     }

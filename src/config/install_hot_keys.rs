@@ -51,7 +51,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
     let zshrc_path: PathBuf = home_dir.join(ZSHRC_PATH);
     let mut zshrc_file = OpenOptions::new()
         .read(true)
-        .write(true)
+        
         .append(true)
         .open(zshrc_path)
         .map_err(|err| {
@@ -65,21 +65,19 @@ pub fn install_hot_keys() -> HttmResult<()> {
     zshrc_file.read_to_string(&mut buffer)?;
 
     // check that there are not lines in the zshrc that contain "source" and "httm-key-bindings.zsh"
-    if !buffer
+    if buffer
         .lines()
         .filter(|line| !line.starts_with('#'))
-        .any(|line| line.contains("source") && line.contains("httm-key-bindings.zsh"))
-    {
-        // append "source ~/.httm-key-bindings.zsh" to zshrc
-        zshrc_file.write_all(
-            "\n# httm: zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
-        )?;
-    } else {
+        .any(|line| line.contains("source") && line.contains("httm-key-bindings.zsh")) {
         return HttmError::new(
             "httm: zsh hot keys appear to already be sourced in the user's ~/.zshrc. Quitting. ",
         )
         .into();
     }
+    // append "source ~/.httm-key-bindings.zsh" to zshrc
+    zshrc_file.write_all(
+        "\n# httm: zsh hot keys script\nsource ~/.httm-key-bindings.zsh\n".as_bytes(),
+    )?;
 
     // create key binding file -- done at compile time
     let zsh_hot_key_script = include_str!("../../scripts/httm-key-bindings.zsh");
@@ -108,7 +106,7 @@ pub fn install_hot_keys() -> HttmResult<()> {
                 &zsh_script_tmp_path,
                 &zsh_script_path,
             ) {
-                Ok(_) => {
+                Ok(()) => {
                     eprintln!("httm: zsh hot keys were installed successfully.");
                 }
                 Err(err) => {

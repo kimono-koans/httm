@@ -59,7 +59,7 @@ impl MapOfAlts {
     pub fn new(map_of_datasets: &MapOfDatasets) -> Self {
         let inner: HashMap<Arc<Path>, AltMetadata> = map_of_datasets
             .iter()
-            .flat_map(|(mount, _dataset_info)| {
+            .filter_map(|(mount, _dataset_info)| {
                 Self::from_mount(mount, map_of_datasets)
                     .ok()
                     .map(|datasets| (mount.clone(), datasets))

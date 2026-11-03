@@ -86,7 +86,7 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
     };
 
     match zfs_cmd.version() {
-        Err(_) => return AtomicBool::new(false),
+        Err(_) => AtomicBool::new(false),
         Ok(stdout)
             if stdout.contains("zfs-2.2.0")
                 || stdout.contains("zfs-kmod-2.2.0")
@@ -95,9 +95,9 @@ static IS_CLONE_COMPATIBLE: LazyLock<AtomicBool> = LazyLock::new(|| {
                 || stdout.contains("zfs-2.2-")
                 || stdout.contains("zfs-kmod-2.2-") =>
         {
-            return AtomicBool::new(false);
+            AtomicBool::new(false)
         }
-        Ok(_) => return AtomicBool::new(true),
+        Ok(_) => AtomicBool::new(true),
     }
 });
 
@@ -143,7 +143,7 @@ impl<'a> HttmCopy<'a> {
             && IS_CLONE_COMPATIBLE.load(std::sync::atomic::Ordering::Relaxed)
         {
             match CloneCopy::try_from(&self)?.exec() {
-                Ok(_) => {
+                Ok(()) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: copy_file_range call successful.");
                         eprintln!("DEBUG: Confirmation initiated.");
@@ -155,15 +155,13 @@ impl<'a> HttmCopy<'a> {
                 }
                 Err(err) => {
                     IS_CLONE_COMPATIBLE.store(false, std::sync::atomic::Ordering::Relaxed);
-                    if GLOBAL_CONFIG.opt_debug {
-                        if GLOBAL_CONFIG.opt_debug {
+                    if GLOBAL_CONFIG.opt_debug
+                        && GLOBAL_CONFIG.opt_debug {
                             eprintln!(
-                                "DEBUG: copy_file_range call unsuccessful for the following reason: \"{:?}\".\n
-                                DEBUG: Retrying a conventional diff copy.",
-                                err
+                                "DEBUG: copy_file_range call unsuccessful for the following reason: \"{err:?}\".\n
+                                DEBUG: Retrying a conventional diff copy."
                             );
                         }
-                    }
                 }
             }
         }
@@ -200,13 +198,13 @@ impl<'a> HttmCopy<'a> {
 
     fn finish_and_clear_bar(&self) {
         if let Some(bar) = &self.opt_bar {
-            bar.finish_and_clear()
+            bar.finish_and_clear();
         }
     }
 
     fn increment_bar(&self, bytes_written: u64) {
         if let Some(bar) = &self.opt_bar {
-            bar.inc(bytes_written as u64)
+            bar.inc(bytes_written);
         }
     }
 
@@ -280,7 +278,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for CloneCopy<'a> {
     }
 }
 
-impl<'a> CloneCopy<'a> {
+impl CloneCopy<'_> {
     fn exec(mut self) -> HttmResult<()> {
         self.copy_file_range()?;
 
@@ -393,7 +391,7 @@ impl<'a> TryFrom<&'a HttmCopy<'a>> for DiffCopy<'a> {
     }
 }
 
-impl<'a> DiffCopy<'a> {
+impl DiffCopy<'_> {
     fn exec(mut self) -> HttmResult<()> {
         self.write_no_cow()?;
 
@@ -437,7 +435,7 @@ impl<'a> DiffCopy<'a> {
                             match dst_reader.fill_buf() {
                                 Ok(dst_read) => {
                                     if !HttmCopy::is_same_bytes(src_read, dst_read) {
-                                        Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?
+                                        Self::write_to_offset(&mut dst_writer, src_read, cur_pos)?;
                                     }
 
                                     let dst_amt_read = dst_read.len();
@@ -452,7 +450,7 @@ impl<'a> DiffCopy<'a> {
                                 },
                             }
                         }
-                    };
+                    }
 
                     self.httm_copy.increment_bar(src_amt_read as u64);
 
@@ -467,7 +465,7 @@ impl<'a> DiffCopy<'a> {
                     }
                     _ => return Err(err.into()),
                 },
-            };
+            }
         }
 
         self.httm_copy.finish_and_clear_bar();

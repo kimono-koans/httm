@@ -53,7 +53,7 @@ impl InteractiveBrowse {
                 // go to interactive_select early if user has already requested a file
                 // and we are in the appropriate mode Select or Restore, see struct Config,
                 // and None here is also used for LastSnap to skip browsing for a file/dir
-                match GLOBAL_CONFIG.paths.get(0) {
+                match GLOBAL_CONFIG.paths.first() {
                     Some(first_path) => {
                         let selected_file = first_path.clone();
 
@@ -73,7 +73,7 @@ impl InteractiveBrowse {
         {
             if let Some(cache) = GLOBAL_CONFIG.opt_preheat_cache.get() {
                 cache.clear();
-            };
+            }
         }
 
         Ok(browse_result)
@@ -115,7 +115,7 @@ impl InteractiveBrowse {
         // create the skim component for previews
         let skim_opts = SkimOptionsBuilder::default()
             .preview_window(preview_layout)
-            .preview("".to_string())
+            .preview(String::new())
             .no_sort(true)
             .exact(GLOBAL_CONFIG.opt_exact)
             .header(header)
@@ -193,8 +193,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
         let opt_live_version: Option<String> = if self.selected_path_data.len() > 1 {
             None
         } else {
-            self.selected_path_data
-                .get(0)
+            self.selected_path_data.first()
                 .map(|path_data| path_data.path().to_string_lossy().into_owned())
         };
 
@@ -207,9 +206,9 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
             let display_config = &GLOBAL_CONFIG;
 
             let versions_map =
-                VersionsMap::new(&display_config, self.selected_path_data.as_slice())?;
+                VersionsMap::new(display_config, self.selected_path_data.as_slice())?;
 
-            let display_map = DisplayWrapper::from(&display_config, versions_map);
+            let display_map = DisplayWrapper::from(display_config, versions_map);
 
             let selection_buffer = display_map.to_string();
 
@@ -232,8 +231,8 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
                     .filter_map(|selection| {
                         // ... we want everything between the quotes
                         selection
-                            .split_once("\"")
-                            .and_then(|(_lhs, rhs)| rhs.rsplit_once("\""))
+                            .split_once('"')
+                            .and_then(|(_lhs, rhs)| rhs.rsplit_once('"'))
                             .map(|(lhs, _rhs)| lhs)
                     })
                     .filter(|selection_buffer| {
@@ -242,7 +241,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
                             .keys()
                             .all(|key| key.path() != Path::new(selection_buffer))
                     })
-                    .map(|selection_buffer| selection_buffer.to_string())
+                    .map(std::string::ToString::to_string)
                     .collect::<Vec<String>>();
 
                 if requested_file_names.is_empty() {

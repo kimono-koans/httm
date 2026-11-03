@@ -33,7 +33,6 @@ use crate::library::results::{
 };
 use crate::library::utility::find_common_path;
 use std::borrow::Cow;
-use std::ops::Deref;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -67,11 +66,11 @@ impl FilesystemInfo {
             None
         } else {
             MapOfAliases::new(
-                base_fs_info.map_of_datasets.deref(),
+                &base_fs_info.map_of_datasets,
                 opt_raw_aliases,
                 opt_remote_dir,
                 opt_local_dir,
-                &pwd,
+                pwd,
             )?
         };
 
@@ -80,7 +79,7 @@ impl FilesystemInfo {
 
         match opt_alt_store {
             Some(ref repo_type) => {
-                base_fs_info.from_blob_repo(&repo_type)?;
+                base_fs_info.from_blob_repo(repo_type)?;
             }
             None // auto enable time machine alt store on mac when no datasets available, no working aliases, and paths exist
                 if cfg!(target_os = "macos")

@@ -140,12 +140,12 @@ impl PreviewSelection {
                     std::env::set_var("HTTM_BOOTSTRAP_SCRIPT", ready_script);
                 }
 
-                let res: String= format!("unset HTTM_SELECTION; export HTTM_SELECTION={{}}; bash -c \"$HTTM_BOOTSTRAP_SCRIPT\"");
+                let res: String= "unset HTTM_SELECTION; export HTTM_SELECTION={}; bash -c \"$HTTM_BOOTSTRAP_SCRIPT\"".to_string();
 
                 Ok(res)
             }
             Err(_) => {
-                return Err(
+                Err(
                     HttmError::new("'cut' executable could not be found in the user's PATH. 'cut' is necessary for executing a preview command.").into(),
                 )
             }

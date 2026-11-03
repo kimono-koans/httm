@@ -60,7 +60,7 @@ impl PreheatCache {
                 Err(_err) => {
                     inner.set.clear_poison();
                 }
-            };
+            }
         });
     }
 
@@ -69,9 +69,7 @@ impl PreheatCache {
         if self
             .set
             .try_read()
-            .ok()
-            .map(|cached_result| cached_result.contains(bundle.dataset_of_interest()))
-            .unwrap_or_else(|| true)
+            .ok().map_or_else(|| true, |cached_result| cached_result.contains(bundle.dataset_of_interest()))
         {
             return;
         }
@@ -103,7 +101,7 @@ impl PreheatCache {
                             &dataset_of_interest_clone,
                         )
                         .into_iter()
-                        .filter(|item| locked.insert(item.to_path_buf()))
+                        .filter(|item| locked.insert(item.clone()))
                         .collect();
                     }
                     Err(err) => {
@@ -120,7 +118,7 @@ impl PreheatCache {
             vec.iter()
                 .filter_map(|dataset| {
                     RelativePathAndSnapMounts::snap_mounts_from_dataset_of_interest(
-                        &dataset,
+                        dataset,
                         &config_clone,
                     )
                 })
@@ -131,9 +129,8 @@ impl PreheatCache {
                 })
                 .for_each(|bundle| {
                     let _ = bundle
-                        .into_iter()
-                        .map(|snap_path| std::fs::read_dir(snap_path))
-                        .flatten()
+                        .iter()
+                        .flat_map(std::fs::read_dir)
                         .flatten()
                         .flatten()
                         .next();
@@ -151,24 +148,19 @@ impl PreheatCache {
         // we map to return the key, instead of the value
         let mut res = vec![proximate_dataset.to_path_buf()];
 
-        match pathdata
+        if let Some(parent_dataset) = pathdata
             .path()
             .parent()
             .map(|path| PathData::without_styling(path, None))
-            .map(|pathdata| {
+            .and_then(|pathdata| {
                 pathdata
                     .proximate_dataset()
                     .ok()
-                    .map(|path| path.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
             })
-            .flatten()
-            .filter(|parent_dataset| parent_dataset != proximate_dataset)
-        {
-            Some(parent_dataset) => {
-                res.push(parent_dataset);
-            }
-            _ => (),
-        };
+            .filter(|parent_dataset| parent_dataset != proximate_dataset) {
+            res.push(parent_dataset);
+        }
 
         let dir_iter = std::fs::read_dir(pathdata.path())
             .into_iter()
@@ -183,7 +175,7 @@ impl PreheatCache {
                     .map(|path| PathData::without_styling(&path, None)),
                 _ => None,
             })
-            .filter_map(|pd| pd.proximate_dataset().ok().map(|path| path.to_owned()))
+            .filter_map(|pd| pd.proximate_dataset().ok().map(std::borrow::ToOwned::to_owned))
             .filter(|parent_dataset| parent_dataset != proximate_dataset);
 
         res.extend(dir_iter);

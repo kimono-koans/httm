@@ -334,7 +334,7 @@ impl BaseFilesystemInfo {
                     };
 
                     let canonical_path = realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                        .unwrap_or_else(|_| base_path.to_path_buf())
+                        .unwrap_or_else(|_| base_path.clone())
                         .into();
 
                     Either::Left((
@@ -442,7 +442,7 @@ impl BaseFilesystemInfo {
                         };
 
                         let canonical_path = realpath(&base_path, RealpathFlags::ALLOW_MISSING)
-                            .unwrap_or_else(|_| base_path.to_path_buf())
+                            .unwrap_or_else(|_| base_path.clone())
                             .into();
 
                         Either::Left((

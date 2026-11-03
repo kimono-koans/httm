@@ -186,7 +186,7 @@ impl ZfsAllowPriv {
     pub fn from_path(&self, path: &Path) -> HttmResult<Box<Path>> {
         let path_data = PathData::from(path);
 
-        ZfsAllowPriv::from_opt_proximate_dataset(&self, &path_data, None)
+        ZfsAllowPriv::from_opt_proximate_dataset(self, &path_data, None)
     }
 
     pub fn from_opt_proximate_dataset(
@@ -202,18 +202,15 @@ impl ZfsAllowPriv {
             return HttmError::from(description).into();
         };
 
-        match path_data.fs_type(opt_proximate_dataset) {
-            Some(FilesystemType::Zfs) => {}
-            _ => {
-                let description = format!(
-                    "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
-                    path_data.path()
-                );
-                return HttmError::from(description).into();
-            }
+        if let Some(FilesystemType::Zfs) = path_data.fs_type(opt_proximate_dataset) {} else {
+            let description = format!(
+                "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
+                path_data.path()
+            );
+            return HttmError::from(description).into();
         }
 
-        Self::from_fs_name(&self, &fs_name.to_string_lossy())?;
+        Self::from_fs_name(self, &fs_name.to_string_lossy())?;
 
         Ok(fs_name)
     }
@@ -224,11 +221,10 @@ impl ZfsAllowPriv {
             ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
         };
 
-        if let Err(root_error) = user_has_effective_root(description) {
-            if let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name) {
+        if let Err(root_error) = user_has_effective_root(description)
+            && let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name) {
                 return Err(root_error);
             }
-        }
 
         Ok(())
     }

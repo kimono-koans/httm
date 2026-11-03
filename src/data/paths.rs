@@ -105,7 +105,7 @@ impl Clone for BasicDirEntryInfo {
     fn clone(&self) -> Self {
         Self {
             path: self.path.clone(),
-            opt_filetype: self.opt_filetype.clone(),
+            opt_filetype: self.opt_filetype,
             opt_metadata: self.opt_metadata.clone(),
         }
     }
@@ -129,7 +129,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
     fn from(dir_entry: DirEntry) -> Self {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
-            opt_filetype: dir_entry.file_type().ok().into(),
+            opt_filetype: dir_entry.file_type().ok(),
             opt_metadata: OnceLock::new().into(),
         }
     }
@@ -166,7 +166,7 @@ impl BasicDirEntryInfo {
     pub fn new(path: &Path, opt_filetype: Option<FileType>) -> Self {
         Self {
             path: path.into(),
-            opt_filetype: opt_filetype.into(),
+            opt_filetype,
             opt_metadata: OnceLock::new().into(),
         }
     }
@@ -185,7 +185,7 @@ impl BasicDirEntryInfo {
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
         self.opt_metadata
-            .get_or_init(|| self.path.symlink_metadata().ok().into())
+            .get_or_init(|| self.path.symlink_metadata().ok())
             .as_ref()
     }
 
@@ -209,11 +209,10 @@ impl BasicDirEntryInfo {
             }
         }
 
-        if let Some(file_type) = self.opt_filetype() {
-            if file_type.is_dir() {
+        if let Some(file_type) = self.opt_filetype()
+            && file_type.is_dir() {
                 return !self.is_path_excluded();
             }
-        }
 
         true
     }
@@ -231,18 +230,16 @@ impl BasicDirEntryInfo {
         }
 
         // is a common btrfs snapshot dir?
-        if let Some(common_snap_dir) = OPT_COMMON_SNAP_DIR.as_deref() {
-            if path == common_snap_dir {
+        if let Some(common_snap_dir) = OPT_COMMON_SNAP_DIR.as_deref()
+            && path == common_snap_dir {
                 return true;
             }
-        }
 
         // check whether user requested this dir specifically, then we will show
-        if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref() {
-            if user_requested_dir.as_ref() == path {
+        if let Some(user_requested_dir) = GLOBAL_CONFIG.opt_requested_dir.as_ref()
+            && user_requested_dir.as_ref() == path {
                 return false;
             }
-        }
 
         #[cfg(target_os = "macos")]
         {
@@ -251,7 +248,7 @@ impl BasicDirEntryInfo {
                 .any(|path_str| Path::new(path_str) == self.path())
             {
                 return true;
-            };
+            }
         }
 
         path.is_filter_dir()
@@ -287,14 +284,14 @@ impl Eq for PathData {}
 impl PartialOrd for PathData {
     #[inline]
     fn partial_cmp(&self, other: &PathData) -> Option<Ordering> {
-        Some(self.path().cmp(&other.path()))
+        Some(self.path().cmp(other.path()))
     }
 }
 
 impl Ord for PathData {
     #[inline]
     fn cmp(&self, other: &PathData) -> Ordering {
-        self.path().cmp(&other.path())
+        self.path().cmp(other.path())
     }
 }
 
@@ -320,14 +317,14 @@ impl From<&SelectionCandidate> for PathData {
         // in general we handle those cases elsewhere, like the ingest
         // of input files in Config::from for deleted relative paths, etc.
         let opt_metadata = selection_candidate.path().symlink_metadata().ok();
-        let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
+        let opt_filetype = opt_metadata.as_ref().map(std::fs::Metadata::file_type);
         let opt_path_metadata = opt_metadata
             .and_then(|md| PathMetadata::new(&md))
-            .map(|inner| Box::from(inner));
+            .map(Box::from);
 
         PathData {
             path_buf: selection_candidate.path().into(),
-            opt_path_metadata: opt_path_metadata,
+            opt_path_metadata,
             opt_filetype,
         }
     }
@@ -353,8 +350,8 @@ impl PathData {
         let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
 
         let opt_path_metadata = opt_metadata
-            .and_then(|md| PathMetadata::new(&md))
-            .map(|inner| Box::from(inner));
+            .and_then(PathMetadata::new)
+            .map(Box::from);
 
         Self {
             path_buf: path.into(),
@@ -368,22 +365,22 @@ impl PathData {
         let opt_path_metadata = opt_metadata
             .or_else(|| path.symlink_metadata().ok())
             .and_then(|md| PathMetadata::new(&md))
-            .map(|inner| Box::from(inner));
+            .map(Box::from);
 
         Self {
             path_buf: path.into(),
-            opt_path_metadata: opt_path_metadata,
+            opt_path_metadata,
             opt_filetype: None,
         }
     }
 
-    pub fn path<'a>(&'a self) -> &'a Path {
+    pub fn path(&self) -> &Path {
         &self.path_buf
     }
 
     pub fn opt_style(&self) -> Option<&lscolors::Style> {
         let path = self.path();
-        ENV_LS_COLORS.style_for_path_with_metadata(&path, path.symlink_metadata().ok().as_ref())
+        ENV_LS_COLORS.style_for_path_with_metadata(path, path.symlink_metadata().ok().as_ref())
     }
 
     pub fn opt_path_metadata(&self) -> Option<&PathMetadata> {
@@ -400,7 +397,7 @@ impl PathData {
         *self
             .opt_path_metadata
             .as_deref()
-            .unwrap_or_else(|| &PHANTOM_PATH_METADATA)
+            .unwrap_or(&PHANTOM_PATH_METADATA)
     }
 }
 
@@ -417,7 +414,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
                     map_of_aliases.get(ancestor).and_then(|metadata| {
                         Some(AliasedPath::new(
                             metadata.remote_dir(),
-                            &self.path().strip_prefix(ancestor).ok()?,
+                            self.path().strip_prefix(ancestor).ok()?,
                         ))
                     })
                 })
@@ -435,7 +432,7 @@ impl<'a> PathDeconstruction<'a> for PathData {
         // (each an indication we should not be trying aliases)
         self.path()
             .strip_prefix(proximate_dataset_mount)
-            .map_err(|err| err.into())
+            .map_err(std::convert::Into::into)
     }
 
     fn target(&self, proximate_dataset_mount: &Path) -> Option<Box<Path>> {
@@ -502,11 +499,11 @@ impl<'a> AliasedPath<'a> {
         }
     }
     pub fn proximate_dataset(&self) -> &'a Path {
-        &self.proximate_dataset
+        self.proximate_dataset
     }
 
     pub fn relative_path(&self) -> &'a Path {
-        &self.relative_path
+        self.relative_path
     }
 }
 
@@ -552,7 +549,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
             .split_once(&format!("{ZFS_SNAPSHOT_DIRECTORY}/"))
             .and_then(|(proximate_dataset_mount, relative_and_snap_name)| {
                 relative_and_snap_name
-                    .split_once("/")
+                    .split_once('/')
                     .map(|(_snap_name, relative)| {
                         PathBuf::from(proximate_dataset_mount)
                             .join(relative)
@@ -601,7 +598,7 @@ impl<'a> PathDeconstruction<'a> for ZfsSnapPathGuard<'_> {
 
         let (snap_name, _relative) = relative_and_snap
             .split_once('/')
-            .unwrap_or_else(|| (relative_and_snap, ""));
+            .unwrap_or((relative_and_snap, ""));
 
         match GLOBAL_CONFIG
             .dataset_collection
@@ -789,7 +786,7 @@ impl Eq for CompareContentsContainer {}
 
 impl PartialEq for CompareContentsContainer {
     fn eq(&self, other: &Self) -> bool {
-        self.cmp(&other).is_eq()
+        self.cmp(other).is_eq()
     }
 }
 
@@ -911,6 +908,6 @@ impl CompareContentsContainer {
             },
         );
 
-        self_hash.cmp(&other_hash)
+        self_hash.cmp(other_hash)
     }
 }

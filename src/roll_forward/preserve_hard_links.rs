@@ -89,7 +89,7 @@ impl HardLinkMap {
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
+                    .map(BasicDirEntryInfo::from)
                     .partition(|dir_entry| dir_entry.path().is_dir());
 
             let mut combined = vec_files;
@@ -245,7 +245,7 @@ impl<'a> PreserveHardLinks<'a> {
                     .map(|snap_path| {
                         let live_path =
                             self.roll_forward
-                                .live_path(&snap_path.path())
+                                .live_path(snap_path.path())
                                 .ok_or_else(|| {
                                     HttmError::new("Could obtain live path for snap path").into()
                                 });
@@ -364,33 +364,29 @@ impl<'a> PreserveHardLinks<'a> {
     fn hard_link(&self, original: &Path, link: &Path) -> HttmResult<()> {
         if !original.exists() {
             let description = format!(
-                "Cannot link because original path does not exists: {:?}",
-                original
+                "Cannot link because original path does not exists: {original:?}"
             );
             return HttmError::from(description).into();
         }
 
         if link.exists() {
-            if let Ok(og_md) = original.symlink_metadata() {
-                if let Ok(link_md) = link.symlink_metadata() {
-                    if og_md.ino() == link_md.ino() {
+            if let Ok(og_md) = original.symlink_metadata()
+                && let Ok(link_md) = link.symlink_metadata()
+                    && og_md.ino() == link_md.ino() {
                         return Ok(());
                     }
-                }
-            }
 
-            Remove::recursive_quiet(link)?
+            Remove::recursive_quiet(link)?;
         }
 
         Copy::generate_dst_parent(link)?;
 
-        if let Err(err) = std::fs::hard_link(original, link) {
-            if !link.exists() {
-                eprintln!("Error: {}", err);
-                let description = format!("Could not link file {:?} to {:?}", original, link);
+        if let Err(err) = std::fs::hard_link(original, link)
+            && !link.exists() {
+                eprintln!("Error: {err}");
+                let description = format!("Could not link file {original:?} to {link:?}");
                 return HttmError::from(description).into();
             }
-        }
 
         if let Some(snap_path) = self.roll_forward.snap_path(link) {
             Preserve::direct(&snap_path, link)?;
@@ -405,17 +401,17 @@ impl<'a> PreserveHardLinks<'a> {
 
     fn rm_hard_link(link: &Path) -> HttmResult<()> {
         match Remove::recursive_quiet(link) {
-            Ok(_) => {
+            Ok(()) => {
                 if link.exists() {
                     let description =
-                        format!("Target link should not exist after removal {:?}", link);
+                        format!("Target link should not exist after removal {link:?}");
                     return HttmError::from(description).into();
                 }
             }
             Err(err) => {
                 if link.exists() {
-                    eprintln!("Error: {}", err);
-                    let description = format!("Could not remove link {:?}", link);
+                    eprintln!("Error: {err}");
+                    let description = format!("Could not remove link {link:?}");
                     return HttmError::from(description).into();
                 }
             }

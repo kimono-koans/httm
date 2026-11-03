@@ -108,12 +108,12 @@ impl DirectoryLock {
 
         // Mode
         {
-            set_permissions(&self.path, exclusive)?
+            set_permissions(&self.path, exclusive)?;
         }
 
         // Ownership
         {
-            chown(&self.path, Some(root_uid), Some(root_gid))?
+            chown(&self.path, Some(root_uid), Some(root_gid))?;
         }
 
         Ok(())
@@ -124,12 +124,12 @@ impl DirectoryLock {
 
         // Mode
         {
-            set_permissions(&self.path, self.permissions.clone())?
+            set_permissions(&self.path, self.permissions.clone())?;
         }
 
         // Ownership
         {
-            chown(&self.path, Some(self.uid), Some(self.gid))?
+            chown(&self.path, Some(self.uid), Some(self.gid))?;
         }
 
         Ok(())
@@ -161,8 +161,7 @@ impl RollForward {
             res
         } else {
             let description = format!(
-                "\"{}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name.",
-                &full_snap_name
+                "\"{full_snap_name}\" is not a valid data set name.  A valid ZFS snapshot name requires a '@' separating dataset name and snapshot name."
             );
             return HttmError::from(description).into();
         };
@@ -193,13 +192,13 @@ impl RollForward {
             SnapGuard::new(&self.dataset, PrecautionarySnapType::PreRollForward)?;
 
         match self.directory_lock.wrap_function(|| self.roll_forward()) {
-            Ok(_) => {
+            Ok(()) => {
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
                 snap_guard.exit_and_rollback_with_error(err);
             }
-        };
+        }
 
         SnapGuard::new(
             &self.dataset,
@@ -214,7 +213,7 @@ impl RollForward {
 
         let run_zfs = RunZFSCommand::new()?;
 
-        let mut process_handle = run_zfs.diff(&self)?;
+        let mut process_handle = run_zfs.diff(self)?;
 
         let opt_stderr = process_handle.stderr.take();
         let mut opt_stdout = process_handle.stdout.take();
@@ -240,26 +239,25 @@ impl RollForward {
                 self.progress_bar.tick();
                 event.map_err(|e| parse_errors.push(e)).ok()
             })
-            .into_group_map_by(|event| event.path_buf.to_path_buf());
+            .into_group_map_by(|event| event.path_buf.clone());
 
         self.progress_bar.finish_and_clear();
 
         // These errors usually don't matter, if we make it this far.  Most are of the form:
         // "Unable to determine path or stats for object 99694 in ...: File exists"
         // Here, we print only as NOTICE
-        if let Ok(buf) = Self::zfs_diff_std_err(opt_stderr) {
-            if !buf.is_empty() {
+        if let Ok(buf) = Self::zfs_diff_std_err(opt_stderr)
+            && !buf.is_empty() {
                 eprintln!(
                     "NOTICE: 'zfs diff' reported an error.  At this point of execution, these are usually inconsequential: {}",
                     buf.trim()
                 );
             }
-        }
 
         if !parse_errors.is_empty() {
             let description: String = parse_errors
                 .into_iter()
-                .map(|e| format!("{}\n", e.to_string()))
+                .map(|e| format!("{e}\n"))
                 .collect();
             return HttmError::from(description).into();
         }
@@ -271,7 +269,7 @@ impl RollForward {
         let (vec_dirs, vec_files): (Vec<(PathBuf, DiffEvent)>, Vec<(PathBuf, DiffEvent)>) =
             group_map
                 .into_iter()
-                .flat_map(|(key, values)| {
+                .filter_map(|(key, values)| {
                     values
                         .into_iter()
                         .max_by_key(|event| event.time)
@@ -340,7 +338,7 @@ impl RollForward {
         list.reverse();
 
         list.iter()
-            .try_for_each(|(_key, value)| value.reverse_action(&self))
+            .try_for_each(|(_key, value)| value.reverse_action(self))
     }
 
     fn cleanup_and_verify(&self) -> HttmResult<()> {
@@ -395,7 +393,7 @@ impl RollForward {
 
         list.iter()
             .filter_map(|snap_path| {
-                self.live_path(&snap_path)
+                self.live_path(snap_path)
                     .map(|live_path| (snap_path, live_path))
             })
             .filter_map(|(snap_path, live_path)| {
@@ -403,23 +401,23 @@ impl RollForward {
 
                 // metadata mismatch could be due to size mismatch due to compression!
                 match is_metadata_same(&snap_path, &&live_path) {
-                    Ok(_) => None,
+                    Ok(()) => None,
                     Err(_) if snap_path.is_dir() => None,
                     Err(_) => Some((snap_path, live_path)),
                 }
             })
             .filter_map(|(snap_path, live_path)| {
                 // ... so we confirm with a checksum
-                match HttmCopy::confirm(&snap_path, &live_path) {
-                    Ok(_) => None,
+                match HttmCopy::confirm(snap_path, &live_path) {
+                    Ok(()) => None,
                     Err(_) => Some((snap_path, live_path)),
                 }
             })
             .try_for_each(|(snap_path, live_path)| {
-                eprintln!("DEBUG: Cleanup required {:?} -> {:?}", snap_path, live_path);
-                Copy::recursive_quiet(&snap_path, &live_path, true)?;
+                eprintln!("DEBUG: Cleanup required {snap_path:?} -> {live_path:?}");
+                Copy::recursive_quiet(snap_path, &live_path, true)?;
 
-                HttmCopy::confirm(&snap_path, &live_path)
+                HttmCopy::confirm(snap_path, &live_path)
             })
     }
 

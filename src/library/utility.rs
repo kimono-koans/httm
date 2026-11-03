@@ -81,7 +81,7 @@ pub fn get_btrfs_command() -> HttmResult<PathBuf> {
 
 pub fn user_has_effective_root(msg: &str) -> HttmResult<()> {
     if !nix::unistd::geteuid().is_root() {
-        let err = format!("Superuser privileges are required to execute: {}.", msg);
+        let err = format!("Superuser privileges are required to execute: {msg}.");
         return HttmError::new(&err).into();
     }
 
@@ -120,7 +120,7 @@ where
 
     path_iter
         .try_fold(initial_value, |acc, path| cmp_path(acc, path))
-        .map(|res| res.into_boxed_path())
+        .map(std::path::PathBuf::into_boxed_path)
 }
 
 fn cmp_path<A: AsRef<Path>, B: AsRef<Path>>(a: A, b: B) -> Option<PathBuf> {
@@ -192,10 +192,10 @@ impl HttmIsDir for PathData {
         //  make it harder to copy around etc
         Ok(self
             .opt_filetype()
-            .ok_or_else(|| std::io::ErrorKind::NotFound)?)
+            .ok_or(std::io::ErrorKind::NotFound)?)
     }
     fn path(&self) -> &Path {
-        &self.path()
+        self.path()
     }
 }
 
@@ -216,7 +216,7 @@ impl HttmIsDir for BasicDirEntryInfo {
 pub static ENV_LS_COLORS: LazyLock<LsColors> =
     LazyLock::new(|| LsColors::from_env().unwrap_or_default());
 pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> =
-    LazyLock::new(|| nu_ansi_term::Style::default());
+    LazyLock::new(nu_ansi_term::Style::default);
 pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
 pub trait PaintPath<'a> {
@@ -235,24 +235,21 @@ pub trait PaintPath<'a> {
                 res.push('/');
                 Cow::Owned(res)
             }
-            Some(ft) if ft.is_symlink() => match std::fs::read_link(self.path()).ok() {
-                Some(link_target) => {
-                    let mut src = display_name.to_string();
-                    let mut target = link_target.to_string_lossy().to_string();
+            Some(ft) if ft.is_symlink() => if let Ok(link_target) = std::fs::read_link(self.path()) {
+                let mut src = display_name.to_string();
+                let mut target = link_target.to_string_lossy().to_string();
 
-                    if link_target.is_dir() && src != "/" {
-                        src.push('/');
-                        target.push('/');
-                    }
-                    let res = format!("\'{}\' -> \'{}\'", src, target);
+                if link_target.is_dir() && src != "/" {
+                    src.push('/');
+                    target.push('/');
+                }
+                let res = format!("\'{src}\' -> \'{target}\'");
 
-                    Cow::Owned(res)
-                }
-                None => {
-                    let link_src = display_name;
-                    let res = format!("\'{}\' -> ?", link_src);
-                    Cow::Owned(res)
-                }
+                Cow::Owned(res)
+            } else {
+                let link_src = display_name;
+                let res = format!("\'{link_src}\' -> ?");
+                Cow::Owned(res)
             },
             _ => display_name,
         }
@@ -267,7 +264,7 @@ pub trait PaintPath<'a> {
 
         match self
             .ls_style()
-            .map(|style| Style::to_nu_ansi_term_style(&style))
+            .map(Style::to_nu_ansi_term_style)
         {
             Some(ansi_style) => ansi_style.paint(display_name),
             None => BASE_STYLE.paint(display_name),
@@ -275,7 +272,7 @@ pub trait PaintPath<'a> {
     }
 }
 
-impl<'a> PaintPath<'a> for PathData {
+impl PaintPath<'_> for PathData {
     fn path(&self) -> &Path {
         self.path()
     }
@@ -293,7 +290,7 @@ impl<'a> PaintPath<'a> for PathData {
     }
 }
 
-impl<'a> PaintPath<'a> for BasicDirEntryInfo {
+impl PaintPath<'_> for BasicDirEntryInfo {
     fn path(&self) -> &Path {
         self.path()
     }
@@ -319,16 +316,16 @@ impl<'a> PaintPath<'a> for BasicDirEntryInfo {
             LazyLock::new(|| REQUESTED_DIR.parent());
 
         // this only works because we do not resolve symlinks when doing traversal
-        let display_name = match self.path().strip_prefix(*REQUESTED_DIR) {
+        
+
+        match self.path().strip_prefix(*REQUESTED_DIR) {
             Ok(_stripped) if self.path() == ROOT_PATH.as_path() => Cow::Borrowed("/"),
             Ok(_) if self.path() == *REQUESTED_DIR => Cow::Borrowed("."),
             Ok(_) if ROOT_PATH.as_path() == *REQUESTED_DIR => self.path().to_string_lossy(),
             Ok(stripped) => stripped.to_string_lossy(),
             Err(_) if Some(self.path()) == *REQUESTED_DIR_PARENT => Cow::Borrowed(".."),
             Err(_) => self.path().to_string_lossy(),
-        };
-
-        display_name
+        }
     }
 }
 

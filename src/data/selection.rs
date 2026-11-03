@@ -97,9 +97,9 @@ impl SelectionCandidate {
         let array: [u8; 4] = bytes.0.try_into().unwrap();
         let mid = u32::from_be_bytes(array) as usize;
 
-        let deconstructed_bytes = bytes.1.split_at(mid);
+        
 
-        deconstructed_bytes
+        bytes.1.split_at(mid)
     }
 
     fn path_as_str(&self) -> &str {
@@ -121,7 +121,7 @@ impl SelectionCandidate {
         let display_path_data = display_config.paths.as_slice();
 
         // finally run search on those paths
-        let versions_map: VersionsMap = VersionsMap::new(&display_config, &display_path_data)?;
+        let versions_map: VersionsMap = VersionsMap::new(&display_config, display_path_data)?;
 
         let output_buf = DisplayWrapper::from(&display_config, versions_map).to_string();
 
@@ -129,7 +129,7 @@ impl SelectionCandidate {
     }
 
     fn fail_notice(err: HttmGenericErrorWrapper) -> String {
-        format!("{}\nERROR: {}\n--", PREVIEW_FAILURE_NOTICE, err)
+        format!("{PREVIEW_FAILURE_NOTICE}\nERROR: {err}\n--")
     }
 }
 
@@ -140,7 +140,7 @@ impl SkimItem for SelectionCandidate {
         Cow::Borrowed(ret)
     }
 
-    fn display<'a>(&'a self, _context: DisplayContext) -> Line<'a> {
+    fn display(&self, _context: DisplayContext) -> Line<'_> {
         self.painted_byte_slice()
             .into_text()
             .ok()
@@ -178,7 +178,7 @@ impl SkimItem for SelectionCandidate {
                 rayon::spawn(move || {
                     let preview_output = cloned
                         .preview_view()
-                        .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
+                        .unwrap_or_else(SelectionCandidate::fail_notice);
                     let _ = s.send(preview_output);
                 });
 
@@ -188,8 +188,8 @@ impl SkimItem for SelectionCandidate {
                         preview_output
                     }
                     Err(_) => {
-                        let preview_output = locked.retry_notice(&pathdata);
-                        preview_output
+                        
+                        locked.retry_notice(&pathdata)
                     }
                 };
 
@@ -198,18 +198,17 @@ impl SkimItem for SelectionCandidate {
 
             let preview_output = self
                 .preview_view()
-                .map(|res| {
+                .inspect(|_res| {
                     let _ = locked.remove_entry(&pathdata);
-                    res
                 })
-                .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
+                .unwrap_or_else(SelectionCandidate::fail_notice);
 
             return skim::ItemPreview::AnsiText(preview_output);
         }
 
         let preview_output = self
             .preview_view()
-            .unwrap_or_else(|err| SelectionCandidate::fail_notice(err));
+            .unwrap_or_else(SelectionCandidate::fail_notice);
 
         skim::ItemPreview::AnsiText(preview_output)
     }
@@ -261,16 +260,15 @@ impl DelayCache {
         let opt_prox = GLOBAL_CONFIG
             .opt_requested_dir
             .as_ref()
-            .map(|requested_dir| PathData::without_styling(&requested_dir, None))
-            .and_then(|pd| pd.proximate_dataset().ok().map(|path| path.to_path_buf()));
+            .map(|requested_dir| PathData::without_styling(requested_dir, None))
+            .and_then(|pd| pd.proximate_dataset().ok().map(std::path::Path::to_path_buf));
 
         let map: HashMap<Arc<Path>, usize> = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .keys()
             .filter(|key| {
-                opt_prox.as_ref().is_none()
-                    || opt_prox.as_ref().is_some_and(|prox| key.starts_with(prox))
+                opt_prox.as_ref().is_none_or(|prox| key.starts_with(prox))
             })
             .cloned()
             .map(|key| (key, 0usize))
@@ -288,7 +286,7 @@ impl DelayCache {
         pathdata
             .proximate_dataset()
             .ok()
-            .and_then(|prox| self.inner.get(prox).cloned())
+            .and_then(|prox| self.inner.get(prox).copied())
     }
 
     fn increment_count(&mut self, pathdata: &PathData) -> Option<usize> {
@@ -320,7 +318,7 @@ impl DelayCache {
             return false;
         };
 
-        if self.increment_count(&pathdata).is_none() {
+        if self.increment_count(pathdata).is_none() {
             return false;
         }
 
@@ -329,7 +327,7 @@ impl DelayCache {
 
     fn retry_notice(&self, pathdata: &PathData) -> String {
         let count = self.get_count(pathdata);
-        let retries_left = MAX_RETRIES - count.unwrap_or_else(|| MAX_RETRIES);
-        format!("{}{}\n--", PREVIEW_RETRY_NOTICE, retries_left)
+        let retries_left = MAX_RETRIES - count.unwrap_or(MAX_RETRIES);
+        format!("{PREVIEW_RETRY_NOTICE}{retries_left}\n--")
     }
 }

@@ -53,7 +53,7 @@ pub struct DisplayWrapper<'a> {
     map: VersionsMap,
 }
 
-impl<'a> DisplayWrapper<'a> {
+impl DisplayWrapper<'_> {
     pub fn format(&self) -> String {
         // if a single instance immediately return the global we already prepared
         match &self.config.print_mode {
@@ -92,7 +92,7 @@ impl<'a> DisplayWrapper<'a> {
                         (keys, values)
                     })
                     .map(|(keys, values)| DisplaySet::from((keys, values)))
-                    .map(|display_set| {
+                    .flat_map(|display_set| {
                         display_set
                             .into_inner()
                             .into_iter()
@@ -106,10 +106,8 @@ impl<'a> DisplayWrapper<'a> {
 
                                 true
                             })
-                            .map(|(_idx, set)| set)
-                            .flatten()
+                            .flat_map(|(_idx, set)| set)
                     })
-                    .flatten()
                     .map(|pd| pd.raw_format(raw_mode, delimiter, self.config.requested_utc_offset))
                     .collect::<String>()
             }
@@ -179,8 +177,8 @@ impl<'a> DisplayWrapper<'a> {
         match num_versions_mode {
             NumVersionsMode::AllGraph => {
                 if !versions.is_live_version_redundant() {
-                    num_versions += 1
-                };
+                    num_versions += 1;
+                }
 
                 match print_mode {
                     PrintMode::Formatted(FormattedMode::Default) => Some(format!(
@@ -197,25 +195,21 @@ impl<'a> DisplayWrapper<'a> {
             }
             NumVersionsMode::AllNumerals => {
                 if !versions.is_live_version_redundant() {
-                    num_versions += 1
-                };
+                    num_versions += 1;
+                }
 
                 match print_mode {
                     PrintMode::Formatted(FormattedMode::Default) => Some(format!(
-                        "{:<width$} : {}{}",
-                        display_path,
-                        num_versions,
-                        delimiter,
-                        width = padding
+                        "{display_path:<padding$} : {num_versions}{delimiter}"
                     )),
                     PrintMode::Raw(RawMode::Csv) => {
-                        Some(format!("{},{num_versions}{}", display_path, delimiter))
+                        Some(format!("{display_path},{num_versions}{delimiter}"))
                     }
                     PrintMode::Raw(_) if total_num_paths == 1 => {
-                        Some(format!("{num_versions}{}", delimiter))
+                        Some(format!("{num_versions}{delimiter}"))
                     }
                     PrintMode::Formatted(FormattedMode::NotPretty) | _ => {
-                        Some(format!("{}\t{num_versions}{}", display_path, delimiter))
+                        Some(format!("{display_path}\t{num_versions}{delimiter}"))
                     }
                 }
             }
@@ -253,29 +247,26 @@ impl<'a> DisplayWrapper<'a> {
     }
 }
 
-impl<'a> std::string::ToString for DisplayWrapper<'a> {
+impl std::string::ToString for DisplayWrapper<'_> {
     fn to_string(&self) -> String {
-        match &self.config.exec_mode {
-            ExecMode::NumVersions(num_versions_mode) => {
-                self.format_as_num_versions(num_versions_mode)
+        if let ExecMode::NumVersions(num_versions_mode) = &self.config.exec_mode {
+            self.format_as_num_versions(num_versions_mode)
+        } else {
+            if self.config.opt_last_snap.is_some() {
+                let printable_map = PrintAsMap::from(&self.map);
+                return printable_map.to_string();
             }
-            _ => {
-                if self.config.opt_last_snap.is_some() {
-                    let printable_map = PrintAsMap::from(&self.map);
-                    return printable_map.to_string();
-                }
 
-                if self.config.opt_json {
-                    return self.to_json();
-                }
-
-                self.format()
+            if self.config.opt_json {
+                return self.to_json();
             }
+
+            self.format()
         }
     }
 }
 
-impl<'a> Deref for DisplayWrapper<'a> {
+impl Deref for DisplayWrapper<'_> {
     type Target = HashMap<PathData, Vec<PathData>>;
 
     fn deref(&self) -> &Self::Target {
@@ -304,7 +295,7 @@ impl<'a> DisplayWrapper<'a> {
     }
 }
 
-impl<'a> Serialize for DisplayWrapper<'a> {
+impl Serialize for DisplayWrapper<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

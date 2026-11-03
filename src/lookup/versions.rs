@@ -94,7 +94,7 @@ impl VersionsMap {
         let versions_map: VersionsMap = if path_set.len() == 1 {
             Self::from_one_path(config, &path_set[0])
                 .into_iter()
-                .map(|v| v.into_inner())
+                .map(Versions::into_inner)
                 .collect::<HashMap<PathData, Vec<PathData>>>()
                 .into()
         } else {
@@ -108,11 +108,10 @@ impl VersionsMap {
                 .keys()
                 .all(|path_data| path_data.opt_path_metadata().is_none())
         {
-            let paths: Vec<&Path> = path_set.iter().map(|path_data| path_data.path()).collect();
+            let paths: Vec<&Path> = path_set.iter().map(super::super::data::paths::PathData::path).collect();
 
             let description = format!(
-                "Requested paths do not currently exist, and httm could not find any deleted versions in snapshots:\n{:?}\nSo, umm, 🤷, please check that you typed the correct path, and/or try again with a different path.",
-                paths
+                "Requested paths do not currently exist, and httm could not find any deleted versions in snapshots:\n{paths:?}\nSo, umm, 🤷, please check that you typed the correct path, and/or try again with a different path."
             );
 
             return HttmError::from(description).into();
@@ -126,7 +125,7 @@ impl VersionsMap {
         path_set
             .par_iter()
             .flat_map(|path_data| Self::from_one_path(config, path_data))
-            .map(|versions| versions.into_inner())
+            .map(Versions::into_inner)
             .collect()
     }
 
@@ -136,7 +135,7 @@ impl VersionsMap {
             Ok(versions) => Some(versions),
             Err(err) => {
                 if !matches!(config.exec_mode, ExecMode::Interactive(_)) {
-                    eprintln!("WARN: {}", err.to_string())
+                    eprintln!("WARN: {err}");
                 }
 
                 None
@@ -308,17 +307,17 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
     #[inline(always)]
     pub fn path_data(&self) -> &PathData {
-        &self.path_data
+        self.path_data
     }
 
     #[inline(always)]
     pub fn proximate_dataset(&self) -> &Path {
-        &self.proximate_dataset
+        self.proximate_dataset
     }
 
     #[inline(always)]
     pub fn datasets_of_interest(&'a self) -> impl Iterator<Item = &'a Path> {
-        let alts = self.opt_alts.into_iter().flatten().map(|p| p.as_ref());
+        let alts = self.opt_alts.into_iter().flatten().map(std::convert::AsRef::as_ref);
 
         let base = Some(self.proximate_dataset).into_iter();
 
@@ -327,12 +326,12 @@ impl<'a> ProximateDatasetAndOptAlts<'a> {
 
     #[inline(always)]
     pub fn into_search_bundles(&'a self) -> impl Iterator<Item = RelativePathAndSnapMounts<'a>> {
-        self.datasets_of_interest().flat_map(|dataset_of_interest| {
+        self.datasets_of_interest().filter_map(|dataset_of_interest| {
             RelativePathAndSnapMounts::new(
                 self.config,
                 self.path_data,
-                &self.relative_path,
-                &dataset_of_interest,
+                self.relative_path,
+                dataset_of_interest,
             )
         })
     }
@@ -381,9 +380,9 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 .map_of_datasets
                 .get(dataset_of_interest)
                 .map(|md| {
-                    MapOfSnaps::from_defined_mounts(&dataset_of_interest, md, config.opt_debug)
+                    MapOfSnaps::from_defined_mounts(dataset_of_interest, md, config.opt_debug)
                 })
-                .map(|snap_mounts| Cow::Owned(snap_mounts));
+                .map(Cow::Owned);
         }
 
         MAP_OF_SNAPS
@@ -398,22 +397,22 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
     #[inline(always)]
     pub fn relative_path(&'a self) -> &'a Path {
-        &self.relative_path
+        self.relative_path
     }
 
     #[inline(always)]
     pub fn dataset_of_interest(&'a self) -> &'a Path {
-        &self.dataset_of_interest
+        self.dataset_of_interest
     }
 
     #[inline(always)]
     pub fn config(&'a self) -> &'a Config {
-        &self.config
+        self.config
     }
 
     #[inline(always)]
     pub fn path_data(&'a self) -> &'a PathData {
-        &self.path_data
+        self.path_data
     }
 
     #[inline(always)]
@@ -456,7 +455,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Metadata);
             }
             _ if (self.path_data.httm_is_dir::<PathData>()
-                || versions.iter().all(|pd| pd.httm_is_dir::<PathData>())) =>
+                || versions.iter().all(super::super::library::utility::HttmIsDir::httm_is_dir::<PathData>)) =>
             {
                 Self::sort_dedup_versions(&mut versions, &DedupBy::Disable);
             }
@@ -481,7 +480,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
             .par_chunks(CHUNK_SIZE)
             .map(|chunk| {
                 chunk
-                    .into_iter()
+                    .iter()
                     .map(|snap_path| snap_path.join(self.relative_path))
                     .filter_map(|joined_path| self.match_metadata(joined_path))
             })
@@ -504,7 +503,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 let mut container_vec: Vec<CompareContentsContainer> = taken
                     .into_iter()
-                    .map(|path_data| CompareContentsContainer::from(path_data))
+                    .map(CompareContentsContainer::from)
                     .collect();
 
                 container_vec.sort_unstable();
@@ -514,8 +513,8 @@ impl<'a> RelativePathAndSnapMounts<'a> {
 
                 *vec = container_vec
                     .into_iter()
-                    .map(|container| container.into())
-                    .collect()
+                    .map(std::convert::Into::into)
+                    .collect();
             }
         }
     }
@@ -531,7 +530,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
         {
             let cache = GLOBAL_CONFIG
                 .opt_preheat_cache
-                .get_or_init(|| PreheatCache::new());
+                .get_or_init(PreheatCache::new);
 
             cache.exec(self);
         }

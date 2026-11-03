@@ -66,8 +66,8 @@ impl MapOfSnaps {
             })
             .collect();
 
-        if opt_debug {
-            if map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
+        if opt_debug
+            && map_of_snaps.iter().any(|(_mount, snaps)| snaps.is_empty()) {
                 eprintln!(
                     "DEBUG: httm relies on the user (and/or the filesystem's auto-mounter) to mount snapshots.  \
                 Make certain any snapshots the user may want to view are mounted, or are able to be mounted, \
@@ -79,12 +79,10 @@ impl MapOfSnaps {
                     .filter(|(_mount, snaps)| snaps.is_empty())
                     .for_each(|(mount, _snaps)| {
                         eprintln!(
-                            "DEBUG: Mount {:?} appears to have no snapshots available.",
-                            mount
-                        )
-                    })
+                            "DEBUG: Mount {mount:?} appears to have no snapshots available."
+                        );
+                    });
             }
-        }
 
         if map_of_snaps.values().flatten().count() == 0 {
             return HttmError::new(
@@ -128,7 +126,7 @@ impl MapOfSnaps {
 
                     NOTICE_FALLBACK.call_once(|| {
                         eprintln!(
-                            "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {:?}", mount
+                            "NOTICE: Falling back to detection of btrfs snapshot mounts perhaps defined by Snapper re: mount: {mount:?}"
                         );
                     });
 
@@ -152,11 +150,11 @@ impl MapOfSnaps {
     ) -> HashMap<Box<Path>, Box<Path>> {
         const BTRFS_COMMAND_REQUIRES_ROOT: &str = "btrfs mounts detected.  User must have super user permissions to determine the location of btrfs snapshots";
 
-        if let Err(_err) = user_has_effective_root(&BTRFS_COMMAND_REQUIRES_ROOT) {
+        if let Err(_err) = user_has_effective_root(BTRFS_COMMAND_REQUIRES_ROOT) {
             static USER_HAS_ROOT_WARNING: Once = Once::new();
 
             USER_HAS_ROOT_WARNING.call_once(|| {
-                eprintln!("WARN: {}", BTRFS_COMMAND_REQUIRES_ROOT);
+                eprintln!("WARN: {BTRFS_COMMAND_REQUIRES_ROOT}");
             });
             return HashMap::new();
         }
@@ -191,7 +189,7 @@ impl MapOfSnaps {
             static COULD_NOT_OBTAIN_BTRFS_COMMAND_OUTPUT: Once = Once::new();
 
             COULD_NOT_OBTAIN_BTRFS_COMMAND_OUTPUT.call_once(|| {
-                eprintln!("WARN: Could not obtain btrfs command output.",);
+                eprintln!("WARN: Could not obtain btrfs command output.");
             });
             return HashMap::new();
         };
@@ -205,8 +203,8 @@ impl MapOfSnaps {
             .map(|snap_paths| {
                 snap_paths
                     .lines()
-                    .map(|line| line.trim())
-                    .map(|line| Path::new(line))
+                    .map(str::trim)
+                    .map(Path::new)
                     .filter(|line| !line.as_os_str().is_empty())
                     .filter_map(|snap_name| {
                         let opt_snap_location = Self::parse_btrfs_relative_path(
@@ -248,8 +246,7 @@ impl MapOfSnaps {
 
         if opt_debug {
             eprintln!(
-                "DEBUG: Base mount: {:?}, Base subvol: {:?}, Snap Relative Path: {:?}",
-                base_mount, base_subvol, snap_relative
+                "DEBUG: Base mount: {base_mount:?}, Base subvol: {base_subvol:?}, Snap Relative Path: {snap_relative:?}"
             );
         }
 
@@ -261,7 +258,7 @@ impl MapOfSnaps {
                 let base_subvol_name = base_subvol.to_string_lossy();
 
                 // short circuit -- if subvol is same as dataset return base mount
-                if potential_dataset == base_subvol_name.trim_start_matches("/") {
+                if potential_dataset == base_subvol_name.trim_start_matches('/') {
                     return Some(base_mount);
                 }
 
@@ -275,7 +272,7 @@ impl MapOfSnaps {
                         FilesystemType::Btrfs(Some(additional_data)) => {
                             let subvol_name = additional_data.base_subvol.to_string_lossy();
 
-                            if potential_dataset == subvol_name.trim_start_matches("/") {
+                            if potential_dataset == subvol_name.trim_start_matches('/') {
                                 Some(mount.as_ref())
                             } else {
                                 None
@@ -289,7 +286,7 @@ impl MapOfSnaps {
                 let joined = mount.join(the_rest);
 
                 if opt_debug {
-                    eprintln!("DEBUG: Joined path: {:?}", joined);
+                    eprintln!("DEBUG: Joined path: {joined:?}");
                 }
 
                 joined
@@ -300,8 +297,7 @@ impl MapOfSnaps {
                     Some(snap_mount)
                 } else {
                     eprintln!(
-                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {:?}",
-                        snap_relative
+                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
                     );
                     None
                 }
@@ -319,16 +315,13 @@ impl MapOfSnaps {
                                     == BTRFS_ROOT_SUBVOL.as_path()
                         }
                         _ => false,
-                    })
-                    .map(|(mount, _metadata)| mount.to_owned())
-                    .unwrap_or_else(|| Arc::from(ROOT_PATH.as_ref()));
+                    }).map_or_else(|| Arc::from(ROOT_PATH.as_ref()), |(mount, _metadata)| mount.to_owned());
 
                 let snap_mount = btrfs_root.join(snap_relative);
 
                 if opt_debug {
                     eprintln!(
-                        "DEBUG: Btrfs top level {:?}, Snap Mount: {:?}",
-                        btrfs_root, snap_mount
+                        "DEBUG: Btrfs top level {btrfs_root:?}, Snap Mount: {snap_mount:?}"
                     );
                 }
 
@@ -337,8 +330,7 @@ impl MapOfSnaps {
                     Some(snap_mount)
                 } else {
                     eprintln!(
-                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {:?}",
-                        snap_relative
+                        "WARN: Snapshot mount requested does not exist or perhaps is not mounted: {snap_relative:?}"
                     );
                     None
                 }
@@ -361,7 +353,7 @@ impl MapOfSnaps {
                     read_dir(mount_point_path.join(BTRFS_SNAPPER_HIDDEN_DIRECTORY))?
                         .flatten()
                         .map(|entry| entry.path().join(BTRFS_SNAPPER_SUFFIX))
-                        .map(|path| path.into_boxed_path())
+                        .map(std::path::PathBuf::into_boxed_path)
                         .collect()
                 }
                 FilesystemType::Restic(None) => {
@@ -370,11 +362,11 @@ impl MapOfSnaps {
 
                     repos
                         .iter()
-                        .flat_map(|repo| read_dir(repo))
+                        .flat_map(read_dir)
                         .flatten()
                         .flatten()
                         .map(|dir_entry| dir_entry.path())
-                        .map(|path| path.into_boxed_path())
+                        .map(std::path::PathBuf::into_boxed_path)
                         .filter(|path| !path.ends_with("latest"))
                         .collect()
                 }
@@ -385,13 +377,13 @@ impl MapOfSnaps {
                     .flatten()
                     .flatten()
                     .map(|dir_entry| dir_entry.path())
-                    .map(|path| path.into_boxed_path())
+                    .map(std::path::PathBuf::into_boxed_path)
                     .filter(|path| !path.ends_with("latest"))
                     .collect(),
                 FilesystemType::Zfs => read_dir(mount_point_path.join(ZFS_SNAPSHOT_DIRECTORY))?
                     .flatten()
                     .map(|entry| entry.path())
-                    .map(|path| path.into_boxed_path())
+                    .map(std::path::PathBuf::into_boxed_path)
                     .collect(),
                 FilesystemType::Apfs => {
                     let mut res: Vec<Box<Path>> = Vec::new();
@@ -403,7 +395,7 @@ impl MapOfSnaps {
                             .flatten()
                             .flatten()
                             .map(|entry| entry.path().join("Data"))
-                            .map(|path| path.into_boxed_path());
+                            .map(std::path::PathBuf::into_boxed_path);
 
                         res.extend(local);
                     }
@@ -415,7 +407,7 @@ impl MapOfSnaps {
                             .flatten()
                             .flatten()
                             .map(|entry| entry.path().join(entry.file_name()).join("Data"))
-                            .map(|path| path.into_boxed_path());
+                            .map(std::path::PathBuf::into_boxed_path);
 
                         res.extend(remote);
                     }
@@ -433,8 +425,8 @@ impl MapOfSnaps {
                         .filter(|mount_info| {
                             mount_info.options.iter().any(|opt| opt.contains("cp="))
                         })
-                        .map(|mount_info| PathBuf::from(mount_info.dest))
-                        .map(|path| path.into_boxed_path())
+                        .map(|mount_info| mount_info.dest)
+                        .map(std::path::PathBuf::into_boxed_path)
                         .collect()
                 }
             };
@@ -448,13 +440,11 @@ impl MapOfSnaps {
                     match err.kind() {
                         std::io::ErrorKind::PermissionDenied => {
                             eprintln!(
-                                "DEBUG: Permission denied to read snapshot locations from defined mount: {:?}",
-                                mount_point_path
+                                "DEBUG: Permission denied to read snapshot locations from defined mount: {mount_point_path:?}"
                             );
                         }
                         _ => eprintln!(
-                            "DEBUG: An error was encountered while attempting to read from snapshots locations for mount: {:?}\nERROR: {:?}",
-                            err, mount_point_path
+                            "DEBUG: An error was encountered while attempting to read from snapshots locations for mount: {err:?}\nERROR: {mount_point_path:?}"
                         ),
                     }
                 }

@@ -46,7 +46,7 @@ impl TryFrom<&Path> for SnapGuard {
 
     fn try_from(path: &Path) -> HttmResult<Self> {
         // guards the ZFS action, returns source dataset
-        let allowed_source = ZfsAllowPriv::Snapshot.from_path(&path)?;
+        let allowed_source = ZfsAllowPriv::Snapshot.from_path(path)?;
 
         SnapGuard::new(
             &allowed_source.to_string_lossy(),
@@ -72,16 +72,14 @@ impl SnapGuard {
             PrecautionarySnapType::PreRollForward => {
                 // all snapshots should have the same timestamp
                 let new_snap_name = format!(
-                    "{}@snap_pre_{}_httmSnapRollForward",
-                    dataset_name, timestamp
+                    "{dataset_name}@snap_pre_{timestamp}_httmSnapRollForward"
                 );
 
                 new_snap_name
             }
             PrecautionarySnapType::PostRollForward(additional_snap_info_str) => {
                 let new_snap_name = format!(
-                    "{}@snap_post_{}_:{}:_httmSnapRollForward",
-                    dataset_name, timestamp, additional_snap_info_str
+                    "{dataset_name}@snap_post_{timestamp}_:{additional_snap_info_str}:_httmSnapRollForward"
                 );
 
                 new_snap_name
@@ -89,7 +87,7 @@ impl SnapGuard {
             PrecautionarySnapType::PreRestore => {
                 // all snapshots should have the same timestamp
                 let new_snap_name =
-                    format!("{}@snap_pre_{}_httmSnapRestore", dataset_name, timestamp);
+                    format!("{dataset_name}@snap_pre_{timestamp}_httmSnapRestore");
 
                 new_snap_name
             }
@@ -97,19 +95,17 @@ impl SnapGuard {
 
         let run_zfs = RunZFSCommand::new()?;
 
-        run_zfs.snapshot(&[new_snap_name.clone()])?;
+        run_zfs.snapshot(std::slice::from_ref(&new_snap_name))?;
 
         let output_buf = match &snap_type {
             PrecautionarySnapType::PreRollForward | PrecautionarySnapType::PreRestore => {
                 format!(
-                    "httm took a pre-execution snapshot named: {}\n",
-                    &new_snap_name
+                    "httm took a pre-execution snapshot named: {new_snap_name}\n"
                 )
             }
             PrecautionarySnapType::PostRollForward(_) => {
                 format!(
-                    "httm took a post-execution snapshot named: {}\n",
-                    &new_snap_name
+                    "httm took a post-execution snapshot named: {new_snap_name}\n"
                 )
             }
         };
@@ -126,18 +122,18 @@ impl SnapGuard {
         ZfsAllowPriv::Rollback.from_fs_name(&self.dataset_name)?;
 
         let run_zfs = RunZFSCommand::new()?;
-        run_zfs.rollback(&[self.new_snap_name.to_owned()])?;
+        run_zfs.rollback(std::slice::from_ref(&self.new_snap_name))?;
 
         Ok(())
     }
 
     pub fn exit_and_rollback_with_error(&self, err: Box<dyn std::error::Error + Sync + Send>) -> ! {
-        eprintln!("ERROR: {}", err);
+        eprintln!("ERROR: {err}");
 
         eprintln!("NOTICE: Attempting rollback to snapshot guard.");
 
         match self.rollback() {
-            Ok(_) => eprintln!("NOTICE: Rollback succeeded."),
+            Ok(()) => eprintln!("NOTICE: Rollback succeeded."),
             Err(error) => HttmProcess::exit_error(error),
         }
 

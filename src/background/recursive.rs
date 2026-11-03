@@ -94,7 +94,7 @@ impl<'a> RecursiveSearch<'a> {
                 pool.in_place_scope(|deleted_scope| {
                     self.run_loop(requested_dir, Some(deleted_scope))
                         .unwrap_or_else(|err| HttmProcess::exit_error(err));
-                })
+                });
             }
             None => {
                 self.run_loop(requested_dir, None)
@@ -117,7 +117,7 @@ impl<'a> RecursiveSearch<'a> {
         if let Some(parent) = requested_dir.parent() {
             let double_dot_as_entry = BasicDirEntryInfo::new(parent, None);
 
-            initial_vec_dirs.push(double_dot_as_entry)
+            initial_vec_dirs.push(double_dot_as_entry);
         }
 
         let entries = EntriesPartitioned {
@@ -146,11 +146,10 @@ impl CommonSearch for RecursiveSearch<'_> {
 
     fn entry_is_dir(&mut self, entry: &BasicDirEntryInfo) -> bool {
         // must do is_dir() look up on DirEntry file_type() as look up on Path will traverse links!
-        if GLOBAL_CONFIG.opt_no_traverse {
-            if let Some(file_type) = entry.opt_filetype() {
+        if GLOBAL_CONFIG.opt_no_traverse
+            && let Some(file_type) = entry.opt_filetype() {
                 return file_type.is_dir();
             }
-        }
 
         entry.httm_is_dir::<BasicDirEntryInfo>() && self.entry_not_previously_displayed(entry)
     }
@@ -188,7 +187,7 @@ impl CommonSearch for RecursiveSearch<'_> {
                 }
 
                 if let Some(deleted_scope) = opt_deleted_scope {
-                    self.spawn_deleted_search(&item.path(), deleted_scope);
+                    self.spawn_deleted_search(item.path(), deleted_scope);
                 }
 
                 // no errors will be propagated in recursive mode
@@ -312,7 +311,7 @@ impl EntriesPartitioned {
                     .flatten()
                     // checking file_type on dir entries is always preferable
                     // as it is much faster than a metadata call on the path
-                    .map(|dir_entry| BasicDirEntryInfo::from(dir_entry))
+                    .map(BasicDirEntryInfo::from)
                     .filter(|entry: &BasicDirEntryInfo| entry.recursive_search_filter())
                     .partition(|entry| common_search.entry_is_dir(entry))
             }
@@ -332,7 +331,7 @@ impl EntriesPartitioned {
     }
 
     fn combine_into_iter(self) -> impl Iterator<Item = BasicDirEntryInfo> {
-        self.vec_files.into_iter().chain(self.vec_dirs.into_iter())
+        self.vec_files.into_iter().chain(self.vec_dirs)
     }
 
     fn is_empty(&self) -> bool {
@@ -376,7 +375,7 @@ pub struct UniqueInode {
 
 impl UniqueInode {
     fn new(entry: &BasicDirEntryInfo) -> Option<Self> {
-        if entry.opt_filetype().is_some_and(|ft| ft.is_symlink()) {
+        if entry.opt_filetype().is_some_and(std::fs::FileType::is_symlink) {
             return entry.path().metadata().ok().map(|md| Self {
                 ino: md.ino(),
                 dev: md.dev(),
@@ -418,7 +417,7 @@ impl NonInteractiveRecursiveWrapper {
 
         match &GLOBAL_CONFIG.opt_requested_dir {
             Some(requested_dir) => {
-                RecursiveSearch::new(opt_skim_tx, hangup).exec(&requested_dir);
+                RecursiveSearch::new(opt_skim_tx, hangup).exec(requested_dir);
             }
             None => {
                 return HttmError::new(

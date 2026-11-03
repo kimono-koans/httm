@@ -61,9 +61,9 @@ impl SnapshotMounts {
                 .map(|snap_name| {
                     if let PrintMode::Raw(_) = GLOBAL_CONFIG.print_mode {
                         let delimiter = delimiter();
-                        format!("{}{delimiter}", &snap_name)
+                        format!("{snap_name}{delimiter}")
                     } else {
-                        format!("httm took a snapshot named: {}\n", &snap_name)
+                        format!("httm took a snapshot named: {snap_name}\n")
                     }
                 })
                 .collect();
@@ -75,22 +75,19 @@ impl SnapshotMounts {
     }
 
     pub fn pool_from_snap_name(snapshot_name: &str) -> HttmResult<String> {
-        match snapshot_name.split_once('@') {
-            Some((dataset_name, _snap_name)) => {
-                // split on "/" why?  because a snap looks like: rpool/kimono@snap...
-                // splits according to pool name, then the rest of the snap name
-                match dataset_name.split_once('/') {
-                    Some((pool_name, _the_rest)) => Ok(pool_name.into()),
-                    // what if no "/", then pool name is dataset name
-                    None => Ok(dataset_name.into()),
-                }
+        if let Some((dataset_name, _snap_name)) = snapshot_name.split_once('@') {
+            // split on "/" why?  because a snap looks like: rpool/kimono@snap...
+            // splits according to pool name, then the rest of the snap name
+            match dataset_name.split_once('/') {
+                Some((pool_name, _the_rest)) => Ok(pool_name.into()),
+                // what if no "/", then pool name is dataset name
+                None => Ok(dataset_name.into()),
             }
-            None => {
-                let description = format!(
-                    "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
-                );
-                HttmError::from(description).into()
-            }
+        } else {
+            let description = format!(
+                "Could not determine pool name from the constructed snapshot name: {snapshot_name}"
+            );
+            HttmError::from(description).into()
         }
     }
 
@@ -111,8 +108,8 @@ impl SnapshotMounts {
                 let path_data = prox.path_data();
 
                 let fs_name = ZfsAllowPriv::Snapshot
-                    .from_opt_proximate_dataset(&path_data, Some(prox.proximate_dataset()))
-                    .map_err(|err| HttmError::from(err))?;
+                    .from_opt_proximate_dataset(path_data, Some(prox.proximate_dataset()))
+                    .map_err(HttmError::from)?;
 
                 let snapshot_name = format!(
                     "{}@snap_{}_{}",
