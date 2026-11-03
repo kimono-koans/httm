@@ -190,9 +190,7 @@ impl HttmIsDir for PathData {
         //  of course, this is a placeholder error, we just need an error to report back
         //  why not store the error in the struct instead?  because it's more complex.  it might
         //  make it harder to copy around etc
-        Ok(self
-            .opt_filetype()
-            .ok_or(std::io::ErrorKind::NotFound)?)
+        Ok(self.opt_filetype().ok_or(std::io::ErrorKind::NotFound)?)
     }
     fn path(&self) -> &Path {
         self.path()
@@ -215,8 +213,7 @@ impl HttmIsDir for BasicDirEntryInfo {
 
 pub static ENV_LS_COLORS: LazyLock<LsColors> =
     LazyLock::new(|| LsColors::from_env().unwrap_or_default());
-pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> =
-    LazyLock::new(nu_ansi_term::Style::default);
+pub static BASE_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(nu_ansi_term::Style::default);
 pub static PHANTOM_STYLE: LazyLock<nu_ansi_term::Style> = LazyLock::new(|| BASE_STYLE.dimmed());
 
 pub trait PaintPath<'a> {
@@ -235,22 +232,24 @@ pub trait PaintPath<'a> {
                 res.push('/');
                 Cow::Owned(res)
             }
-            Some(ft) if ft.is_symlink() => if let Ok(link_target) = std::fs::read_link(self.path()) {
-                let mut src = display_name.to_string();
-                let mut target = link_target.to_string_lossy().to_string();
+            Some(ft) if ft.is_symlink() => {
+                if let Ok(link_target) = std::fs::read_link(self.path()) {
+                    let mut src = display_name.to_string();
+                    let mut target = link_target.to_string_lossy().to_string();
 
-                if link_target.is_dir() && src != "/" {
-                    src.push('/');
-                    target.push('/');
+                    if link_target.is_dir() && src != "/" {
+                        src.push('/');
+                        target.push('/');
+                    }
+                    let res = format!("\'{src}\' -> \'{target}\'");
+
+                    Cow::Owned(res)
+                } else {
+                    let link_src = display_name;
+                    let res = format!("\'{link_src}\' -> ?");
+                    Cow::Owned(res)
                 }
-                let res = format!("\'{src}\' -> \'{target}\'");
-
-                Cow::Owned(res)
-            } else {
-                let link_src = display_name;
-                let res = format!("\'{link_src}\' -> ?");
-                Cow::Owned(res)
-            },
+            }
             _ => display_name,
         }
     }
@@ -262,10 +261,7 @@ pub trait PaintPath<'a> {
             return PHANTOM_STYLE.paint(display_name);
         }
 
-        match self
-            .ls_style()
-            .map(Style::to_nu_ansi_term_style)
-        {
+        match self.ls_style().map(Style::to_nu_ansi_term_style) {
             Some(ansi_style) => ansi_style.paint(display_name),
             None => BASE_STYLE.paint(display_name),
         }
@@ -316,7 +312,6 @@ impl PaintPath<'_> for BasicDirEntryInfo {
             LazyLock::new(|| REQUESTED_DIR.parent());
 
         // this only works because we do not resolve symlinks when doing traversal
-        
 
         match self.path().strip_prefix(*REQUESTED_DIR) {
             Ok(_stripped) if self.path() == ROOT_PATH.as_path() => Cow::Borrowed("/"),
@@ -371,6 +366,7 @@ fn date_string_format<'a>(format: &DateFormat) -> &'a str {
     }
 }
 
+#[allow(clippy::cast_precision_loss)]
 pub fn display_human_size(size: u64) -> String {
     let size = size as f64;
 

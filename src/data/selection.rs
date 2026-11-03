@@ -71,7 +71,8 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         // LAYOUT: 4 big endian bytes for split_at "mid" point,
         // then a boxed &[u8] which contains both the path and the painted string
         let path_bytes = value.path().as_os_str().as_encoded_bytes();
-        let mid = path_bytes.len() as u32;
+        let mid = u32::try_from(path_bytes.len())
+            .expect("Number of bytes in path name unlikely to exceed maximum u32");
         let mid_be_bytes = mid.to_be_bytes();
         let mut all_bytes = mid_be_bytes.to_vec();
         let painted_bytes = value.paint_path();
@@ -96,8 +97,6 @@ impl SelectionCandidate {
         let bytes = self.path.split_at(size_of::<u32>());
         let array: [u8; 4] = bytes.0.try_into().unwrap();
         let mid = u32::from_be_bytes(array) as usize;
-
-        
 
         bytes.1.split_at(mid)
     }
@@ -187,10 +186,7 @@ impl SkimItem for SelectionCandidate {
                         locked.remove_entry(&pathdata);
                         preview_output
                     }
-                    Err(_) => {
-                        
-                        locked.retry_notice(&pathdata)
-                    }
+                    Err(_) => locked.retry_notice(&pathdata),
                 };
 
                 return skim::ItemPreview::AnsiText(preview_output);
@@ -261,15 +257,17 @@ impl DelayCache {
             .opt_requested_dir
             .as_ref()
             .map(|requested_dir| PathData::without_styling(requested_dir, None))
-            .and_then(|pd| pd.proximate_dataset().ok().map(std::path::Path::to_path_buf));
+            .and_then(|pd| {
+                pd.proximate_dataset()
+                    .ok()
+                    .map(std::path::Path::to_path_buf)
+            });
 
         let map: HashMap<Arc<Path>, usize> = GLOBAL_CONFIG
             .dataset_collection
             .map_of_datasets
             .keys()
-            .filter(|key| {
-                opt_prox.as_ref().is_none_or(|prox| key.starts_with(prox))
-            })
+            .filter(|key| opt_prox.as_ref().is_none_or(|prox| key.starts_with(prox)))
             .cloned()
             .map(|key| (key, 0usize))
             .collect();

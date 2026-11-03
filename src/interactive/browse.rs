@@ -193,7 +193,8 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
         let opt_live_version: Option<String> = if self.selected_path_data.len() > 1 {
             None
         } else {
-            self.selected_path_data.first()
+            self.selected_path_data
+                .first()
                 .map(|path_data| path_data.path().to_string_lossy().into_owned())
         };
 
@@ -224,7 +225,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
             // loop until user selects a valid snapshot version
             loop {
                 // get the file name
-                let selected_line = view_mode.view_buffer(&selection_buffer, MultiSelect::On)?;
+                let selected_line = view_mode.view_buffer(&selection_buffer, &MultiSelect::On)?;
 
                 let requested_file_names = selected_line
                     .iter()

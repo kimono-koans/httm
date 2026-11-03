@@ -15,8 +15,14 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
-use crate::filesystem::mounts::{DatasetMetadata, FilesystemType};
-use crate::library::results::{HttmError, HttmResult};
+use crate::filesystem::mounts::{
+    DatasetMetadata,
+    FilesystemType,
+};
+use crate::library::results::{
+    HttmError,
+    HttmResult,
+};
 use hashbrown::HashMap;
 use std::borrow::Cow;
 use std::ops::Deref;

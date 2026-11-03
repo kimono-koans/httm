@@ -121,14 +121,14 @@ impl SnapGuard {
         Ok(())
     }
 
-    pub fn exit_and_rollback_with_error(&self, err: Box<dyn std::error::Error + Sync + Send>) -> ! {
+    pub fn exit_and_rollback_with_error(&self, err: &HttmGenericErrorWrapper) -> ! {
         eprintln!("ERROR: {err}");
 
         eprintln!("NOTICE: Attempting rollback to snapshot guard.");
 
         match self.rollback() {
             Ok(()) => eprintln!("NOTICE: Rollback succeeded."),
-            Err(error) => HttmProcess::exit_error(error),
+            Err(error) => HttmProcess::exit_error(&error),
         }
 
         std::process::exit(1)

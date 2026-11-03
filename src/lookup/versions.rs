@@ -51,10 +51,7 @@ use std::ops::{
     Deref,
     DerefMut,
 };
-use std::path::{
-    Path,
-    PathBuf,
-};
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct VersionsMap {
@@ -179,7 +176,7 @@ impl Versions {
                     relative_path_snap_mounts.enable_preheat_cache();
                 }
 
-                relative_path_snap_mounts.version_search(&config.opt_dedup_by)
+                relative_path_snap_mounts.version_search(config.opt_dedup_by.as_ref())
             })
             .collect();
 
@@ -424,12 +421,12 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline]
-    fn match_metadata(&self, joined_path: PathBuf) -> Option<PathData> {
+    fn match_metadata(joined_path: &Path) -> Option<PathData> {
         match joined_path.symlink_metadata() {
             Ok(md) => {
                 // why not PathData::new()? because symlinks will resolve!
                 // symlinks from a snap will end up looking just like the link target, so this is very confusing...
-                Some(PathData::without_styling(&joined_path, Some(md)))
+                Some(PathData::without_styling(joined_path, Some(md)))
             }
             Err(err) => {
                 match err.kind() {
@@ -441,7 +438,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                         Perhaps you need to use sudo or equivalent to view the contents of this snapshot (for instance, btrfs by default creates privileged snapshots).  \
                         \nDetails: {err}"
                         ));
-                        HttmProcess::exit_error(error.into());
+                        HttmProcess::exit_error(&error.into());
                     }
                     // if file metadata is not found, or is otherwise not available,
                     // continue, it simply means we do not have a snapshot of this file
@@ -452,7 +449,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
     }
 
     #[inline]
-    pub fn version_search(&'a self, opt_dedup_by: &Option<DedupBy>) -> Vec<PathData> {
+    pub fn version_search(&'a self, opt_dedup_by: Option<&DedupBy>) -> Vec<PathData> {
         let mut versions = self.all_versions();
 
         // POSIX metadata is less useful for deduping between directories,
@@ -492,7 +489,7 @@ impl<'a> RelativePathAndSnapMounts<'a> {
                 chunk
                     .iter()
                     .map(|snap_path| snap_path.join(self.relative_path))
-                    .filter_map(|joined_path| self.match_metadata(joined_path))
+                    .filter_map(|joined_path| Self::match_metadata(&joined_path))
             })
             .flatten_iter()
             .collect::<Vec<PathData>>()

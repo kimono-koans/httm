@@ -32,7 +32,7 @@ pub struct PruneSnaps;
 
 impl PruneSnaps {
     pub fn exec(
-        versions_map: VersionsMap,
+        versions_map: &VersionsMap,
         opt_filters: Option<&ListSnapsFilters>,
     ) -> HttmResult<()> {
         let snap_name_map: SnapNameMap = SnapNameMap::new(versions_map, opt_filters)?;
@@ -67,7 +67,7 @@ impl InteractivePrune {
         let snap_names: Vec<String> = if select_mode {
             let buffer: String = snap_name_map.values().flatten().cloned().collect();
             let view_mode = ViewMode::Select(None);
-            view_mode.view_buffer(&buffer, MultiSelect::On)?
+            view_mode.view_buffer(&buffer, &MultiSelect::On)?
         } else {
             snap_name_map.values().flatten().cloned().collect()
         };
@@ -90,7 +90,7 @@ impl InteractivePrune {
         loop {
             let view_mode = ViewMode::Prune;
 
-            let selection = view_mode.view_buffer(&prune_buffer, MultiSelect::Off)?;
+            let selection = view_mode.view_buffer(&prune_buffer, &MultiSelect::Off)?;
 
             let user_consent = selection
                 .first()

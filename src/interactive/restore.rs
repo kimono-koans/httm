@@ -93,22 +93,23 @@ impl InteractiveRestore {
         // tell the user what we're up to, and get consent
         let restore_buffer = format!(
             "httm will perform a copy from snapshot:\n\n\
-            \tsource:\t{:?}\n\
+            \tsource:\t{}\n\
             \ttarget:\t{new_file_path_buf:?}\n\n\
             Before httm performs a restore, it would like your consent. Continue? (YES/NO)\n\
             ─────────────────────────────────────────────────────────────────────────────────────────\n\
             YES\n\
             NO\n",
-            snap_path_data.path()
+            snap_path_data.path().display()
         );
 
         // loop until user consents or doesn't
         loop {
             let selection = self
                 .view_mode
-                .view_buffer(&restore_buffer, MultiSelect::Off)?;
+                .view_buffer(&restore_buffer, &MultiSelect::Off)?;
 
-            let user_consent = selection.first()
+            let user_consent = selection
+                .first()
                 .ok_or_else(|| HttmError::new("Could not obtain the first match selected."))?;
 
             match user_consent.to_ascii_uppercase().as_ref() {
@@ -126,7 +127,7 @@ impl InteractiveRestore {
                                 Some(&snap_guard),
                                 should_preserve,
                             ) {
-                                snap_guard.exit_and_rollback_with_error(err);
+                                snap_guard.exit_and_rollback_with_error(&err);
                             }
                         }
                         _ => Self::restore_action(
@@ -139,10 +140,10 @@ impl InteractiveRestore {
 
                     let result_buffer = format!(
                         "httm copied from snapshot:\n\n\
-                            \tsource:\t{:?}\n\
+                            \tsource:\t{}\n\
                             \ttarget:\t{new_file_path_buf:?}\n\n\
                             Restore completed successfully.",
-                        snap_path_data.path()
+                        snap_path_data.path().display()
                     );
 
                     let summary_string = LightYellow.paint(Self::summary_string());
@@ -166,23 +167,28 @@ impl InteractiveRestore {
         guarded: Option<&SnapGuard>,
         should_preserve: bool,
     ) -> HttmResult<()> {
-        let copy_res = if guarded.is_some() { Copy::recursive_quiet(src, dst, should_preserve) } else {
+        let copy_res = if guarded.is_some() {
+            Copy::recursive_quiet(src, dst, should_preserve)
+        } else {
             let dst_tmp_path: PathBuf = make_tmp_path(dst);
 
             Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve)
         };
 
         if let Err(err) = copy_res {
-            if let Some(ErrorKind::PermissionDenied) = err.downcast_ref::<std::io::Error>().map(std::io::Error::kind) {
+            if let Some(ErrorKind::PermissionDenied) = err
+                .downcast_ref::<std::io::Error>()
+                .map(std::io::Error::kind)
+            {
                 let description = format!(
                     "httm restore failed because user lacks permission to restore to the following location: {dst:?}."
                 );
 
                 return HttmError::from(description).into();
-            } else {
-                let description = "httm restore failed for the following reason:".to_string();
-                return HttmError::with_source(&description, err.as_ref()).into();
-            };
+            }
+
+            let description = "httm restore failed for the following reason:".to_string();
+            return HttmError::with_source(&description, err.as_ref()).into();
         }
 
         eprintln!("{}: {:?} -> {:?}", Blue.paint("Restored "), src, dst);
@@ -241,8 +247,8 @@ impl InteractiveRestore {
 
         let Some(snap_metadata) = snap_path_data.opt_path_metadata() else {
             let description = format!(
-                "Source location: {:?} does not exist on disk Quitting.",
-                snap_path_data.path()
+                "Source location: {} does not exist on disk Quitting.",
+                snap_path_data.path().display()
             );
             return HttmError::from(description).into();
         };

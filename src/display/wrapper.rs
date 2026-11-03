@@ -289,7 +289,7 @@ impl<'a> DisplayWrapper<'a> {
                 let delimiter = delimiter();
                 format!("{s}{delimiter}")
             }
-            Err(error) => HttmProcess::exit_error(error.into()),
+            Err(error) => HttmProcess::exit_error(&error.into()),
         }
     }
 }

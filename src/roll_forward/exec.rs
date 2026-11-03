@@ -196,7 +196,7 @@ impl RollForward {
                 println!("httm roll forward completed successfully.");
             }
             Err(err) => {
-                snap_guard.exit_and_rollback_with_error(err);
+                snap_guard.exit_and_rollback_with_error(&err);
             }
         }
 

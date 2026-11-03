@@ -933,7 +933,7 @@ impl TryFrom<&ArgMatches> for Config {
             Some(ListSnapsFilters::new(
                 matches.get_one::<String>("LIST_SNAPS"),
                 select_mode,
-            )?)
+            ))
         } else {
             None
         };
@@ -1242,18 +1242,15 @@ impl ListSnapsFilters {
         self.name_filters.as_ref()
     }
 
-    pub fn new(
-        opt_config_string: Option<&String>,
-        select_mode: bool,
-    ) -> HttmResult<ListSnapsFilters> {
+    pub fn new(opt_config_string: Option<&String>, select_mode: bool) -> ListSnapsFilters {
         let config_string = match opt_config_string {
             Some(config_string) if !config_string.is_empty() => config_string,
             _ => {
-                return Ok(ListSnapsFilters {
+                return ListSnapsFilters {
                     select_mode,
                     omit_num_snaps: 0usize,
                     name_filters: None,
-                });
+                };
             }
         };
 
@@ -1285,10 +1282,10 @@ impl ListSnapsFilters {
             Some(rest.iter().map(std::string::ToString::to_string).collect())
         };
 
-        Ok(ListSnapsFilters {
+        ListSnapsFilters {
             select_mode,
             omit_num_snaps,
             name_filters,
-        })
+        }
     }
 }

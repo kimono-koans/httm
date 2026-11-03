@@ -136,7 +136,7 @@ impl SnapshotMounts {
             .into_iter()
             .into_group_map_by(|snapshot_name| {
                 Self::pool_from_snap_name(snapshot_name).unwrap_or_else(|error| {
-                    HttmProcess::exit_error(error);
+                    HttmProcess::exit_error(&error);
                 })
             })
             .iter_mut()

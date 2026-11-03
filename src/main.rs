@@ -122,7 +122,7 @@ pub const MAC_OS_HIDDEN_DIRS: [&str; 6] = [
 static GLOBAL_CONFIG: LazyLock<Config> = LazyLock::new(|| {
     Config::new()
         .map_err(|error| {
-            HttmProcess::exit_error(error);
+            HttmProcess::exit_error(&error);
         })
         .unwrap()
 });
@@ -135,7 +135,7 @@ static MAP_OF_SNAPS: LazyLock<MapOfSnaps> = LazyLock::new(|| {
         GLOBAL_CONFIG.opt_debug,
     )
     .map_err(|error| {
-        HttmProcess::exit_error(error);
+        HttmProcess::exit_error(&error);
     })
     .unwrap();
 
@@ -169,7 +169,7 @@ fn main() {
     match HttmProcess::exec() {
         Ok(()) => HttmProcess::exit_success(),
         Err(error) => {
-            HttmProcess::exit_error(error);
+            HttmProcess::exit_error(&error);
         }
     }
 }
@@ -177,7 +177,7 @@ fn main() {
 struct HttmProcess;
 
 impl HttmProcess {
-    pub fn exit_error(error: HttmGenericErrorWrapper) -> ! {
+    pub fn exit_error(error: &HttmGenericErrorWrapper) -> ! {
         eprintln!("ERROR: {error}");
         std::process::exit(1)
     }
@@ -233,7 +233,7 @@ impl HttmProcess {
             ExecMode::SnapFileMount(snapshot_suffix) => SnapshotMounts::exec(snapshot_suffix),
             ExecMode::SnapsForFiles(opt_filters) => {
                 let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-                let snap_name_map = SnapNameMap::new(versions_map, opt_filters.as_ref())?;
+                let snap_name_map = SnapNameMap::new(&versions_map, opt_filters.as_ref())?;
                 let printable_map = PrintAsMap::from(&snap_name_map);
                 let output_buf = printable_map.to_string();
 
@@ -241,7 +241,7 @@ impl HttmProcess {
             }
             ExecMode::Prune(opt_filters) => {
                 let versions_map = VersionsMap::new(&GLOBAL_CONFIG, &GLOBAL_CONFIG.paths)?;
-                PruneSnaps::exec(versions_map, opt_filters.as_ref())
+                PruneSnaps::exec(&versions_map, opt_filters.as_ref())
             }
             ExecMode::MountsForFiles(mount_display) => {
                 let mounts_map = &MountsForFiles::new(mount_display)?;
