@@ -418,6 +418,115 @@ impl PathData {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct PathMetadata {
+    size: u64,
+    inode: u64,
+    dev: u64,
+    modify_time: SystemTime,
+    birth_time: SystemTime,
+}
+
+impl PathMetadata {
+    // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
+    #[inline]
+    pub fn new(md: &Metadata) -> Option<Self> {
+        // may fail on systems that don't collect a modify time
+        let modify_time = md.modified().ok()?;
+        let birth_time = md.created().ok()?;
+        let inode = md.ino();
+        let dev = md.dev();
+
+        Some(PathMetadata {
+            size: md.len(),
+            modify_time,
+            birth_time,
+            inode,
+            dev,
+        })
+    }
+
+    // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
+    // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
+    #[inline]
+    pub fn mtime(&self) -> SystemTime {
+        self.modify_time
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub fn btime(&self) -> SystemTime {
+        self.birth_time
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub fn inode(&self) -> u64 {
+        self.inode
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub fn dev(&self) -> u64 {
+        self.dev
+    }
+
+    #[inline]
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+}
+
+impl Hash for PathMetadata {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.size.hash(state);
+        self.modify_time.hash(state);
+    }
+}
+
+impl Eq for PathMetadata {}
+
+impl PartialEq for PathMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.size == other.size && self.modify_time == other.modify_time
+    }
+}
+
+impl PartialOrd for PathMetadata {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PathMetadata {
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        let time_order: Ordering = self.mtime().cmp(&other.mtime());
+
+        if time_order.is_ne() {
+            return time_order;
+        }
+
+        let size_order: Ordering = self.size().cmp(&other.size());
+
+        size_order
+    }
+}
+
+pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
+pub const PHANTOM_SIZE: u64 = 0u64;
+pub const PHANTOM_INODE: u64 = 0u64;
+pub const PHANTOM_DEV: u64 = 0u64;
+
+pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
+    dev: PHANTOM_DEV,
+    inode: PHANTOM_INODE,
+    size: PHANTOM_SIZE,
+    modify_time: PHANTOM_DATE,
+    birth_time: PHANTOM_DATE,
+};
+
 impl<'a> PathDeconstruction<'a> for PathData {
     fn alias(&self) -> Option<AliasedPath<'_>> {
         // find_map_first should return the first seq result with a par_iter
@@ -690,115 +799,6 @@ impl Serialize for PathMetadata {
         state.end()
     }
 }
-
-#[derive(Copy, Clone, Debug)]
-pub struct PathMetadata {
-    size: u64,
-    inode: u64,
-    dev: u64,
-    modify_time: SystemTime,
-    birth_time: SystemTime,
-}
-
-impl PathMetadata {
-    // call symlink_metadata, as we need to resolve symlinks to get non-"phantom" metadata
-    #[inline]
-    pub fn new(md: &Metadata) -> Option<Self> {
-        // may fail on systems that don't collect a modify time
-        let modify_time = md.modified().ok()?;
-        let birth_time = md.created().ok()?;
-        let inode = md.ino();
-        let dev = md.dev();
-
-        Some(PathMetadata {
-            size: md.len(),
-            modify_time,
-            birth_time,
-            inode,
-            dev,
-        })
-    }
-
-    // using ctime instead of mtime might be more correct as mtime can be trivially changed from user space
-    // but I think we want to use mtime here? People should be able to make a snapshot "unique" with only mtime?
-    #[inline]
-    pub fn mtime(&self) -> SystemTime {
-        self.modify_time
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub fn btime(&self) -> SystemTime {
-        self.birth_time
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub fn inode(&self) -> u64 {
-        self.inode
-    }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub fn dev(&self) -> u64 {
-        self.dev
-    }
-
-    #[inline]
-    pub fn size(&self) -> u64 {
-        self.size
-    }
-}
-
-impl Hash for PathMetadata {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.size.hash(state);
-        self.modify_time.hash(state);
-    }
-}
-
-impl Eq for PathMetadata {}
-
-impl PartialEq for PathMetadata {
-    fn eq(&self, other: &Self) -> bool {
-        self.size == other.size && self.modify_time == other.modify_time
-    }
-}
-
-impl PartialOrd for PathMetadata {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for PathMetadata {
-    #[inline]
-    fn cmp(&self, other: &Self) -> Ordering {
-        let time_order: Ordering = self.mtime().cmp(&other.mtime());
-
-        if time_order.is_ne() {
-            return time_order;
-        }
-
-        let size_order: Ordering = self.size().cmp(&other.size());
-
-        size_order
-    }
-}
-
-pub const PHANTOM_DATE: SystemTime = SystemTime::UNIX_EPOCH;
-pub const PHANTOM_SIZE: u64 = 0u64;
-pub const PHANTOM_INODE: u64 = 0u64;
-pub const PHANTOM_DEV: u64 = 0u64;
-
-pub const PHANTOM_PATH_METADATA: PathMetadata = PathMetadata {
-    dev: PHANTOM_DEV,
-    inode: PHANTOM_INODE,
-    size: PHANTOM_SIZE,
-    modify_time: PHANTOM_DATE,
-    birth_time: PHANTOM_DATE,
-};
 
 #[derive(Debug)]
 pub struct CompareContentsContainer {
