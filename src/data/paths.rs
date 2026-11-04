@@ -127,12 +127,10 @@ impl Eq for BasicDirEntryInfo {}
 
 impl From<DirEntry> for BasicDirEntryInfo {
     fn from(dir_entry: DirEntry) -> Self {
-        let opt_metadata = dir_entry.metadata().ok().map(|inner| Box::from(inner));
-
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
-            opt_metadata,
+            opt_metadata: dir_entry.metadata().ok().map(|inner| Box::from(inner)),
         }
     }
 }
