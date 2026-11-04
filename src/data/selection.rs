@@ -39,6 +39,7 @@ use crate::{
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
 use hashbrown::HashMap;
+use nu_ansi_term::AnsiByteString;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::io::Write;
@@ -76,10 +77,19 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
             .expect("Number of bytes in path name unlikely to exceed maximum u32");
         let mid_be_bytes = mid.to_be_bytes();
         let mut all_bytes = mid_be_bytes.to_vec();
-        let painted_bytes = value.paint_path();
 
-        all_bytes.extend_from_slice(path_bytes);
-        write!(all_bytes, "{}", painted_bytes).unwrap();
+        // construct painted, then deconstruct to use "write_to" method on AnsiByteString
+        {
+            let painted = value.paint_path();
+            let painted_bytes = painted.as_str().as_bytes();
+            let painted_style = painted.style_ref();
+            let ansi_string = painted_style.paint(painted_bytes);
+
+            all_bytes.extend_from_slice(path_bytes);
+            ansi_string
+                .write_to(&mut all_bytes)
+                .expect("Failure to use io::Write on a Vec.  Seems impossible.");
+        }
 
         SelectionCandidate {
             path: all_bytes.into_boxed_slice(),
