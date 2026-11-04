@@ -135,6 +135,18 @@ impl From<DirEntry> for BasicDirEntryInfo {
     }
 }
 
+impl From<&Path> for BasicDirEntryInfo {
+    fn from(path: &Path) -> Self {
+        let opt_metadata = path.symlink_metadata().ok();
+
+        Self {
+            path: path.into(),
+            opt_filetype: opt_metadata.as_ref().map(|md| md.file_type()),
+            opt_metadata: opt_metadata.map(|inner| Box::from(inner)),
+        }
+    }
+}
+
 impl Colorable for BasicDirEntryInfo {
     fn path(&self) -> PathBuf {
         self.path().to_path_buf()
@@ -163,17 +175,7 @@ impl PartialOrd for BasicDirEntryInfo {
 }
 
 impl BasicDirEntryInfo {
-    pub fn new(path: &Path) -> Self {
-        let opt_metadata = path.symlink_metadata().ok();
-
-        Self {
-            path: path.into(),
-            opt_filetype: opt_metadata.as_ref().map(|md| md.file_type()),
-            opt_metadata: opt_metadata.map(|inner| Box::from(inner)),
-        }
-    }
-
-    pub fn from_deleted(path: &Path, opt_filetype: Option<FileType>) -> Self {
+    pub fn new_pseudo_live_entry(path: &Path, opt_filetype: Option<FileType>) -> Self {
         Self {
             path: path.into(),
             opt_filetype,

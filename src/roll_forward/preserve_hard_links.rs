@@ -76,7 +76,7 @@ pub struct HardLinkMap {
 
 impl HardLinkMap {
     pub fn new(requested_path: &Path) -> HttmResult<Self> {
-        let constructed = BasicDirEntryInfo::new(requested_path);
+        let constructed = BasicDirEntryInfo::from(requested_path);
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
         let mut tmp: HashMap<u64, Vec<BasicDirEntryInfo>> = HashMap::new();
