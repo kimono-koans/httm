@@ -41,6 +41,7 @@ use crossbeam_channel::bounded;
 use hashbrown::HashMap;
 use ratatui_core::text::Line;
 use skim::prelude::*;
+use std::io::Write;
 use std::path::Path;
 use std::sync::{
     LazyLock,
@@ -78,7 +79,7 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         let painted_bytes = value.paint_path();
 
         all_bytes.extend_from_slice(path_bytes);
-        all_bytes.extend_from_slice(painted_bytes.to_string().as_bytes());
+        write!(all_bytes, "{}", painted_bytes).unwrap();
 
         SelectionCandidate {
             path: all_bytes.into_boxed_slice(),

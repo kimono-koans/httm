@@ -130,7 +130,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
-            opt_metadata: dir_entry.metadata().ok().map(|inner| Box::from(inner)),
+            opt_metadata: dir_entry.metadata().ok().map(Box::from),
         }
     }
 }
@@ -142,7 +142,7 @@ impl From<&Path> for BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype: opt_metadata.as_ref().map(|md| md.file_type()),
-            opt_metadata: opt_metadata.map(|inner| Box::from(inner)),
+            opt_metadata: opt_metadata.map(Box::from),
         }
     }
 }
