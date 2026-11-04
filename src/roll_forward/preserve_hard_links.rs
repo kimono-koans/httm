@@ -76,7 +76,7 @@ pub struct HardLinkMap {
 
 impl HardLinkMap {
     pub fn new(requested_path: &Path) -> HttmResult<Self> {
-        let constructed = BasicDirEntryInfo::new(requested_path, None);
+        let constructed = BasicDirEntryInfo::new(requested_path);
 
         let mut queue: Vec<BasicDirEntryInfo> = vec![constructed];
         let mut tmp: HashMap<u64, Vec<BasicDirEntryInfo>> = HashMap::new();
@@ -363,18 +363,18 @@ impl<'a> PreserveHardLinks<'a> {
 
     fn hard_link(&self, original: &Path, link: &Path) -> HttmResult<()> {
         if !original.exists() {
-            let description = format!(
-                "Cannot link because original path does not exists: {original:?}"
-            );
+            let description =
+                format!("Cannot link because original path does not exists: {original:?}");
             return HttmError::from(description).into();
         }
 
         if link.exists() {
             if let Ok(og_md) = original.symlink_metadata()
                 && let Ok(link_md) = link.symlink_metadata()
-                    && og_md.ino() == link_md.ino() {
-                        return Ok(());
-                    }
+                && og_md.ino() == link_md.ino()
+            {
+                return Ok(());
+            }
 
             Remove::recursive_quiet(link)?;
         }
@@ -382,11 +382,12 @@ impl<'a> PreserveHardLinks<'a> {
         Copy::generate_dst_parent(link)?;
 
         if let Err(err) = std::fs::hard_link(original, link)
-            && !link.exists() {
-                eprintln!("Error: {err}");
-                let description = format!("Could not link file {original:?} to {link:?}");
-                return HttmError::from(description).into();
-            }
+            && !link.exists()
+        {
+            eprintln!("Error: {err}");
+            let description = format!("Could not link file {original:?} to {link:?}");
+            return HttmError::from(description).into();
+        }
 
         if let Some(snap_path) = self.roll_forward.snap_path(link) {
             Preserve::direct(&snap_path, link)?;

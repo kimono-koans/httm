@@ -161,6 +161,6 @@ impl DeletedFiles {
     ) -> BasicDirEntryInfo {
         let path = pseudo_live_dir.join(file_name);
 
-        BasicDirEntryInfo::new(&path, opt_filetype)
+        BasicDirEntryInfo::from_deleted(&path, opt_filetype)
     }
 }
