@@ -169,7 +169,7 @@ impl BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype,
-            opt_metadata: None,
+            opt_metadata: path.symlink_metadata().ok().map(|inner| Box::from(inner)),
         }
     }
 
