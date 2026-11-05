@@ -142,7 +142,7 @@ impl From<&Path> for BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype: opt_metadata.as_ref().map(|md| md.file_type()),
-            opt_metadata: opt_metadata,
+            opt_metadata,
         }
     }
 }

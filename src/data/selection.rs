@@ -85,7 +85,7 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
             let ansi_string = painted_style.paint(painted_bytes);
 
             all_bytes
-                .write(path_bytes)
+                .write_all(path_bytes)
                 .expect("Failure on use of io::Write on a Vec.  Seems impossible.");
             ansi_string
                 .write_to(&mut all_bytes)

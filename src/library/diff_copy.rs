@@ -298,11 +298,11 @@ impl CloneCopy<'_> {
 
             let mut amt_written = 0u64;
             let len = self.httm_copy.src_len;
-            let mut remainder = len.clone() as usize;
+            let mut remainder = len as usize;
 
             while remainder > 0 {
                 let mut off_src = amt_written as i64;
-                let mut off_dst = off_src.clone();
+                let mut off_dst = off_src;
 
                 match nix::fcntl::copy_file_range(
                     src_fd,
@@ -320,7 +320,7 @@ impl CloneCopy<'_> {
                     }
                     Ok(bytes_written) => {
                         amt_written += bytes_written as u64;
-                        remainder -= bytes_written as usize;
+                        remainder -= bytes_written;
 
                         self.httm_copy.increment_bar(bytes_written as u64);
                     }
@@ -351,7 +351,7 @@ impl CloneCopy<'_> {
 
             self.httm_copy.finish_and_clear_bar();
 
-            return Ok(());
+            Ok(())
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
