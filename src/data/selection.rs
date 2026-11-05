@@ -74,7 +74,7 @@ impl From<BasicDirEntryInfo> for SelectionCandidate {
         let path_bytes = value.path().as_os_str().as_encoded_bytes();
         let mid = u32::try_from(path_bytes.len())
             .expect("Number of bytes in path name unlikely to exceed maximum u32");
-        let mid_be_bytes = mid.to_be_bytes();
+        let mid_be_bytes = mid.to_le_bytes();
         let mut all_bytes = mid_be_bytes.to_vec();
 
         // construct painted, then deconstruct to use "write_to" method on AnsiByteString
@@ -111,7 +111,7 @@ impl SelectionCandidate {
     fn deconstructed_bytes(&self) -> (&[u8], &[u8]) {
         let bytes = self.path.split_at(size_of::<u32>());
         let array: [u8; 4] = bytes.0.try_into().unwrap();
-        let mid = u32::from_be_bytes(array) as usize;
+        let mid = u32::from_le_bytes(array) as usize;
 
         bytes.1.split_at(mid)
     }
