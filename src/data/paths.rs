@@ -98,7 +98,7 @@ static DATASET_MAX_LEN: LazyLock<usize> =
 pub struct BasicDirEntryInfo {
     path: Box<Path>,
     opt_filetype: Option<FileType>,
-    opt_metadata: Option<Box<Metadata>>,
+    opt_metadata: Option<Metadata>,
 }
 
 impl Clone for BasicDirEntryInfo {
@@ -130,7 +130,7 @@ impl From<DirEntry> for BasicDirEntryInfo {
         BasicDirEntryInfo {
             path: dir_entry.path().into_boxed_path(),
             opt_filetype: dir_entry.file_type().ok(),
-            opt_metadata: dir_entry.metadata().ok().map(Box::from),
+            opt_metadata: dir_entry.metadata().ok(),
         }
     }
 }
@@ -142,7 +142,7 @@ impl From<&Path> for BasicDirEntryInfo {
         Self {
             path: path.into(),
             opt_filetype: opt_metadata.as_ref().map(|md| md.file_type()),
-            opt_metadata: opt_metadata.map(Box::from),
+            opt_metadata: opt_metadata,
         }
     }
 }
@@ -196,7 +196,7 @@ impl BasicDirEntryInfo {
     }
 
     pub fn opt_metadata(&self) -> Option<&Metadata> {
-        self.opt_metadata.as_deref()
+        self.opt_metadata.as_ref()
     }
 
     pub fn recursive_search_filter(&self) -> bool {
@@ -282,7 +282,7 @@ pub trait PathDeconstruction<'a> {
 #[derive(Clone, Debug)]
 pub struct PathData {
     path_buf: Box<Path>,
-    opt_path_metadata: Option<Box<PathMetadata>>,
+    opt_path_metadata: Option<PathMetadata>,
     opt_filetype: Option<FileType>,
 }
 
@@ -337,9 +337,7 @@ impl From<&SelectionCandidate> for PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let opt_metadata = selection_candidate.path().symlink_metadata().ok();
         let opt_filetype = opt_metadata.as_ref().map(std::fs::Metadata::file_type);
-        let opt_path_metadata = opt_metadata
-            .and_then(|md| PathMetadata::new(&md))
-            .map(Box::from);
+        let opt_path_metadata = opt_metadata.and_then(|md| PathMetadata::new(&md));
 
         PathData {
             path_buf: selection_candidate.path().into(),
@@ -368,7 +366,7 @@ impl PathData {
         // of input files in Config::from for deleted relative paths, etc.
         let opt_filetype = opt_metadata.as_ref().map(|md| md.file_type());
 
-        let opt_path_metadata = opt_metadata.and_then(PathMetadata::new).map(Box::from);
+        let opt_path_metadata = opt_metadata.and_then(PathMetadata::new);
 
         Self {
             path_buf: path.into(),
@@ -381,8 +379,7 @@ impl PathData {
     pub fn without_styling(path: &Path, opt_metadata: Option<Metadata>) -> Self {
         let opt_path_metadata = opt_metadata
             .or_else(|| path.symlink_metadata().ok())
-            .and_then(|md| PathMetadata::new(&md))
-            .map(Box::from);
+            .and_then(|md| PathMetadata::new(&md));
 
         Self {
             path_buf: path.into(),
@@ -401,7 +398,7 @@ impl PathData {
     }
 
     pub fn opt_path_metadata(&self) -> Option<&PathMetadata> {
-        self.opt_path_metadata.as_deref()
+        self.opt_path_metadata.as_ref()
     }
 
     pub fn opt_filetype(&self) -> Option<FileType> {
@@ -413,7 +410,7 @@ impl PathData {
     pub fn metadata_infallible(&self) -> PathMetadata {
         *self
             .opt_path_metadata
-            .as_deref()
+            .as_ref()
             .unwrap_or(&PHANTOM_PATH_METADATA)
     }
 }
