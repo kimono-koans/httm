@@ -126,7 +126,10 @@ pub struct HttmCopy<'a> {
 impl<'a> HttmCopy<'a> {
     pub fn new(src_path: &'a Path, dst_path: &'a Path) -> Self {
         let file_name = src_path.file_name().unwrap_or_default().to_string_lossy();
-        let src_len = src_path.symlink_metadata().unwrap().len();
+        let src_len = src_path
+            .symlink_metadata()
+            .map(|md| md.len())
+            .unwrap_or_default();
 
         let opt_bar = Self::opt_bar(file_name, src_len);
 
