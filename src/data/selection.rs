@@ -39,7 +39,6 @@ use crate::{
 use ansi_to_tui::IntoText;
 use crossbeam_channel::bounded;
 use hashbrown::HashMap;
-use nu_ansi_term::AnsiByteString;
 use ratatui_core::text::Line;
 use skim::prelude::*;
 use std::io::Write;
