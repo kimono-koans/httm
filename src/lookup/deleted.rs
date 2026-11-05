@@ -21,6 +21,7 @@ use crate::data::paths::{
     PathData,
 };
 use crate::library::iter_extensions::HttmIter;
+use crate::library::results::HttmResult;
 use crate::lookup::versions::{
     ProximateDatasetAndOptAlts,
     RelativePathAndSnapMounts,
@@ -51,7 +52,7 @@ impl DeletedFiles {
         // creates dummy "live versions" values to match deleted files
         // which have been found on snapshots, so we return to the user "the path that
         // once was" in their browse panel
-        let Some(mut deleted_files) = Self::unique_filenames_from_snapshots(requested_dir) else {
+        let Ok(mut deleted_files) = Self::unique_filenames_from_snapshots(requested_dir) else {
             return Self::default();
         };
 
@@ -90,7 +91,9 @@ impl DeletedFiles {
     }
 
     #[inline]
-    fn unique_filenames_from_snapshots(requested_dir: &Path) -> Option<HashSet<BasicDirEntryInfo>> {
+    fn unique_filenames_from_snapshots(
+        requested_dir: &Path,
+    ) -> HttmResult<HashSet<BasicDirEntryInfo>> {
         // we always need a requesting dir because we are comparing the files in the
         // requesting dir to those of their relative dirs on snapshots
         let path_data = PathData::without_styling(requested_dir, None);
@@ -99,7 +102,7 @@ impl DeletedFiles {
         //
         // we need to make certain that what we return from possibly multiple datasets are unique
 
-        let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data).ok()?;
+        let prox_opt_alts = ProximateDatasetAndOptAlts::new(&GLOBAL_CONFIG, &path_data)?;
 
         let pseudo_live_versions: HashSet<BasicDirEntryInfo> = prox_opt_alts
             .as_search_bundles()
@@ -115,11 +118,7 @@ impl DeletedFiles {
                 acc
             });
 
-        if pseudo_live_versions.is_empty() {
-            return None;
-        }
-
-        Some(pseudo_live_versions)
+        Ok(pseudo_live_versions)
     }
 
     #[inline]
