@@ -19,7 +19,7 @@ use crate::data::paths::{
     PathData,
     PathDeconstruction,
 };
-use crate::library::diff_copy::HttmCopy;
+use crate::library::copy_ops::HttmCopy;
 use crate::library::results::{
     HttmError,
     HttmResult,
