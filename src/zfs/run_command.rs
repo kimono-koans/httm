@@ -15,6 +15,7 @@
 // For the full copyright and license information, please view the LICENSE file
 // that was distributed with this source code.
 
+use crate::GLOBAL_CONFIG;
 use crate::data::paths::{
     PathData,
     PathDeconstruction,
@@ -235,7 +236,11 @@ impl ZfsAllowPriv {
             ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
         };
 
-        if let Err(_err) = self.user_has_zfs_allow_priv(fs_name) {
+        if let Err(err) = self.user_has_zfs_allow_priv(fs_name) {
+            if GLOBAL_CONFIG.opt_debug {
+                eprintln!("DEBUG: {}", err);
+            }
+
             user_has_effective_root(description)?;
         }
 
