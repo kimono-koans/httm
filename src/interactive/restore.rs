@@ -124,7 +124,6 @@ impl InteractiveRestore {
                             if let Err(err) = Self::restore_action(
                                 snap_path_data.path(),
                                 new_file_path_buf.as_ref(),
-                                Some(&snap_guard),
                                 should_preserve,
                             ) {
                                 snap_guard.exit_and_rollback_with_error(&err);
@@ -133,7 +132,6 @@ impl InteractiveRestore {
                         _ => Self::restore_action(
                             snap_path_data.path(),
                             new_file_path_buf.as_ref(),
-                            None,
                             should_preserve,
                         )?,
                     }
@@ -161,12 +159,7 @@ impl InteractiveRestore {
         Ok(())
     }
 
-    fn restore_action(
-        src: &Path,
-        dst: &Path,
-        _guarded: Option<&SnapGuard>,
-        should_preserve: bool,
-    ) -> HttmResult<()> {
+    fn restore_action(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         let dst_tmp_path: PathBuf = make_tmp_path(dst);
 
         if let Err(err) = Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve) {
