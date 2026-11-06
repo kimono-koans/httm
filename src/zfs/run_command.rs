@@ -216,14 +216,13 @@ impl ZfsAllowPriv {
             return HttmError::from(description).into();
         };
 
-        if let Some(FilesystemType::Zfs) = path_data.fs_type(opt_proximate_dataset) {
-        } else {
+        let Some(FilesystemType::Zfs) = path_data.fs_type(opt_proximate_dataset) else {
             let description = format!(
                 "httm only supports snapshot guards for ZFS paths.  Path is not located on a ZFS dataset: {:?}",
                 path_data.path()
             );
             return HttmError::from(description).into();
-        }
+        };
 
         Self::with_fs_name(self, &fs_name.to_string_lossy())?;
 
