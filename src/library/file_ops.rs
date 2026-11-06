@@ -20,8 +20,8 @@ use crate::data::paths::{
     PathDeconstruction,
 };
 use crate::library::copy_ops::{
-    AtomicSwap,
     HttmCopy,
+    MoveExchange,
 };
 use crate::library::results::{
     HttmError,
@@ -201,7 +201,18 @@ impl Copy {
         dst_tmp_path: &Path,
         should_preserve: bool,
     ) -> HttmResult<()> {
-        fn swap(
+        fn trad_swap(
+            src: &Path,
+            dst: &Path,
+            dst_tmp_path: &Path,
+            should_preserve: bool,
+        ) -> HttmResult<()> {
+            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+            Remove::recursive_quiet(dst)?;
+            Rename::direct_quiet(dst_tmp_path, dst)
+        }
+
+        fn mv_exchange_swap(
             src: &Path,
             dst: &Path,
             dst_tmp_path: &Path,
@@ -209,7 +220,9 @@ impl Copy {
         ) -> HttmResult<()> {
             Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
 
-            match AtomicSwap::new(dst_tmp_path, dst).exec() {
+            //assert_eq!(src.len(), dst_tmp_path.len());
+
+            match MoveExchange::new(dst_tmp_path, dst).exec() {
                 Err(err) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!(
@@ -218,13 +231,11 @@ impl Copy {
                         );
                     }
 
-                    Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
-                    Remove::recursive_quiet(dst)?;
-                    Rename::direct_quiet(dst_tmp_path, dst)?;
+                    trad_swap(src, dst, dst_tmp_path, should_preserve)?;
                 }
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
-                        eprintln!("DEBUG: File renameat2 exchange was successful");
+                        eprintln!("DEBUG: File renameat2 exchange was successful.");
                     }
 
                     Remove::recursive_quiet(dst_tmp_path)?;
@@ -234,15 +245,7 @@ impl Copy {
             Ok(())
         }
 
-        if let Err(err) = swap(src, dst, dst_tmp_path, should_preserve) {
-            if dst_tmp_path.exists() {
-                let _ = Remove::recursive_quiet(dst_tmp_path);
-            }
-
-            return Err(err);
-        }
-
-        Ok(())
+        mv_exchange_swap(src, dst, dst_tmp_path, should_preserve)
     }
 }
 

@@ -491,12 +491,12 @@ impl DiffCopy<'_> {
 }
 
 #[allow(unused)]
-pub struct AtomicSwap<'a> {
+pub struct MoveExchange<'a> {
     src: &'a Path,
     dst: &'a Path,
 }
 
-impl<'a> AtomicSwap<'a> {
+impl<'a> MoveExchange<'a> {
     pub fn new(src: &'a Path, dst: &'a Path) -> Self {
         Self { src, dst }
     }
