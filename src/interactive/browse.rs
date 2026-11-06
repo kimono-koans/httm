@@ -182,6 +182,7 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
                 .iter()
                 .map(|path| path.path().to_string_lossy().to_string())
                 .collect();
+
             let description = format!(
                 "{}{:?}",
                 "Cannot select or restore from the following paths as they have no snapshots:\n",
@@ -200,58 +201,56 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
 
         let view_mode = ViewMode::Select(opt_live_version.clone());
 
-        let snap_path_strings = if GLOBAL_CONFIG.opt_last_snap.is_some() {
-            InteractiveSelect::last_snap(&versions_map)
-        } else {
-            // same stuff we do at fn exec, snooze...
-            let display_config = &GLOBAL_CONFIG;
+        if GLOBAL_CONFIG.opt_last_snap.is_some() {
+            let snap_path_strings = InteractiveSelect::last_snap(&versions_map);
 
-            let versions_map =
-                VersionsMap::new(display_config, self.selected_path_data.as_slice())?;
-
-            let display_map = DisplayWrapper::from(display_config, versions_map);
-
-            let selection_buffer = display_map.to_string();
-
-            display_map.iter().try_for_each(|(live, snaps)| {
-                if snaps.is_empty() {
-                    let description = format!("Path {:?} has no snapshots available.", live.path());
-                    return HttmError::from(description).into();
-                }
-
-                Ok(())
-            })?;
-
-            // loop until user selects a valid snapshot version
-            loop {
-                // get the file name
-                let selected_line = view_mode.view_buffer(&selection_buffer, &MultiSelect::On)?;
-
-                let requested_file_names = selected_line
-                    .iter()
-                    .filter_map(|selection| {
-                        // ... we want everything between the quotes
-                        selection
-                            .split_once('"')
-                            .and_then(|(_lhs, rhs)| rhs.rsplit_once('"'))
-                            .map(|(lhs, _rhs)| lhs)
-                    })
-                    .filter(|selection_buffer| {
-                        // and cannot select a 'live' version or other invalid value.
-                        display_map
-                            .keys()
-                            .all(|key| key.path() != Path::new(selection_buffer))
-                    })
-                    .map(std::string::ToString::to_string)
-                    .collect::<Vec<String>>();
-
-                if requested_file_names.is_empty() {
-                    continue;
-                }
-
-                break requested_file_names;
-            }
+            return Ok(InteractiveSelect::new(
+                view_mode,
+                snap_path_strings,
+                opt_live_version,
+            ));
         };
+
+        let versions_map = VersionsMap::new(&GLOBAL_CONFIG, self.selected_path_data.as_slice())?;
+
+        let display_map = DisplayWrapper::from(&GLOBAL_CONFIG, versions_map);
+
+        let selection_buffer = display_map.to_string();
+
+        display_map.iter().try_for_each(|(live, snaps)| {
+            if snaps.is_empty() {
+                let description = format!("Path {:?} has no snapshots available.", live.path());
+                return HttmError::from(description).into();
+            }
+
+            Ok(())
+        })?;
+
+        // loop until user selects a valid snapshot version
+        let mut snap_path_strings = Vec::new();
+
+        while snap_path_strings.is_empty() {
+            // get the file name
+            let selected_line = view_mode.view_buffer(&selection_buffer, &MultiSelect::On)?;
+
+            snap_path_strings = selected_line
+                .iter()
+                .filter_map(|selection| {
+                    // ... we want everything between the quotes
+                    selection
+                        .split_once('"')
+                        .and_then(|(_lhs, rhs)| rhs.rsplit_once('"'))
+                        .map(|(lhs, _rhs)| lhs)
+                })
+                .filter(|selection_buffer| {
+                    // and cannot select a 'live' version or other invalid value.
+                    display_map
+                        .keys()
+                        .all(|key| key.path() != Path::new(selection_buffer))
+                })
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<String>>();
+        }
 
         Ok(InteractiveSelect::new(
             view_mode,
