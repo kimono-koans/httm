@@ -201,13 +201,7 @@ impl Copy {
         dst_tmp_path: &Path,
         should_preserve: bool,
     ) -> HttmResult<()> {
-        fn trad_swap(
-            src: &Path,
-            dst: &Path,
-            dst_tmp_path: &Path,
-            should_preserve: bool,
-        ) -> HttmResult<()> {
-            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+        fn trad_swap(dst: &Path, dst_tmp_path: &Path) -> HttmResult<()> {
             Remove::recursive_quiet(dst)?;
             Rename::direct_quiet(dst_tmp_path, dst)
         }
@@ -232,7 +226,7 @@ impl Copy {
                     }
 
                     Remove::recursive_quiet(dst_tmp_path)?;
-                    trad_swap(src, dst, dst_tmp_path, should_preserve)
+                    trad_swap(dst, dst_tmp_path)
                 }
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
