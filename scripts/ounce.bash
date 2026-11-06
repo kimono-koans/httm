@@ -203,7 +203,7 @@ function give_priv {
 	[[ "$user_name" != "root" ]] || print_err_exit "'ounce' must be executed as an unprivileged user to obtain their true user name.  You will be prompted when additional privileges are needed.  Quitting."
 
 	for p in $pools; do
-		"$sudo_program" zfs allow "$user_name" mount,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
+		"$sudo_program" zfs allow "$user_name" mount,rollback,snapshot "$p" || print_err_exit "'ounce' could not obtain privileges on $p.  Quitting."
 	done
 
 	printf "\

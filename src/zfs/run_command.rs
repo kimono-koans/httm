@@ -24,7 +24,6 @@ use crate::library::results::{
     HttmError,
     HttmResult,
 };
-use crate::library::utility::user_has_effective_root;
 use crate::roll_forward::exec::RollForward;
 use std::path::{
     Path,
@@ -230,18 +229,7 @@ impl ZfsAllowPriv {
     }
 
     pub fn with_fs_name(&self, fs_name: &str) -> HttmResult<()> {
-        let description = match self {
-            ZfsAllowPriv::Rollback => "A rollback after a restore action",
-            ZfsAllowPriv::Snapshot => "A snapshot guard before restore action",
-        };
-
-        if let Err(root_error) = user_has_effective_root(description)
-            && let Err(_allow_priv_error) = self.user_has_zfs_allow_priv(fs_name)
-        {
-            return Err(root_error);
-        }
-
-        Ok(())
+        self.user_has_zfs_allow_priv(fs_name)
     }
 
     fn as_zfs_cmd_strings(&self) -> &[&str] {

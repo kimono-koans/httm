@@ -218,7 +218,9 @@ impl Copy {
             dst_tmp_path: &Path,
             should_preserve: bool,
         ) -> HttmResult<()> {
-            Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+            if let Err(_) = Copy::recursive_quiet(src, dst_tmp_path, should_preserve) {
+                Remove::recursive_quiet(dst_tmp_path)?;
+            }
 
             match MoveExchange::new(dst_tmp_path, dst).exec() {
                 Err(err) => {
