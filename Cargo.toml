@@ -64,6 +64,7 @@ hashbrown = { version = "0.17.1", default-features = false, features = [
 nix = { version = "0.31.3", default-features = false, features = [
     "user",
     "zerocopy",
+    "fs",
 ] }
 serde = { version = "1.0.229", default-features = false, features = ["std"] }
 serde_json = { version = "1.0.154", default-features = false, features = [

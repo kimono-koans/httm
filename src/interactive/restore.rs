@@ -164,16 +164,12 @@ impl InteractiveRestore {
     fn restore_action(
         src: &Path,
         dst: &Path,
-        guarded: Option<&SnapGuard>,
+        _guarded: Option<&SnapGuard>,
         should_preserve: bool,
     ) -> HttmResult<()> {
-        let copy_res = if guarded.is_some() {
-            Copy::recursive_quiet(src, dst, should_preserve)
-        } else {
-            let dst_tmp_path: PathBuf = make_tmp_path(dst);
+        let dst_tmp_path: PathBuf = make_tmp_path(dst);
 
-            Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve)
-        };
+        let copy_res = Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve);
 
         if let Err(err) = copy_res {
             if let Some(ErrorKind::PermissionDenied) = err

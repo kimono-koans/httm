@@ -489,3 +489,49 @@ impl DiffCopy<'_> {
         Ok(())
     }
 }
+
+#[allow(unused)]
+pub struct AtomicSwap<'a> {
+    src: &'a Path,
+    dst: &'a Path,
+}
+
+impl<'a> AtomicSwap<'a> {
+    pub fn new(src: &'a Path, dst: &'a Path) -> Self {
+        Self { src, dst }
+    }
+
+    pub fn exec(&self) -> HttmResult<()> {
+        #[cfg(all(target_os = "linux", target_env = "gnu"))]
+        {
+            use nix::fcntl::{
+                RenameFlags,
+                renameat2,
+            };
+            let src_file = std::fs::OpenOptions::new().read(true).open(self.src)?;
+
+            let dst_file = OpenOptions::new()
+                .write(true)
+                .read(true)
+                .create(true)
+                .truncate(true)
+                .open(self.dst)?;
+
+            let src_fd = src_file.as_fd();
+            let dst_fd = dst_file.as_fd();
+
+            renameat2(
+                src_fd,
+                self.src,
+                dst_fd,
+                self.dst,
+                RenameFlags::RENAME_EXCHANGE,
+            )?;
+
+            return Ok(());
+        }
+
+        #[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+        HttmError::new("OS does not implement renameat2.  Falling back to default behavior.").into()
+    }
+}

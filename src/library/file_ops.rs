@@ -19,7 +19,10 @@ use crate::data::paths::{
     PathData,
     PathDeconstruction,
 };
-use crate::library::copy_ops::HttmCopy;
+use crate::library::copy_ops::{
+    AtomicSwap,
+    HttmCopy,
+};
 use crate::library::results::{
     HttmError,
     HttmResult,
@@ -205,8 +208,28 @@ impl Copy {
             should_preserve: bool,
         ) -> HttmResult<()> {
             Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
-            Remove::recursive_quiet(dst)?;
-            Rename::direct_quiet(dst_tmp_path, dst)?;
+
+            match AtomicSwap::new(dst_tmp_path, dst).exec() {
+                Err(err) => {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!(
+                            "DEBUG: File renameat2 exchange failed for the following reason: {:?}",
+                            err
+                        );
+                    }
+
+                    Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
+                    Remove::recursive_quiet(dst)?;
+                    Rename::direct_quiet(dst_tmp_path, dst)?;
+                }
+                Ok(_) => {
+                    if GLOBAL_CONFIG.opt_debug {
+                        eprintln!("DEBUG: File renameat2 exchange was successful");
+                    }
+
+                    Remove::recursive_quiet(dst_tmp_path)?;
+                }
+            }
 
             Ok(())
         }
