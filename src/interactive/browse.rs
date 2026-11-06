@@ -227,12 +227,12 @@ impl TryInto<InteractiveSelect> for InteractiveBrowse {
         })?;
 
         // loop until user selects a valid snapshot version
+        // get the file name
+        let selected_line = view_mode.view_buffer(&selection_buffer, &MultiSelect::On)?;
+
         let mut snap_path_strings = Vec::new();
 
         while snap_path_strings.is_empty() {
-            // get the file name
-            let selected_line = view_mode.view_buffer(&selection_buffer, &MultiSelect::On)?;
-
             snap_path_strings = selected_line
                 .iter()
                 .filter_map(|selection| {
