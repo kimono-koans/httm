@@ -162,7 +162,7 @@ impl InteractiveRestore {
     fn restore_action(src: &Path, dst: &Path, should_preserve: bool) -> HttmResult<()> {
         let dst_tmp_path: PathBuf = make_tmp_path(dst);
 
-        if let Err(err) = Copy::atomic_swap(src, dst, &dst_tmp_path, should_preserve) {
+        if let Err(err) = Copy::move_exchange(src, dst, &dst_tmp_path, should_preserve) {
             if let Some(ErrorKind::PermissionDenied) = err
                 .downcast_ref::<std::io::Error>()
                 .map(std::io::Error::kind)

@@ -195,7 +195,7 @@ impl Copy {
         Ok(())
     }
 
-    pub fn atomic_swap(
+    pub fn move_exchange(
         src: &Path,
         dst: &Path,
         dst_tmp_path: &Path,
@@ -220,8 +220,6 @@ impl Copy {
         ) -> HttmResult<()> {
             Copy::recursive_quiet(src, dst_tmp_path, should_preserve)?;
 
-            //assert_eq!(src.len(), dst_tmp_path.len());
-
             match MoveExchange::new(dst_tmp_path, dst).exec() {
                 Err(err) => {
                     if GLOBAL_CONFIG.opt_debug {
@@ -231,18 +229,17 @@ impl Copy {
                         );
                     }
 
-                    trad_swap(src, dst, dst_tmp_path, should_preserve)?;
+                    Remove::recursive_quiet(dst_tmp_path)?;
+                    trad_swap(src, dst, dst_tmp_path, should_preserve)
                 }
                 Ok(_) => {
                     if GLOBAL_CONFIG.opt_debug {
                         eprintln!("DEBUG: File renameat2 exchange was successful.");
                     }
 
-                    Remove::recursive_quiet(dst_tmp_path)?;
+                    Remove::recursive_quiet(dst_tmp_path)
                 }
             }
-
-            Ok(())
         }
 
         mv_exchange_swap(src, dst, dst_tmp_path, should_preserve)
